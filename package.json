@@ -1,0 +1,67 @@
+{
+  "name": "invoicepro-desktop",
+  "version": "1.0.0",
+  "description": "Professional desktop invoicing application built with Electron",
+  "main": "src/main.js",
+  "scripts": {
+    "start": "electron .",
+    "dev": "electron . --dev",
+    "build": "electron-builder",
+    "build:win": "electron-builder --win",
+    "build:mac": "electron-builder --mac",
+    "build:linux": "electron-builder --linux",
+    "test": "jest",
+    "lint": "eslint src/**/*.js"
+  },
+  "keywords": [
+    "invoice",
+    "accounting",
+    "electron",
+    "desktop-app",
+    "business"
+  ],
+  "author": "Your Name",
+  "license": "MIT",
+  "devDependencies": {
+    "electron": "^27.0.0",
+    "electron-builder": "^24.6.4",
+    "eslint": "^8.50.0",
+    "jest": "^29.7.0"
+  },
+  "dependencies": {
+    "electron-store": "^8.1.0",
+    "pdfkit": "^0.13.0"
+  },
+  "build": {
+    "appId": "com.invoicepro.desktop",
+    "productName": "InvoicePro Desktop",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**/*",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/icon.ico"
+    },
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "icon": "assets/icon.icns",
+      "category": "public.app-category.business"
+    },
+    "linux": {
+      "target": [
+        "AppImage",
+        "deb"
+      ],
+      "icon": "assets/icon.png",
+      "category": "Office"
+    }
+  }
+}
