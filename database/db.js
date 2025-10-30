@@ -1,0 +1,358 @@
+const Database = require('better-sqlite3');
+const fs = require('fs');
+const path = require('path');
+const { app } = require('electron');
+
+let db = null;
+
+// Get the user data path for storing the database
+const getUserDataPath = () => {
+  return app ? app.getPath('userData') : './';
+};
+
+// Initialize database
+const initDatabase = () => {
+  try {
+    const dbPath = path.join(getUserDataPath(), 'invoicepro.db');
+    console.log('Initializing database at:', dbPath);
+
+    db = new Database(dbPath);
+    db.pragma('journal_mode = WAL');
+
+    // Read and execute schema
+    const schemaPath = path.join(__dirname, 'schema.sql');
+    const schema = fs.readFileSync(schemaPath, 'utf8');
+    db.exec(schema);
+
+    console.log('Database initialized successfully');
+    return db;
+  } catch (error) {
+    console.error('Failed to initialize database:', error);
+    throw error;
+  }
+};
+
+// Get database instance
+const getDatabase = () => {
+  if (!db) {
+    initDatabase();
+  }
+  return db;
+};
+
+// Settings operations
+const getSettings = () => {
+  const db = getDatabase();
+  return db.prepare('SELECT * FROM settings WHERE id = 1').get() || {};
+};
+
+const updateSettings = (settings) => {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    UPDATE settings SET
+      company_name = @company_name,
+      company_email = @company_email,
+      company_phone = @company_phone,
+      company_address = @company_address,
+      company_city = @company_city,
+      company_state = @company_state,
+      company_zip = @company_zip,
+      logo_url = @logo_url,
+      invoice_prefix = @invoice_prefix,
+      tax_rate = @tax_rate,
+      currency_symbol = @currency_symbol,
+      payment_terms = @payment_terms,
+      bank_details = @bank_details,
+      theme = @theme,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = 1
+  `);
+  return stmt.run(settings);
+};
+
+// Client operations
+const getAllClients = () => {
+  const db = getDatabase();
+  return db.prepare('SELECT * FROM clients ORDER BY name').all();
+};
+
+const getClient = (id) => {
+  const db = getDatabase();
+  return db.prepare('SELECT * FROM clients WHERE id = ?').get(id);
+};
+
+const createClient = (client) => {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    INSERT INTO clients (name, email, phone, address, city, state, zip, notes)
+    VALUES (@name, @email, @phone, @address, @city, @state, @zip, @notes)
+  `);
+  return stmt.run(client);
+};
+
+const updateClient = (id, client) => {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    UPDATE clients SET
+      name = @name,
+      email = @email,
+      phone = @phone,
+      address = @address,
+      city = @city,
+      state = @state,
+      zip = @zip,
+      notes = @notes,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = @id
+  `);
+  return stmt.run({ ...client, id });
+};
+
+const deleteClient = (id) => {
+  const db = getDatabase();
+  return db.prepare('DELETE FROM clients WHERE id = ?').run(id);
+};
+
+const getClientStats = (clientId) => {
+  const db = getDatabase();
+  const stats = db.prepare(`
+    SELECT
+      COUNT(*) as total_invoices,
+      COALESCE(SUM(CASE WHEN status = 'paid' THEN total ELSE 0 END), 0) as total_paid,
+      COALESCE(SUM(CASE WHEN status != 'paid' AND archived = 0 THEN total ELSE 0 END), 0) as total_outstanding
+    FROM invoices
+    WHERE client_id = ?
+  `).get(clientId);
+  return stats;
+};
+
+// Invoice operations
+const getAllInvoices = () => {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT i.*, c.name as client_name, c.email as client_email
+    FROM invoices i
+    LEFT JOIN clients c ON i.client_id = c.id
+    WHERE i.archived = 0
+    ORDER BY i.created_at DESC
+  `).all();
+};
+
+const getArchivedInvoices = () => {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT i.*, c.name as client_name, c.email as client_email
+    FROM invoices i
+    LEFT JOIN clients c ON i.client_id = c.id
+    WHERE i.archived = 1
+    ORDER BY i.created_at DESC
+  `).all();
+};
+
+const getInvoice = (id) => {
+  const db = getDatabase();
+  const invoice = db.prepare(`
+    SELECT i.*, c.name as client_name, c.email as client_email,
+           c.phone as client_phone, c.address as client_address,
+           c.city as client_city, c.state as client_state, c.zip as client_zip
+    FROM invoices i
+    LEFT JOIN clients c ON i.client_id = c.id
+    WHERE i.id = ?
+  `).get(id);
+
+  if (invoice) {
+    invoice.items = getInvoiceItems(id);
+  }
+
+  return invoice;
+};
+
+const getInvoiceItems = (invoiceId) => {
+  const db = getDatabase();
+  return db.prepare('SELECT * FROM invoice_items WHERE invoice_id = ?').all(invoiceId);
+};
+
+const createInvoice = (invoice, items) => {
+  const db = getDatabase();
+
+  const invoiceStmt = db.prepare(`
+    INSERT INTO invoices (invoice_number, client_id, date, due_date, status, subtotal, tax, total, notes, payment_terms)
+    VALUES (@invoice_number, @client_id, @date, @due_date, @status, @subtotal, @tax, @total, @notes, @payment_terms)
+  `);
+
+  const itemStmt = db.prepare(`
+    INSERT INTO invoice_items (invoice_id, description, quantity, rate, amount)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  const transaction = db.transaction((invoice, items) => {
+    const result = invoiceStmt.run(invoice);
+    const invoiceId = result.lastInsertRowid;
+
+    for (const item of items) {
+      itemStmt.run(invoiceId, item.description, item.quantity, item.rate, item.amount);
+    }
+
+    return invoiceId;
+  });
+
+  return transaction(invoice, items);
+};
+
+const updateInvoice = (id, invoice, items) => {
+  const db = getDatabase();
+
+  const invoiceStmt = db.prepare(`
+    UPDATE invoices SET
+      invoice_number = @invoice_number,
+      client_id = @client_id,
+      date = @date,
+      due_date = @due_date,
+      status = @status,
+      subtotal = @subtotal,
+      tax = @tax,
+      total = @total,
+      notes = @notes,
+      payment_terms = @payment_terms,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = @id
+  `);
+
+  const deleteItemsStmt = db.prepare('DELETE FROM invoice_items WHERE invoice_id = ?');
+  const itemStmt = db.prepare(`
+    INSERT INTO invoice_items (invoice_id, description, quantity, rate, amount)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  const transaction = db.transaction((id, invoice, items) => {
+    invoiceStmt.run({ ...invoice, id });
+    deleteItemsStmt.run(id);
+
+    for (const item of items) {
+      itemStmt.run(id, item.description, item.quantity, item.rate, item.amount);
+    }
+  });
+
+  transaction(id, invoice, items);
+};
+
+const deleteInvoice = (id) => {
+  const db = getDatabase();
+  return db.prepare('DELETE FROM invoices WHERE id = ?').run(id);
+};
+
+const archiveInvoice = (id) => {
+  const db = getDatabase();
+  return db.prepare('UPDATE invoices SET archived = 1, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(id);
+};
+
+const restoreInvoice = (id) => {
+  const db = getDatabase();
+  return db.prepare('UPDATE invoices SET archived = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(id);
+};
+
+const generateInvoiceNumber = () => {
+  const db = getDatabase();
+  const settings = getSettings();
+  const prefix = settings.invoice_prefix || 'INV-';
+
+  const lastInvoice = db.prepare(`
+    SELECT invoice_number FROM invoices
+    WHERE invoice_number LIKE ?
+    ORDER BY id DESC
+    LIMIT 1
+  `).get(`${prefix}%`);
+
+  if (!lastInvoice) {
+    return `${prefix}0001`;
+  }
+
+  const lastNumber = parseInt(lastInvoice.invoice_number.replace(prefix, ''));
+  const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
+  return `${prefix}${nextNumber}`;
+};
+
+// Saved items operations
+const getAllSavedItems = () => {
+  const db = getDatabase();
+  return db.prepare('SELECT * FROM saved_items ORDER BY description').all();
+};
+
+const getSavedItem = (id) => {
+  const db = getDatabase();
+  return db.prepare('SELECT * FROM saved_items WHERE id = ?').get(id);
+};
+
+const createSavedItem = (item) => {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    INSERT INTO saved_items (description, rate, category)
+    VALUES (@description, @rate, @category)
+  `);
+  return stmt.run(item);
+};
+
+const updateSavedItem = (id, item) => {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    UPDATE saved_items SET
+      description = @description,
+      rate = @rate,
+      category = @category,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = @id
+  `);
+  return stmt.run({ ...item, id });
+};
+
+const deleteSavedItem = (id) => {
+  const db = getDatabase();
+  return db.prepare('DELETE FROM saved_items WHERE id = ?').run(id);
+};
+
+// Dashboard stats
+const getDashboardStats = () => {
+  const db = getDatabase();
+
+  const stats = db.prepare(`
+    SELECT
+      COUNT(*) as total_invoices,
+      COALESCE(SUM(total), 0) as total_revenue,
+      COALESCE(SUM(CASE WHEN status = 'paid' THEN total ELSE 0 END), 0) as paid_amount,
+      COALESCE(SUM(CASE WHEN status = 'pending' THEN total ELSE 0 END), 0) as pending_amount,
+      COALESCE(SUM(CASE WHEN status = 'overdue' THEN total ELSE 0 END), 0) as overdue_amount
+    FROM invoices
+    WHERE archived = 0
+  `).get();
+
+  return stats;
+};
+
+module.exports = {
+  initDatabase,
+  getDatabase,
+  getSettings,
+  updateSettings,
+  getAllClients,
+  getClient,
+  createClient,
+  updateClient,
+  deleteClient,
+  getClientStats,
+  getAllInvoices,
+  getArchivedInvoices,
+  getInvoice,
+  getInvoiceItems,
+  createInvoice,
+  updateInvoice,
+  deleteInvoice,
+  archiveInvoice,
+  restoreInvoice,
+  generateInvoiceNumber,
+  getAllSavedItems,
+  getSavedItem,
+  createSavedItem,
+  updateSavedItem,
+  deleteSavedItem,
+  getDashboardStats
+};
