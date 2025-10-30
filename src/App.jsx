@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { Home, FileText, Users, Archive, Settings as SettingsIcon, Save } from 'lucide-react';
+import { Home, FileText, Users, Archive as ArchiveIcon, Settings as SettingsIcon, Save } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import InvoiceList from './components/InvoiceList';
 import ClientManagement from './components/ClientManagement';
@@ -15,7 +15,7 @@ function App() {
     { id: 'invoices', name: 'Invoices', icon: FileText },
     { id: 'clients', name: 'Clients', icon: Users },
     { id: 'saved-items', name: 'Saved Items', icon: Save },
-    { id: 'archive', name: 'Archive', icon: Archive },
+    { id: 'archive', name: 'Archive', icon: ArchiveIcon },
     { id: 'settings', name: 'Settings', icon: SettingsIcon },
   ];
 
