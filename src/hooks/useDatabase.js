@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react';
 
-const { ipcRenderer } = window.require('electron');
+const { ipcRenderer } = window.electron;
 
 export const useDatabase = () => {
   const [loading, setLoading] = useState(false);
