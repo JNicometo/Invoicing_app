@@ -4,7 +4,7 @@ import Dashboard from './components/Dashboard';
 import InvoiceList from './components/InvoiceList';
 import ClientManagement from './components/ClientManagement';
 import SavedItems from './components/SavedItems';
-import Archive from './components/Archive';
+import ArchiveComponent from './components/Archive';
 import Settings from './components/Settings';
 
 function App() {
@@ -30,7 +30,7 @@ function App() {
       case 'saved-items':
         return <SavedItems />;
       case 'archive':
-        return <Archive />;
+        return <ArchiveComponent />;
       case 'settings':
         return <Settings />;
       default:
