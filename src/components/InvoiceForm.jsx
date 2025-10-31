@@ -12,7 +12,8 @@ function InvoiceForm({ invoice, onClose }) {
     createInvoice,
     updateInvoice,
     generateInvoiceNumber,
-    getSettings
+    getSettings,
+    getInvoice
   } = useDatabase();
 
   const [clients, setClients] = useState([]);
