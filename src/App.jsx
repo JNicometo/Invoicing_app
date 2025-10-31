@@ -9,6 +9,7 @@ import Settings from './components/Settings';
 
 function App() {
   const [currentView, setCurrentView] = useState('dashboard');
+  const [selectedClientId, setSelectedClientId] = useState(null);
 
   const navigation = [
     { id: 'dashboard', name: 'Dashboard', icon: Home },
@@ -19,14 +20,23 @@ function App() {
     { id: 'settings', name: 'Settings', icon: SettingsIcon },
   ];
 
+  const handleNavigateToInvoices = (clientId = null) => {
+    setSelectedClientId(clientId);
+    setCurrentView('invoices');
+  };
+
+  const handleClearClientFilter = () => {
+    setSelectedClientId(null);
+  };
+
   const renderView = () => {
     switch (currentView) {
       case 'dashboard':
-        return <Dashboard />;
+        return <Dashboard onNavigateToInvoices={handleNavigateToInvoices} />;
       case 'invoices':
-        return <InvoiceList />;
+        return <InvoiceList selectedClientId={selectedClientId} onClearClientFilter={handleClearClientFilter} />;
       case 'clients':
-        return <ClientManagement />;
+        return <ClientManagement onNavigateToInvoices={handleNavigateToInvoices} />;
       case 'saved-items':
         return <SavedItems />;
       case 'archive':
@@ -34,7 +44,7 @@ function App() {
       case 'settings':
         return <Settings />;
       default:
-        return <Dashboard />;
+        return <Dashboard onNavigateToInvoices={handleNavigateToInvoices} />;
     }
   };
 

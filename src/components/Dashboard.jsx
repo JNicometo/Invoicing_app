@@ -1,9 +1,14 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, FileText, TrendingUp, AlertCircle } from 'lucide-react';
+import { DollarSign, FileText, TrendingUp, AlertCircle, Edit, Eye } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { formatCurrency } from '../utils/formatting';
+import InvoiceForm from './InvoiceForm';
+import InvoicePreview from './InvoicePreview';
 
-function Dashboard() {
+function Dashboard({ onNavigateToInvoices }) {
+  const [showForm, setShowForm] = useState(false);
+  const [showPreview, setShowPreview] = useState(false);
+  const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [stats, setStats] = useState(null);
   const [recentInvoices, setRecentInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -28,6 +33,37 @@ function Dashboard() {
       setLoading(false);
     }
   };
+
+  const handleEdit = (invoice) => {
+    setSelectedInvoice(invoice);
+    setShowForm(true);
+  };
+
+  const handleView = (invoice) => {
+    setSelectedInvoice(invoice);
+    setShowPreview(true);
+  };
+
+  const handleFormClose = async (reload) => {
+    setShowForm(false);
+    setSelectedInvoice(null);
+    if (reload) {
+      await loadDashboardData();
+    }
+  };
+
+  const handlePreviewClose = () => {
+    setShowPreview(false);
+    setSelectedInvoice(null);
+  };
+
+  if (showForm) {
+    return <InvoiceForm invoice={selectedInvoice} onClose={handleFormClose} />;
+  }
+
+  if (showPreview) {
+    return <InvoicePreview invoice={selectedInvoice} onClose={handlePreviewClose} />;
+  }
 
   if (loading) {
     return (
@@ -122,9 +158,27 @@ function Dashboard() {
                     </div>
                     <p className="text-sm text-gray-600 mt-1">{invoice.client_name}</p>
                   </div>
-                  <div className="text-right">
-                    <p className="font-semibold text-gray-900">{formatCurrency(invoice.total)}</p>
-                    <p className="text-sm text-gray-500">{new Date(invoice.date).toLocaleDateString()}</p>
+                  <div className="flex items-center space-x-4">
+                    <div className="text-right">
+                      <p className="font-semibold text-gray-900">{formatCurrency(invoice.total)}</p>
+                      <p className="text-sm text-gray-500">{new Date(invoice.date).toLocaleDateString()}</p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleView(invoice)}
+                        className="text-blue-600 hover:text-blue-900 p-2"
+                        title="View"
+                      >
+                        <Eye className="w-4 h-4" />
+                      </button>
+                      <button
+                        onClick={() => handleEdit(invoice)}
+                        className="text-gray-600 hover:text-gray-900 p-2"
+                        title="Edit"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
+                    </div>
                   </div>
                 </div>
               ))}

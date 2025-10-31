@@ -31,11 +31,36 @@ code {
 
   body {
     background: white;
+    overflow: visible !important;
+  }
+
+  /* Hide sidebar and only show main content */
+  .flex.h-screen > div:first-child {
+    display: none !important;
+  }
+
+  .flex-1.overflow-auto {
+    overflow: visible !important;
   }
 
   @page {
     margin: 2cm;
+    size: letter;
   }
+
+  /* Make invoice preview full width when printing */
+  .max-w-4xl {
+    max-width: 100% !important;
+  }
+}
+
+/* When body has printing class, hide everything except invoice */
+body.printing > div:not(#root) {
+  display: none !important;
+}
+
+body.printing #root > div > div:first-child {
+  display: none !important;
 }
 
 /* Custom scrollbar */

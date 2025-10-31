@@ -31,7 +31,12 @@ function InvoicePreview({ invoice, onClose }) {
   };
 
   const handlePrint = () => {
-    window.print();
+    // Add print class to body and trigger print
+    document.body.classList.add('printing');
+    setTimeout(() => {
+      window.print();
+      document.body.classList.remove('printing');
+    }, 100);
   };
 
   const handleDownload = () => {

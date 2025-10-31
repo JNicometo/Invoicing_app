@@ -4,7 +4,7 @@ import { useDatabase } from '../hooks/useDatabase';
 import { formatCurrency } from '../utils/formatting';
 import { validateClient } from '../utils/validation';
 
-function ClientManagement() {
+function ClientManagement({ onNavigateToInvoices }) {
   const [clients, setClients] = useState([]);
   const [filteredClients, setFilteredClients] = useState([]);
   const [clientStats, setClientStats] = useState({});
@@ -210,104 +210,110 @@ function ClientManagement() {
         </div>
       </div>
 
-      {/* Clients Grid */}
-      {filteredClients.length === 0 ? (
-        <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-12 text-center">
-          <p className="text-gray-500">No clients found</p>
-          <button
-            onClick={() => handleOpenModal()}
-            className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
-          >
-            Add Your First Client
-          </button>
-        </div>
-      ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredClients.map((client) => {
-            const stats = clientStats[client.id] || {};
-            return (
-              <div key={client.id} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 hover:shadow-md transition-shadow">
-                <div className="flex justify-between items-start mb-4">
-                  <div>
-                    <h3 className="text-lg font-semibold text-gray-900">{client.name}</h3>
-                  </div>
-                  <div className="flex space-x-2">
-                    <button
-                      onClick={() => handleOpenModal(client)}
-                      className="text-blue-600 hover:text-blue-900"
-                      title="Edit"
-                    >
-                      <Edit className="w-4 h-4" />
-                    </button>
-                    <button
-                      onClick={() => handleDelete(client.id, client.name)}
-                      className="text-red-600 hover:text-red-900"
-                      title="Delete"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
-                </div>
-
-                <div className="space-y-2 mb-4">
-                  {client.email && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Mail className="w-4 h-4 mr-2" />
-                      <span className="truncate">{client.email}</span>
-                    </div>
-                  )}
-                  {client.phone && (
-                    <div className="flex items-center text-sm text-gray-600">
-                      <Phone className="w-4 h-4 mr-2" />
-                      <span>{client.phone}</span>
-                    </div>
-                  )}
-                  {client.address && (
-                    <div className="flex items-start text-sm text-gray-600">
-                      <MapPin className="w-4 h-4 mr-2 mt-0.5 flex-shrink-0" />
-                      <span>
-                        {client.address}
-                        {client.city && `, ${client.city}`}
-                        {client.state && `, ${client.state}`}
-                      </span>
-                    </div>
-                  )}
-                </div>
-
-                {/* Client Stats */}
-                <div className="pt-4 border-t border-gray-200">
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <div className="flex items-center text-xs text-gray-500 mb-1">
-                        <FileText className="w-3 h-3 mr-1" />
-                        Invoices
-                      </div>
-                      <p className="text-lg font-semibold text-gray-900">
+      {/* Clients Table */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+        {filteredClients.length === 0 ? (
+          <div className="p-12 text-center">
+            <p className="text-gray-500">No clients found</p>
+            <button
+              onClick={() => handleOpenModal()}
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+            >
+              Add Your First Client
+            </button>
+          </div>
+        ) : (
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Client Name
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Contact
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Invoices
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Total Paid
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Outstanding
+                </th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Actions
+                </th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {filteredClients.map((client) => {
+                const stats = clientStats[client.id] || {};
+                return (
+                  <tr
+                    key={client.id}
+                    className="hover:bg-gray-50 cursor-pointer"
+                    onClick={() => onNavigateToInvoices && onNavigateToInvoices(client.id)}
+                  >
+                    <td className="px-6 py-4">
+                      <div className="text-sm font-medium text-gray-900">{client.name}</div>
+                      {client.address && (
+                        <div className="text-sm text-gray-500">
+                          {client.city && `${client.city}, `}{client.state}
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4">
+                      {client.email && (
+                        <div className="flex items-center text-sm text-gray-600">
+                          <Mail className="w-4 h-4 mr-2 flex-shrink-0" />
+                          <span className="truncate">{client.email}</span>
+                        </div>
+                      )}
+                      {client.phone && (
+                        <div className="flex items-center text-sm text-gray-600 mt-1">
+                          <Phone className="w-4 h-4 mr-2 flex-shrink-0" />
+                          <span>{client.phone}</span>
+                        </div>
+                      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="flex items-center text-sm text-gray-900">
+                        <FileText className="w-4 h-4 mr-2 text-gray-400" />
                         {stats.total_invoices || 0}
-                      </p>
-                    </div>
-                    <div>
-                      <div className="flex items-center text-xs text-gray-500 mb-1">
-                        <DollarSign className="w-3 h-3 mr-1" />
-                        Total Paid
                       </div>
-                      <p className="text-lg font-semibold text-green-600">
-                        {formatCurrency(stats.total_paid || 0)}
-                      </p>
-                    </div>
-                  </div>
-                  <div className="mt-3">
-                    <div className="text-xs text-gray-500 mb-1">Outstanding</div>
-                    <p className="text-sm font-semibold text-orange-600">
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-green-600">
+                      {formatCurrency(stats.total_paid || 0)}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-orange-600">
                       {formatCurrency(stats.total_outstanding || 0)}
-                    </p>
-                  </div>
-                </div>
-              </div>
-            );
-          })}
-        </div>
-      )}
+                    </td>
+                    <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                      <div className="flex justify-end space-x-3" onClick={(e) => e.stopPropagation()}>
+                        <button
+                          onClick={() => handleOpenModal(client)}
+                          className="text-blue-600 hover:text-blue-900"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleDelete(client.id, client.name)}
+                          className="text-red-600 hover:text-red-900"
+                          title="Delete"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+          </table>
+        )}
+      </div>
 
       {/* Modal */}
       {showModal && (

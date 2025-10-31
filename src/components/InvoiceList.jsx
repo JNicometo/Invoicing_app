@@ -1,11 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Eye, Edit, Trash2, Archive, Printer, FileText } from 'lucide-react';
+import { Plus, Search, Eye, Edit, Trash2, Archive, Printer, FileText, User } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { formatCurrency, formatDate, getStatusBadgeColor } from '../utils/formatting';
 import InvoiceForm from './InvoiceForm';
 import InvoicePreview from './InvoicePreview';
 
-function InvoiceList() {
+function InvoiceList({ selectedClientId, onClearClientFilter }) {
   const [invoices, setInvoices] = useState([]);
   const [filteredInvoices, setFilteredInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -14,16 +14,34 @@ function InvoiceList() {
   const [showForm, setShowForm] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
+  const [clientName, setClientName] = useState('');
 
-  const { getAllInvoices, deleteInvoice, archiveInvoice } = useDatabase();
+  const { getAllInvoices, deleteInvoice, archiveInvoice, getClient } = useDatabase();
 
   useEffect(() => {
     loadInvoices();
   }, []);
 
   useEffect(() => {
+    if (selectedClientId) {
+      loadClientName();
+    }
+  }, [selectedClientId]);
+
+  useEffect(() => {
     filterInvoices();
-  }, [searchTerm, statusFilter, invoices]);
+  }, [searchTerm, statusFilter, invoices, selectedClientId]);
+
+  const loadClientName = async () => {
+    if (selectedClientId) {
+      try {
+        const client = await getClient(selectedClientId);
+        setClientName(client?.name || '');
+      } catch (error) {
+        console.error('Error loading client:', error);
+      }
+    }
+  };
 
   const loadInvoices = async () => {
     try {
@@ -39,6 +57,11 @@ function InvoiceList() {
 
   const filterInvoices = () => {
     let filtered = [...invoices];
+
+    // Filter by selected client
+    if (selectedClientId) {
+      filtered = filtered.filter(inv => inv.client_id === selectedClientId);
+    }
 
     if (searchTerm) {
       filtered = filtered.filter(inv =>
@@ -123,6 +146,25 @@ function InvoiceList() {
             New Invoice
           </button>
         </div>
+
+        {/* Client Filter Banner */}
+        {selectedClientId && clientName && (
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+            <div className="flex items-center">
+              <User className="w-5 h-5 mr-2 text-blue-600" />
+              <span className="text-sm text-blue-900">
+                Showing invoices for <strong>{clientName}</strong>
+              </span>
+            </div>
+            <button
+              onClick={onClearClientFilter}
+              className="text-blue-600 hover:text-blue-900 text-sm font-medium flex items-center"
+            >
+              Clear filter
+              <span className="ml-1 text-lg">×</span>
+            </button>
+          </div>
+        )}
 
         {/* Filters */}
         <div className="flex flex-col sm:flex-row gap-4">

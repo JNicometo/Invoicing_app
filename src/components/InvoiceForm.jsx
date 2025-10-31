@@ -40,21 +40,47 @@ function InvoiceForm({ invoice, onClose }) {
   }, []);
 
   useEffect(() => {
-    if (invoice) {
-      setFormData({
-        invoice_number: invoice.invoice_number,
-        client_id: invoice.client_id,
-        date: formatDateInput(invoice.date),
-        due_date: formatDateInput(invoice.due_date),
-        status: invoice.status,
-        notes: invoice.notes || '',
-        payment_terms: invoice.payment_terms || '',
-      });
-      if (invoice.items && invoice.items.length > 0) {
-        setItems(invoice.items);
+    const loadInvoiceData = async () => {
+      if (invoice && invoice.id) {
+        try {
+          // Fetch full invoice with items using the hook
+          const fullInvoice = await getInvoice(invoice.id);
+
+          setFormData({
+            invoice_number: fullInvoice.invoice_number,
+            client_id: fullInvoice.client_id,
+            date: formatDateInput(fullInvoice.date),
+            due_date: formatDateInput(fullInvoice.due_date),
+            status: fullInvoice.status,
+            notes: fullInvoice.notes || '',
+            payment_terms: fullInvoice.payment_terms || '',
+          });
+
+          if (fullInvoice.items && fullInvoice.items.length > 0) {
+            setItems(fullInvoice.items);
+          }
+        } catch (error) {
+          console.error('Error loading invoice:', error);
+        }
+      } else if (invoice) {
+        // If invoice object is passed but no id (shouldn't happen)
+        setFormData({
+          invoice_number: invoice.invoice_number,
+          client_id: invoice.client_id,
+          date: formatDateInput(invoice.date),
+          due_date: formatDateInput(invoice.due_date),
+          status: invoice.status,
+          notes: invoice.notes || '',
+          payment_terms: invoice.payment_terms || '',
+        });
+        if (invoice.items && invoice.items.length > 0) {
+          setItems(invoice.items);
+        }
       }
-    }
-  }, [invoice]);
+    };
+
+    loadInvoiceData();
+  }, [invoice, getInvoice]);
 
   const loadInitialData = async () => {
     try {
