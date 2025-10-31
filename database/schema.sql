@@ -24,7 +24,7 @@ CREATE TABLE IF NOT EXISTS settings (
 -- Clients table
 CREATE TABLE IF NOT EXISTS clients (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  customer_number TEXT UNIQUE,
+  customer_number TEXT,
   name TEXT NOT NULL,
   email TEXT NOT NULL,
   phone TEXT DEFAULT '',
@@ -71,7 +71,7 @@ CREATE TABLE IF NOT EXISTS invoice_items (
 -- Saved items table for reusable line items
 CREATE TABLE IF NOT EXISTS saved_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  item_number TEXT UNIQUE,
+  item_number TEXT,
   description TEXT NOT NULL,
   rate REAL DEFAULT 0,
   category TEXT DEFAULT 'General',
@@ -88,5 +88,5 @@ CREATE INDEX IF NOT EXISTS idx_invoices_status ON invoices(status);
 CREATE INDEX IF NOT EXISTS idx_invoices_archived ON invoices(archived);
 CREATE INDEX IF NOT EXISTS idx_invoice_items_invoice_id ON invoice_items(invoice_id);
 CREATE INDEX IF NOT EXISTS idx_clients_email ON clients(email);
-CREATE INDEX IF NOT EXISTS idx_clients_customer_number ON clients(customer_number);
-CREATE INDEX IF NOT EXISTS idx_saved_items_item_number ON saved_items(item_number);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_customer_number ON clients(customer_number) WHERE customer_number IS NOT NULL;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_items_item_number ON saved_items(item_number) WHERE item_number IS NOT NULL;

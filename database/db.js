@@ -38,14 +38,21 @@ const initDatabase = () => {
 // Run database migrations
 const runMigrations = () => {
   try {
+    console.log('Running database migrations...');
+
     // Check if customer_number column exists in clients table
     const clientColumns = db.pragma('table_info(clients)');
     const hasCustomerNumber = clientColumns.some(col => col.name === 'customer_number');
 
     if (!hasCustomerNumber) {
       console.log('Adding customer_number column to clients table...');
-      db.exec('ALTER TABLE clients ADD COLUMN customer_number TEXT UNIQUE');
-      db.exec('CREATE INDEX IF NOT EXISTS idx_clients_customer_number ON clients(customer_number)');
+      // Add column without UNIQUE constraint in ALTER TABLE (SQLite limitation)
+      db.exec('ALTER TABLE clients ADD COLUMN customer_number TEXT');
+      // Create unique index separately
+      db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_customer_number ON clients(customer_number) WHERE customer_number IS NOT NULL');
+      console.log('✓ customer_number column added');
+    } else {
+      console.log('✓ customer_number column already exists');
     }
 
     // Check if item_number column exists in saved_items table
@@ -54,13 +61,19 @@ const runMigrations = () => {
 
     if (!hasItemNumber) {
       console.log('Adding item_number column to saved_items table...');
-      db.exec('ALTER TABLE saved_items ADD COLUMN item_number TEXT UNIQUE');
-      db.exec('CREATE INDEX IF NOT EXISTS idx_saved_items_item_number ON saved_items(item_number)');
+      // Add column without UNIQUE constraint in ALTER TABLE (SQLite limitation)
+      db.exec('ALTER TABLE saved_items ADD COLUMN item_number TEXT');
+      // Create unique index separately
+      db.exec('CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_items_item_number ON saved_items(item_number) WHERE item_number IS NOT NULL');
+      console.log('✓ item_number column added');
+    } else {
+      console.log('✓ item_number column already exists');
     }
 
     console.log('Migrations completed successfully');
   } catch (error) {
     console.error('Migration error:', error);
+    console.error('Stack trace:', error.stack);
     // Don't throw - let the app continue even if migrations fail
   }
 };
