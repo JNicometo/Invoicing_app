@@ -40,6 +40,10 @@ export const useDatabase = () => {
     return await ipcCall('db:getClient', id);
   }, [ipcCall]);
 
+  const getClientByCustomerNumber = useCallback(async (customerNumber) => {
+    return await ipcCall('db:getClientByCustomerNumber', customerNumber);
+  }, [ipcCall]);
+
   const createClient = useCallback(async (client) => {
     return await ipcCall('db:createClient', client);
   }, [ipcCall]);
@@ -102,6 +106,10 @@ export const useDatabase = () => {
     return await ipcCall('db:getSavedItem', id);
   }, [ipcCall]);
 
+  const getSavedItemByItemNumber = useCallback(async (itemNumber) => {
+    return await ipcCall('db:getSavedItemByItemNumber', itemNumber);
+  }, [ipcCall]);
+
   const createSavedItem = useCallback(async (item) => {
     return await ipcCall('db:createSavedItem', item);
   }, [ipcCall]);
@@ -133,6 +141,7 @@ export const useDatabase = () => {
     // Clients
     getAllClients,
     getClient,
+    getClientByCustomerNumber,
     createClient,
     updateClient,
     deleteClient,
@@ -150,6 +159,7 @@ export const useDatabase = () => {
     // Saved Items
     getAllSavedItems,
     getSavedItem,
+    getSavedItemByItemNumber,
     createSavedItem,
     updateSavedItem,
     deleteSavedItem,

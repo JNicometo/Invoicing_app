@@ -101,6 +101,15 @@ ipcMain.handle('db:getClient', async (event, id) => {
   }
 });
 
+ipcMain.handle('db:getClientByCustomerNumber', async (event, customerNumber) => {
+  try {
+    return db.getClientByCustomerNumber(customerNumber);
+  } catch (error) {
+    console.error('Error getting client by customer number:', error);
+    throw error;
+  }
+});
+
 ipcMain.handle('db:createClient', async (event, client) => {
   try {
     return db.createClient(client);
@@ -234,6 +243,15 @@ ipcMain.handle('db:getSavedItem', async (event, id) => {
     return db.getSavedItem(id);
   } catch (error) {
     console.error('Error getting saved item:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:getSavedItemByItemNumber', async (event, itemNumber) => {
+  try {
+    return db.getSavedItemByItemNumber(itemNumber);
+  } catch (error) {
+    console.error('Error getting saved item by item number:', error);
     throw error;
   }
 });

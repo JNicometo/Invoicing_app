@@ -23,6 +23,7 @@ function ClientManagement({ onNavigateToInvoices }) {
   } = useDatabase();
 
   const [formData, setFormData] = useState({
+    customer_number: '',
     name: '',
     email: '',
     phone: '',
@@ -78,6 +79,7 @@ function ClientManagement({ onNavigateToInvoices }) {
     if (client) {
       setEditingClient(client);
       setFormData({
+        customer_number: client.customer_number || '',
         name: client.name,
         email: client.email,
         phone: client.phone || '',
@@ -90,6 +92,7 @@ function ClientManagement({ onNavigateToInvoices }) {
     } else {
       setEditingClient(null);
       setFormData({
+        customer_number: '',
         name: '',
         email: '',
         phone: '',
@@ -108,6 +111,7 @@ function ClientManagement({ onNavigateToInvoices }) {
     setShowModal(false);
     setEditingClient(null);
     setFormData({
+      customer_number: '',
       name: '',
       email: '',
       phone: '',
@@ -227,6 +231,9 @@ function ClientManagement({ onNavigateToInvoices }) {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Customer #
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Client Name
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -255,6 +262,9 @@ function ClientManagement({ onNavigateToInvoices }) {
                     className="hover:bg-gray-50 cursor-pointer"
                     onClick={() => onNavigateToInvoices && onNavigateToInvoices(client.id)}
                   >
+                    <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700">
+                      {client.customer_number || '-'}
+                    </td>
                     <td className="px-6 py-4">
                       <div className="text-sm font-medium text-gray-900">{client.name}</div>
                       {client.address && (
@@ -330,6 +340,22 @@ function ClientManagement({ onNavigateToInvoices }) {
 
             <form onSubmit={handleSubmit} className="p-6">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <div className="md:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Customer Number
+                  </label>
+                  <input
+                    type="text"
+                    name="customer_number"
+                    value={formData.customer_number}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                    placeholder="e.g., C-001, CUST-001, etc."
+                  />
+                  {errors.customer_number && <p className="text-red-500 text-xs mt-1">{errors.customer_number}</p>}
+                  <p className="text-xs text-gray-500 mt-1">Optional: Used for quick searching</p>
+                </div>
+
                 <div className="md:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Name *

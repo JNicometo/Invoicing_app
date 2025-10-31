@@ -17,6 +17,7 @@ function SavedItems() {
   const { getAllSavedItems, createSavedItem, updateSavedItem, deleteSavedItem } = useDatabase();
 
   const [formData, setFormData] = useState({
+    item_number: '',
     description: '',
     rate: '',
     category: 'General'
@@ -64,6 +65,7 @@ function SavedItems() {
     if (item) {
       setEditingItem(item);
       setFormData({
+        item_number: item.item_number || '',
         description: item.description,
         rate: item.rate.toString(),
         category: item.category
@@ -71,6 +73,7 @@ function SavedItems() {
     } else {
       setEditingItem(null);
       setFormData({
+        item_number: '',
         description: '',
         rate: '',
         category: 'General'
@@ -84,6 +87,7 @@ function SavedItems() {
     setShowForm(false);
     setEditingItem(null);
     setFormData({
+      item_number: '',
       description: '',
       rate: '',
       category: 'General'
@@ -114,6 +118,7 @@ function SavedItems() {
 
     try {
       const itemData = {
+        item_number: formData.item_number || null,
         description: formData.description,
         rate: parseFloat(formData.rate),
         category: formData.category
@@ -214,6 +219,9 @@ function SavedItems() {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Item #
+                </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Description
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
@@ -230,6 +238,9 @@ function SavedItems() {
             <tbody className="divide-y divide-gray-200">
               {filteredItems.map((item) => (
                 <tr key={item.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-mono text-gray-700">
+                    {item.item_number || '-'}
+                  </td>
                   <td className="px-6 py-4 text-sm text-gray-900">
                     {item.description}
                   </td>
@@ -282,6 +293,24 @@ function SavedItems() {
 
             <form onSubmit={handleSubmit} className="p-6">
               <div className="space-y-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">
+                    Item Number
+                  </label>
+                  <input
+                    type="text"
+                    name="item_number"
+                    value={formData.item_number}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                    placeholder="e.g., ITEM-001, DEV-001, etc."
+                  />
+                  {errors.item_number && (
+                    <p className="text-red-500 text-xs mt-1">{errors.item_number}</p>
+                  )}
+                  <p className="text-xs text-gray-500 mt-1">Optional: Used for quick searching</p>
+                </div>
+
                 <div>
                   <label className="block text-sm font-medium text-gray-700 mb-1">
                     Description *

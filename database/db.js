@@ -24,11 +24,44 @@ const initDatabase = () => {
     const schema = fs.readFileSync(schemaPath, 'utf8');
     db.exec(schema);
 
+    // Run migrations for existing databases
+    runMigrations();
+
     console.log('Database initialized successfully');
     return db;
   } catch (error) {
     console.error('Failed to initialize database:', error);
     throw error;
+  }
+};
+
+// Run database migrations
+const runMigrations = () => {
+  try {
+    // Check if customer_number column exists in clients table
+    const clientColumns = db.pragma('table_info(clients)');
+    const hasCustomerNumber = clientColumns.some(col => col.name === 'customer_number');
+
+    if (!hasCustomerNumber) {
+      console.log('Adding customer_number column to clients table...');
+      db.exec('ALTER TABLE clients ADD COLUMN customer_number TEXT UNIQUE');
+      db.exec('CREATE INDEX IF NOT EXISTS idx_clients_customer_number ON clients(customer_number)');
+    }
+
+    // Check if item_number column exists in saved_items table
+    const savedItemColumns = db.pragma('table_info(saved_items)');
+    const hasItemNumber = savedItemColumns.some(col => col.name === 'item_number');
+
+    if (!hasItemNumber) {
+      console.log('Adding item_number column to saved_items table...');
+      db.exec('ALTER TABLE saved_items ADD COLUMN item_number TEXT UNIQUE');
+      db.exec('CREATE INDEX IF NOT EXISTS idx_saved_items_item_number ON saved_items(item_number)');
+    }
+
+    console.log('Migrations completed successfully');
+  } catch (error) {
+    console.error('Migration error:', error);
+    // Don't throw - let the app continue even if migrations fail
   }
 };
 
@@ -84,8 +117,8 @@ const getClient = (id) => {
 const createClient = (client) => {
   const db = getDatabase();
   const stmt = db.prepare(`
-    INSERT INTO clients (name, email, phone, address, city, state, zip, notes)
-    VALUES (@name, @email, @phone, @address, @city, @state, @zip, @notes)
+    INSERT INTO clients (customer_number, name, email, phone, address, city, state, zip, notes)
+    VALUES (@customer_number, @name, @email, @phone, @address, @city, @state, @zip, @notes)
   `);
   return stmt.run(client);
 };
@@ -94,6 +127,7 @@ const updateClient = (id, client) => {
   const db = getDatabase();
   const stmt = db.prepare(`
     UPDATE clients SET
+      customer_number = @customer_number,
       name = @name,
       email = @email,
       phone = @phone,
@@ -111,6 +145,11 @@ const updateClient = (id, client) => {
 const deleteClient = (id) => {
   const db = getDatabase();
   return db.prepare('DELETE FROM clients WHERE id = ?').run(id);
+};
+
+const getClientByCustomerNumber = (customerNumber) => {
+  const db = getDatabase();
+  return db.prepare('SELECT * FROM clients WHERE customer_number = ?').get(customerNumber);
 };
 
 const getClientStats = (clientId) => {
@@ -312,8 +351,8 @@ const getSavedItem = (id) => {
 const createSavedItem = (item) => {
   const db = getDatabase();
   const stmt = db.prepare(`
-    INSERT INTO saved_items (description, rate, category)
-    VALUES (@description, @rate, @category)
+    INSERT INTO saved_items (item_number, description, rate, category)
+    VALUES (@item_number, @description, @rate, @category)
   `);
   return stmt.run(item);
 };
@@ -322,6 +361,7 @@ const updateSavedItem = (id, item) => {
   const db = getDatabase();
   const stmt = db.prepare(`
     UPDATE saved_items SET
+      item_number = @item_number,
       description = @description,
       rate = @rate,
       category = @category,
@@ -334,6 +374,11 @@ const updateSavedItem = (id, item) => {
 const deleteSavedItem = (id) => {
   const db = getDatabase();
   return db.prepare('DELETE FROM saved_items WHERE id = ?').run(id);
+};
+
+const getSavedItemByItemNumber = (itemNumber) => {
+  const db = getDatabase();
+  return db.prepare('SELECT * FROM saved_items WHERE item_number = ?').get(itemNumber);
 };
 
 // Dashboard stats
@@ -364,6 +409,7 @@ module.exports = {
   updateSettings,
   getAllClients,
   getClient,
+  getClientByCustomerNumber,
   createClient,
   updateClient,
   deleteClient,
@@ -380,6 +426,7 @@ module.exports = {
   generateInvoiceNumber,
   getAllSavedItems,
   getSavedItem,
+  getSavedItemByItemNumber,
   createSavedItem,
   updateSavedItem,
   deleteSavedItem,
