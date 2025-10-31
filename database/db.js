@@ -126,9 +126,31 @@ const getClientStats = (clientId) => {
   return stats;
 };
 
+// Helper function to update overdue invoices
+const updateOverdueInvoices = () => {
+  const db = getDatabase();
+  const today = new Date().toISOString().split('T')[0]; // Get today's date in YYYY-MM-DD format
+
+  // Update invoices to 'overdue' if due date has passed and status is not 'paid'
+  const stmt = db.prepare(`
+    UPDATE invoices
+    SET status = 'overdue'
+    WHERE date(due_date) < date(?)
+      AND status != 'paid'
+      AND status != 'overdue'
+      AND archived = 0
+  `);
+
+  stmt.run(today);
+};
+
 // Invoice operations
 const getAllInvoices = () => {
   const db = getDatabase();
+
+  // Update overdue invoices before fetching
+  updateOverdueInvoices();
+
   return db.prepare(`
     SELECT i.*, c.name as client_name, c.email as client_email
     FROM invoices i
@@ -151,6 +173,10 @@ const getArchivedInvoices = () => {
 
 const getInvoice = (id) => {
   const db = getDatabase();
+
+  // Update overdue invoices before fetching
+  updateOverdueInvoices();
+
   const invoice = db.prepare(`
     SELECT i.*, c.name as client_name, c.email as client_email,
            c.phone as client_phone, c.address as client_address,
@@ -313,6 +339,9 @@ const deleteSavedItem = (id) => {
 // Dashboard stats
 const getDashboardStats = () => {
   const db = getDatabase();
+
+  // Update overdue invoices before fetching stats
+  updateOverdueInvoices();
 
   const stats = db.prepare(`
     SELECT

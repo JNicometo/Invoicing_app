@@ -30,6 +30,7 @@ contextBridge.exposeInMainWorld('electron', {
         'db:updateSavedItem',
         'db:deleteSavedItem',
         'db:getDashboardStats',
+        'pdf:saveInvoice',
       ];
 
       if (validChannels.includes(channel)) {

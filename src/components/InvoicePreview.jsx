@@ -7,7 +7,7 @@ function InvoicePreview({ invoice, onClose }) {
   const [fullInvoice, setFullInvoice] = useState(null);
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { getInvoice, getSettings } = useDatabase();
+  const { getInvoice, getSettings, saveInvoiceAsPDF } = useDatabase();
 
   useEffect(() => {
     loadInvoiceData();
@@ -39,8 +39,162 @@ function InvoicePreview({ invoice, onClose }) {
     }, 100);
   };
 
-  const handleDownload = () => {
-    alert('PDF download functionality will be implemented with jsPDF library');
+  const generateInvoiceHTML = () => {
+    return `
+      <!DOCTYPE html>
+      <html>
+      <head>
+        <meta charset="UTF-8">
+        <title>Invoice ${fullInvoice.invoice_number}</title>
+        <style>
+          * { margin: 0; padding: 0; box-sizing: border-box; }
+          body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
+          .container { max-width: 800px; margin: 0 auto; }
+          .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
+          .company-info h2 { font-size: 24px; margin-bottom: 10px; }
+          .company-info p { font-size: 12px; color: #666; margin: 2px 0; }
+          .invoice-title { text-align: right; }
+          .invoice-title h1 { font-size: 36px; color: #000; }
+          .invoice-title p { font-size: 16px; font-weight: bold; color: #666; margin-top: 8px; }
+          .details { display: flex; justify-content: space-between; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 2px solid #ddd; }
+          .bill-to h3, .invoice-details h3 { font-size: 12px; color: #000; margin-bottom: 10px; }
+          .bill-to p, .invoice-details p { font-size: 12px; color: #666; margin: 4px 0; }
+          .invoice-details { text-align: right; }
+          .status { display: inline-block; padding: 4px 12px; font-size: 10px; font-weight: bold; border-radius: 12px; }
+          .status.paid { background: #d4edda; color: #155724; }
+          .status.pending { background: #fff3cd; color: #856404; }
+          .status.overdue { background: #f8d7da; color: #721c24; }
+          .status.draft { background: #e2e3e5; color: #383d41; }
+          table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
+          thead tr { border-bottom: 2px solid #333; }
+          th { text-align: left; padding: 12px 8px; font-size: 12px; font-weight: bold; }
+          th.text-center { text-align: center; }
+          th.text-right { text-align: right; }
+          td { padding: 12px 8px; font-size: 12px; border-bottom: 1px solid #ddd; }
+          td.text-center { text-align: center; }
+          td.text-right { text-align: right; }
+          .totals { margin-left: auto; width: 320px; }
+          .totals-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 12px; }
+          .totals-row.total { border-top: 2px solid #333; padding-top: 12px; margin-top: 8px; font-size: 16px; font-weight: bold; }
+          .notes, .payment-terms, .bank-details { margin-bottom: 20px; }
+          .notes h3, .payment-terms h3, .bank-details h3 { font-size: 12px; margin-bottom: 8px; }
+          .notes p, .payment-terms p, .bank-details p { font-size: 11px; color: #666; white-space: pre-wrap; }
+          .footer { text-align: center; padding-top: 30px; margin-top: 30px; border-top: 1px solid #ddd; font-size: 11px; color: #999; }
+        </style>
+      </head>
+      <body>
+        <div class="container">
+          <div class="header">
+            <div class="company-info">
+              <h2>${settings?.company_name || 'Your Company'}</h2>
+              ${settings?.company_address ? `<p>${settings.company_address}</p>` : ''}
+              ${settings?.company_city ? `<p>${settings.company_city}, ${settings.company_state} ${settings.company_zip}</p>` : ''}
+              ${settings?.company_email ? `<p>${settings.company_email}</p>` : ''}
+              ${settings?.company_phone ? `<p>${settings.company_phone}</p>` : ''}
+            </div>
+            <div class="invoice-title">
+              <h1>INVOICE</h1>
+              <p>${fullInvoice.invoice_number}</p>
+            </div>
+          </div>
+
+          <div class="details">
+            <div class="bill-to">
+              <h3>BILL TO:</h3>
+              <p><strong>${fullInvoice.client_name}</strong></p>
+              ${fullInvoice.client_email ? `<p>${fullInvoice.client_email}</p>` : ''}
+              ${fullInvoice.client_phone ? `<p>${fullInvoice.client_phone}</p>` : ''}
+              ${fullInvoice.client_address ? `<p>${fullInvoice.client_address}</p>` : ''}
+              ${fullInvoice.client_city ? `<p>${fullInvoice.client_city}, ${fullInvoice.client_state} ${fullInvoice.client_zip}</p>` : ''}
+            </div>
+            <div class="invoice-details">
+              <p><strong>Invoice Date:</strong> ${formatDate(fullInvoice.date)}</p>
+              <p><strong>Due Date:</strong> ${formatDate(fullInvoice.due_date)}</p>
+              <p><strong>Status:</strong> <span class="status ${fullInvoice.status}">${fullInvoice.status.toUpperCase()}</span></p>
+            </div>
+          </div>
+
+          <table>
+            <thead>
+              <tr>
+                <th>Description</th>
+                <th class="text-center">Qty</th>
+                <th class="text-right">Rate</th>
+                <th class="text-right">Amount</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${fullInvoice.items.map(item => `
+                <tr>
+                  <td>${item.description}</td>
+                  <td class="text-center">${item.quantity}</td>
+                  <td class="text-right">${formatCurrency(item.rate)}</td>
+                  <td class="text-right"><strong>${formatCurrency(item.amount)}</strong></td>
+                </tr>
+              `).join('')}
+            </tbody>
+          </table>
+
+          <div class="totals">
+            <div class="totals-row">
+              <span>Subtotal:</span>
+              <span>${formatCurrency(fullInvoice.subtotal)}</span>
+            </div>
+            <div class="totals-row">
+              <span>Tax (${settings?.tax_rate || 0}%):</span>
+              <span>${formatCurrency(fullInvoice.tax)}</span>
+            </div>
+            <div class="totals-row total">
+              <span>Total:</span>
+              <span>${formatCurrency(fullInvoice.total)}</span>
+            </div>
+          </div>
+
+          ${fullInvoice.notes ? `
+            <div class="notes">
+              <h3>Notes:</h3>
+              <p>${fullInvoice.notes}</p>
+            </div>
+          ` : ''}
+
+          ${fullInvoice.payment_terms ? `
+            <div class="payment-terms">
+              <h3>Payment Terms:</h3>
+              <p>${fullInvoice.payment_terms}</p>
+            </div>
+          ` : ''}
+
+          ${settings?.bank_details ? `
+            <div class="bank-details">
+              <h3>Bank Details:</h3>
+              <p>${settings.bank_details}</p>
+            </div>
+          ` : ''}
+
+          <div class="footer">
+            <p>Thank you for your business!</p>
+          </div>
+        </div>
+      </body>
+      </html>
+    `;
+  };
+
+  const handleDownload = async () => {
+    try {
+      const invoiceHtml = generateInvoiceHTML();
+      const result = await saveInvoiceAsPDF(invoiceHtml, fullInvoice.invoice_number);
+
+      if (result.success) {
+        alert(`Invoice PDF saved successfully at: ${result.filePath}`);
+      } else if (result.canceled) {
+        // User canceled the save dialog
+        console.log('PDF save canceled by user');
+      }
+    } catch (error) {
+      console.error('Error saving PDF:', error);
+      alert('Error saving PDF: ' + error.message);
+    }
   };
 
   if (loading || !fullInvoice) {

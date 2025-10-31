@@ -119,6 +119,11 @@ export const useDatabase = () => {
     return await ipcCall('db:getDashboardStats');
   }, [ipcCall]);
 
+  // PDF Generation
+  const saveInvoiceAsPDF = useCallback(async (invoiceHtml, invoiceNumber) => {
+    return await ipcCall('pdf:saveInvoice', invoiceHtml, invoiceNumber);
+  }, [ipcCall]);
+
   return {
     loading,
     error,
@@ -150,5 +155,7 @@ export const useDatabase = () => {
     deleteSavedItem,
     // Dashboard
     getDashboardStats,
+    // PDF
+    saveInvoiceAsPDF,
   };
 };

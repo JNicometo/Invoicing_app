@@ -1,5 +1,6 @@
-const { app, BrowserWindow, ipcMain } = require('electron');
+const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
+const fs = require('fs');
 const isDev = require('electron-is-dev');
 const db = require('./database/db');
 
@@ -270,6 +271,62 @@ ipcMain.handle('db:getDashboardStats', async () => {
     return db.getDashboardStats();
   } catch (error) {
     console.error('Error getting dashboard stats:', error);
+    throw error;
+  }
+});
+
+// PDF Generation
+ipcMain.handle('pdf:saveInvoice', async (event, invoiceHtml, invoiceNumber) => {
+  try {
+    // Show save dialog
+    const { filePath, canceled } = await dialog.showSaveDialog(mainWindow, {
+      title: 'Save Invoice PDF',
+      defaultPath: `Invoice-${invoiceNumber}.pdf`,
+      filters: [
+        { name: 'PDF Files', extensions: ['pdf'] }
+      ]
+    });
+
+    if (canceled || !filePath) {
+      return { success: false, canceled: true };
+    }
+
+    // Create a hidden window to render the invoice
+    const pdfWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    // Load the invoice HTML
+    await pdfWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(invoiceHtml)}`);
+
+    // Wait for content to load
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    // Generate PDF
+    const pdfData = await pdfWindow.webContents.printToPDF({
+      printBackground: true,
+      pageSize: 'Letter',
+      margins: {
+        top: 0.5,
+        bottom: 0.5,
+        left: 0.5,
+        right: 0.5
+      }
+    });
+
+    // Save the PDF
+    fs.writeFileSync(filePath, pdfData);
+
+    // Close the hidden window
+    pdfWindow.close();
+
+    return { success: true, filePath };
+  } catch (error) {
+    console.error('Error generating PDF:', error);
     throw error;
   }
 });
