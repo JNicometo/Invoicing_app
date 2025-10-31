@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Save } from 'lucide-react';
+import { X, Plus, Trash2, Save, Search } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { getCurrentDate, calculateDueDate, formatDateInput } from '../utils/formatting';
 import { validateInvoice } from '../utils/validation';
@@ -13,7 +13,9 @@ function InvoiceForm({ invoice, onClose }) {
     updateInvoice,
     generateInvoiceNumber,
     getSettings,
-    getInvoice
+    getInvoice,
+    getClientByCustomerNumber,
+    getSavedItemByItemNumber
   } = useDatabase();
 
   const [clients, setClients] = useState([]);
@@ -35,6 +37,9 @@ function InvoiceForm({ invoice, onClose }) {
   const [items, setItems] = useState([
     { description: '', quantity: 1, rate: 0, amount: 0 }
   ]);
+
+  const [customerNumberSearch, setCustomerNumberSearch] = useState('');
+  const [itemNumberSearches, setItemNumberSearches] = useState({});
 
   useEffect(() => {
     loadInitialData();
@@ -166,6 +171,49 @@ function InvoiceForm({ invoice, onClose }) {
     }
   };
 
+  const handleSearchCustomerNumber = async () => {
+    if (!customerNumberSearch.trim()) {
+      alert('Please enter a customer number');
+      return;
+    }
+
+    try {
+      const client = await getClientByCustomerNumber(customerNumberSearch.trim());
+      if (client) {
+        setFormData(prev => ({ ...prev, client_id: client.id }));
+        setCustomerNumberSearch('');
+      } else {
+        alert(`No client found with customer number: ${customerNumberSearch}`);
+      }
+    } catch (error) {
+      console.error('Error searching for customer:', error);
+      alert('Error searching for customer: ' + error.message);
+    }
+  };
+
+  const handleSearchItemNumber = async (index) => {
+    const itemNumber = itemNumberSearches[index];
+    if (!itemNumber || !itemNumber.trim()) {
+      alert('Please enter an item number');
+      return;
+    }
+
+    try {
+      const savedItem = await getSavedItemByItemNumber(itemNumber.trim());
+      if (savedItem) {
+        handleItemChange(index, 'description', savedItem.description);
+        handleItemChange(index, 'rate', savedItem.rate);
+        // Clear the search field for this item
+        setItemNumberSearches(prev => ({ ...prev, [index]: '' }));
+      } else {
+        alert(`No item found with item number: ${itemNumber}`);
+      }
+    } catch (error) {
+      console.error('Error searching for item:', error);
+      alert('Error searching for item: ' + error.message);
+    }
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -251,20 +299,40 @@ function InvoiceForm({ invoice, onClose }) {
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Client *
                 </label>
-                <select
-                  name="client_id"
-                  value={formData.client_id}
-                  onChange={handleInputChange}
-                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  required
-                >
-                  <option value="">Select a client</option>
-                  {clients.map(client => (
-                    <option key={client.id} value={client.id}>
-                      {client.name}
-                    </option>
-                  ))}
-                </select>
+                <div className="flex gap-2">
+                  <select
+                    name="client_id"
+                    value={formData.client_id}
+                    onChange={handleInputChange}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Select a client</option>
+                    {clients.map(client => (
+                      <option key={client.id} value={client.id}>
+                        {client.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex gap-1">
+                    <input
+                      type="text"
+                      placeholder="Customer #"
+                      value={customerNumberSearch}
+                      onChange={(e) => setCustomerNumberSearch(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleSearchCustomerNumber())}
+                      className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSearchCustomerNumber}
+                      className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200"
+                      title="Search by customer number"
+                    >
+                      <Search className="w-4 h-4 text-gray-600" />
+                    </button>
+                  </div>
+                </div>
                 {errors.client_id && (
                   <p className="text-red-500 text-xs mt-1">{errors.client_id}</p>
                 )}
@@ -343,19 +411,24 @@ function InvoiceForm({ invoice, onClose }) {
                       className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
                       required
                     />
-                    {savedItems.length > 0 && (
-                      <select
-                        onChange={(e) => handleSavedItemSelect(index, e.target.value)}
-                        className="w-full px-3 py-1 text-xs border border-gray-300 rounded mt-1"
+                    <div className="flex gap-1 mt-1">
+                      <input
+                        type="text"
+                        placeholder="Item #"
+                        value={itemNumberSearches[index] || ''}
+                        onChange={(e) => setItemNumberSearches(prev => ({ ...prev, [index]: e.target.value }))}
+                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleSearchItemNumber(index))}
+                        className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded font-mono"
+                      />
+                      <button
+                        type="button"
+                        onClick={() => handleSearchItemNumber(index)}
+                        className="px-2 py-1 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200"
+                        title="Search by item number"
                       >
-                        <option value="">Or select saved item...</option>
-                        {savedItems.map(saved => (
-                          <option key={saved.id} value={saved.id}>
-                            {saved.description} - ${saved.rate}
-                          </option>
-                        ))}
-                      </select>
-                    )}
+                        <Search className="w-3 h-3 text-gray-600" />
+                      </button>
+                    </div>
                   </div>
                   <div className="col-span-2">
                     <input
