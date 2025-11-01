@@ -35,11 +35,12 @@ function InvoiceForm({ invoice, onClose }) {
   });
 
   const [items, setItems] = useState([
-    { description: '', quantity: 1, rate: 0, amount: 0 }
+    { item_number: '', description: '', quantity: 1, rate: 0, amount: 0 }
   ]);
 
   const [customerNumberSearch, setCustomerNumberSearch] = useState('');
-  const [itemNumberSearches, setItemNumberSearches] = useState({});
+  const [showItemSearchModal, setShowItemSearchModal] = useState(false);
+  const [currentItemIndex, setCurrentItemIndex] = useState(null);
 
   useEffect(() => {
     loadInitialData();
@@ -152,7 +153,7 @@ function InvoiceForm({ invoice, onClose }) {
   };
 
   const handleAddItem = () => {
-    setItems([...items, { description: '', quantity: 1, rate: 0, amount: 0 }]);
+    setItems([...items, { item_number: '', description: '', quantity: 1, rate: 0, amount: 0 }]);
   };
 
   const handleRemoveItem = (index) => {
@@ -191,27 +192,43 @@ function InvoiceForm({ invoice, onClose }) {
     }
   };
 
-  const handleSearchItemNumber = async (index) => {
-    const itemNumber = itemNumberSearches[index];
+  const handleItemNumberBlur = async (index) => {
+    const itemNumber = items[index].item_number;
     if (!itemNumber || !itemNumber.trim()) {
-      alert('Please enter an item number');
-      return;
+      return; // No item number entered, do nothing
     }
 
     try {
       const savedItem = await getSavedItemByItemNumber(itemNumber.trim());
       if (savedItem) {
-        handleItemChange(index, 'description', savedItem.description);
-        handleItemChange(index, 'rate', savedItem.rate);
-        // Clear the search field for this item
-        setItemNumberSearches(prev => ({ ...prev, [index]: '' }));
-      } else {
-        alert(`No item found with item number: ${itemNumber}`);
+        const newItems = [...items];
+        newItems[index].description = savedItem.description;
+        newItems[index].rate = savedItem.rate;
+        newItems[index].amount = calculateItemAmount(newItems[index].quantity, savedItem.rate);
+        setItems(newItems);
       }
+      // Don't show alert if not found, user might be typing custom item number
     } catch (error) {
       console.error('Error searching for item:', error);
-      alert('Error searching for item: ' + error.message);
     }
+  };
+
+  const handleOpenItemSearch = (index) => {
+    setCurrentItemIndex(index);
+    setShowItemSearchModal(true);
+  };
+
+  const handleSelectSavedItem = (savedItem) => {
+    if (currentItemIndex !== null) {
+      const newItems = [...items];
+      newItems[currentItemIndex].item_number = savedItem.item_number || '';
+      newItems[currentItemIndex].description = savedItem.description;
+      newItems[currentItemIndex].rate = savedItem.rate;
+      newItems[currentItemIndex].amount = calculateItemAmount(newItems[currentItemIndex].quantity, savedItem.rate);
+      setItems(newItems);
+    }
+    setShowItemSearchModal(false);
+    setCurrentItemIndex(null);
   };
 
   const handleSubmit = async (e) => {
@@ -401,77 +418,67 @@ function InvoiceForm({ invoice, onClose }) {
 
             <div className="space-y-3">
               {items.map((item, index) => (
-                <div key={index} className="grid grid-cols-12 gap-3 items-start">
-                  <div className="col-span-5">
-                    <input
-                      type="text"
-                      placeholder="Description"
-                      value={item.description}
-                      onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                      required
-                    />
-                    <div className="flex gap-1 mt-1">
-                      <input
-                        type="text"
-                        placeholder="Item #"
-                        value={itemNumberSearches[index] || ''}
-                        onChange={(e) => setItemNumberSearches(prev => ({ ...prev, [index]: e.target.value }))}
-                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleSearchItemNumber(index))}
-                        className="flex-1 px-2 py-1 text-xs border border-gray-300 rounded font-mono"
-                      />
-                      <button
-                        type="button"
-                        onClick={() => handleSearchItemNumber(index)}
-                        className="px-2 py-1 bg-gray-100 border border-gray-300 rounded hover:bg-gray-200"
-                        title="Search by item number"
-                      >
-                        <Search className="w-3 h-3 text-gray-600" />
-                      </button>
-                    </div>
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      type="number"
-                      placeholder="Qty"
-                      value={item.quantity}
-                      onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                      min="0"
-                      step="0.01"
-                      required
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      type="number"
-                      placeholder="Rate"
-                      value={item.rate}
-                      onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
-                      min="0"
-                      step="0.01"
-                      required
-                    />
-                  </div>
-                  <div className="col-span-2">
-                    <input
-                      type="text"
-                      value={`$${item.amount.toFixed(2)}`}
-                      readOnly
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm"
-                    />
-                  </div>
-                  <div className="col-span-1 flex justify-center">
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveItem(index)}
-                      className="text-red-600 hover:text-red-900 p-2"
-                      disabled={items.length === 1}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                <div key={index} className="flex gap-3 items-start">
+                  <input
+                    type="text"
+                    placeholder="Item #"
+                    value={item.item_number || ''}
+                    onChange={(e) => handleItemChange(index, 'item_number', e.target.value)}
+                    onBlur={() => handleItemNumberBlur(index)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleItemNumberBlur(index))}
+                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm font-mono"
+                    title="Enter item number and press Enter or Tab to auto-fill"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Description"
+                    value={item.description}
+                    onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                    required
+                  />
+                  <input
+                    type="number"
+                    placeholder="Qty"
+                    value={item.quantity}
+                    onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                    className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                    min="0"
+                    step="0.01"
+                    required
+                  />
+                  <input
+                    type="number"
+                    placeholder="Rate"
+                    value={item.rate}
+                    onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
+                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                    min="0"
+                    step="0.01"
+                    required
+                  />
+                  <input
+                    type="text"
+                    value={`$${item.amount.toFixed(2)}`}
+                    readOnly
+                    className="w-28 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleOpenItemSearch(index)}
+                    className="text-gray-600 hover:text-gray-900 p-2"
+                    title="Browse saved items"
+                  >
+                    <Search className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveItem(index)}
+                    className="text-red-600 hover:text-red-900 p-2"
+                    disabled={items.length === 1}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               ))}
             </div>
@@ -550,6 +557,58 @@ function InvoiceForm({ invoice, onClose }) {
             </button>
           </div>
         </form>
+
+        {/* Item Search Modal */}
+        {showItemSearchModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
+              <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900">Select Saved Item</h2>
+                <button
+                  onClick={() => setShowItemSearchModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                {savedItems.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No saved items available</p>
+                ) : (
+                  <div className="space-y-2">
+                    {savedItems.map((savedItem) => (
+                      <button
+                        key={savedItem.id}
+                        onClick={() => handleSelectSavedItem(savedItem)}
+                        className="w-full text-left px-4 py-3 border border-gray-300 rounded-lg hover:bg-blue-50 hover:border-blue-500 transition-colors"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            {savedItem.item_number && (
+                              <div className="text-xs font-mono text-gray-500 mb-1">
+                                {savedItem.item_number}
+                              </div>
+                            )}
+                            <div className="font-medium text-gray-900">{savedItem.description}</div>
+                            <div className="text-sm text-gray-500 mt-1">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                {savedItem.category}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-lg font-bold text-gray-900 ml-4">
+                            ${savedItem.rate.toFixed(2)}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
