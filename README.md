@@ -4,20 +4,80 @@ A professional, feature-rich desktop invoicing application built with Electron. 
 
 ## Features
 
-### Core Features
-- **Invoice Management** - Create, edit, and manage professional invoices
-- **PDF Generation** - Export invoices to PDF format
-- **Client Management** - Keep track of client information and history
-- **Payment Tracking** - Monitor payment status and overdue invoices
+### Core Features ✅
+- **📊 Dashboard & Analytics** - Visual statistics with color-coded cards and progress bars
+  - Total revenue, invoices, paid, pending, and overdue amounts
+  - Recent invoices with quick actions
+  - Automatic status updates for overdue invoices
+
+- **📄 Invoice Management** - Complete invoice lifecycle management
+  - Create, edit, and manage professional invoices
+  - Quick line item entry with item number lookup
+  - Auto-calculation of totals and taxes
+  - Status tracking (Draft, Pending, Paid, Overdue)
+
+- **💼 Client Management** - Comprehensive client database
+  - Customer numbers for quick identification
+  - Full contact information storage
+  - View client invoice history
+  - Quick navigation to client invoices
+
+- **📦 Saved Items Library** - Reusable line items
+  - Item numbers for rapid invoice creation
+  - Standardized pricing
+  - Category organization
+
+- **🔍 Search & Filters** - Powerful data discovery
+  - Global search across all entities (Ctrl/Cmd+F)
+  - Quick status filters (All, Unpaid, Paid, Overdue)
+  - Date range filtering
+  - Client-specific filtering
+
+- **⚡ Batch Operations** - Process multiple invoices at once
+  - Select multiple invoices with checkboxes
+  - Bulk mark as paid
+  - Bulk archive or delete
+
+- **📥 PDF Export** - Professional invoice PDFs
+  - One-click PDF generation
+  - Company branding included
+  - Save anywhere on your system
+
+- **⌨️ Keyboard Shortcuts** - Lightning-fast navigation
+  - Full keyboard shortcut support
+  - In-app shortcut reference (Ctrl/Cmd+/)
+  - Context-aware shortcuts
+
+- **🗄️ Archive System** - Organize completed work
+  - Archive old invoices
+  - Restore when needed
+  - Keeps database clean
+
+- **⚙️ Settings & Customization**
+  - Company information and branding
+  - Invoice numbering and formatting
+  - Tax rates and payment terms
+  - Theme customization
 
 ### Advanced Features (Roadmap)
-- **Dashboard & Analytics** - Visualize revenue, expenses, and business metrics
 - **Email Integration** - Send invoices directly via email
 - **Recurring Invoices** - Automate recurring billing
 - **Expense Tracking** - Track business expenses and generate reports
 - **Quotes & Estimates** - Create and convert quotes to invoices
-- **Customizable Templates** - Personalize invoice designs
 - **Multi-Currency Support** - Handle international clients
+- **Payment Integration** - Accept online payments
+
+## Quick Start
+
+1. **Install dependencies**: `npm install`
+2. **Run the app**: `npm run electron:dev`
+3. **Create your first invoice**:
+   - Set up company info in Settings
+   - Add a client in Clients section
+   - Create an invoice in Invoices section
+4. **Learn keyboard shortcuts**: Press `Ctrl/Cmd + /`
+
+📖 **[Read the Full User Guide](USER_GUIDE.md)** for detailed instructions on all features.
 
 ## Screenshots
 *Coming soon*
@@ -98,22 +158,25 @@ invoicepro-desktop/
 
 ### Available Scripts
 - `npm start` - Run the application
-- `npm run dev` - Run in development mode with live reload
+- `npm run electron:dev` - Run in development mode with live reload
 - `npm run build` - Build for all platforms
 - `npm run build:win` - Build for Windows
 - `npm run build:mac` - Build for macOS
 - `npm run build:linux` - Build for Linux
+- `npm run fix-db` - Fix database schema (adds missing columns)
 - `npm test` - Run tests
 - `npm run lint` - Run ESLint
 
 ### Technology Stack
-- **Framework**: Electron
-- **Language**: JavaScript (ES6+)
-- **Database**: SQLite (via better-sqlite3)
-- **PDF Generation**: PDFKit
-- **Storage**: electron-store
+- **Framework**: Electron + React 18
+- **UI Components**: React with Hooks
+- **Styling**: Tailwind CSS
+- **Icons**: Lucide React
+- **Database**: SQLite3 (via better-sqlite3)
+- **PDF Generation**: Electron printToPDF API
+- **Build Tool**: Vite
 - **Build**: electron-builder
-- **Testing**: Jest
+- **Testing**: Jest (planned)
 - **CI/CD**: GitHub Actions
 
 ## Contributing
@@ -131,15 +194,34 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 
 ## Roadmap
 
-See our [Development Roadmap](DEVELOPMENT_ROADMAP.md) for planned features and timeline.
-
-### Current Status
+### Completed ✅
 - ✅ Project setup and repository initialization
-- ✅ CI/CD pipeline with GitHub Actions
-- 🚧 Core invoice functionality (Week 1)
-- 📅 Dashboard & Analytics (Week 2)
-- 📅 Email Integration (Week 3)
-- 📅 And more...
+- ✅ Complete invoice management system
+- ✅ Client management with customer numbers
+- ✅ Saved items library with item numbers
+- ✅ Dashboard with visual statistics and charts
+- ✅ PDF export functionality
+- ✅ Archive system
+- ✅ Global search functionality
+- ✅ Quick filters and date range filtering
+- ✅ Batch operations
+- ✅ Keyboard shortcuts
+- ✅ Automatic overdue status tracking
+- ✅ Comprehensive user documentation
+
+### In Progress 🚧
+- 🚧 CI/CD pipeline with GitHub Actions
+- 🚧 Automated testing setup
+- 🚧 Application packaging for distribution
+
+### Planned 📅
+- 📅 Email integration for sending invoices
+- 📅 Recurring invoices
+- 📅 Expense tracking
+- 📅 Quotes and estimates
+- 📅 Multi-currency support
+- 📅 Payment gateway integration
+- 📅 Mobile companion app
 
 ## Testing
 
@@ -172,8 +254,27 @@ Built applications will be in the `dist/` directory.
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
+## Troubleshooting
+
+### Common Issues
+
+**Database Column Errors**
+```bash
+npm run fix-db
+```
+
+**better-sqlite3 Module Error**
+```bash
+npm uninstall better-sqlite3
+npm install better-sqlite3
+npx electron-rebuild -f -w better-sqlite3
+```
+
+For more troubleshooting help, see the [User Guide - Troubleshooting Section](USER_GUIDE.md#troubleshooting).
+
 ## Support
 
+- **User Guide**: [Complete User Guide](USER_GUIDE.md)
 - **Documentation**: [Wiki](https://github.com/JNicometo/Invoicing_app/wiki)
 - **Issues**: [GitHub Issues](https://github.com/JNicometo/Invoicing_app/issues)
 - **Discussions**: [GitHub Discussions](https://github.com/JNicometo/Invoicing_app/discussions)

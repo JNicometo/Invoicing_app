@@ -1,15 +1,166 @@
-import React, { useState } from 'react';
-import { Home, FileText, Users, Archive as ArchiveIcon, Settings as SettingsIcon, Save } from 'lucide-react';
+import React, { useState, useRef, useEffect } from 'react';
+import { Home, FileText, Users, Archive as ArchiveIcon, Settings as SettingsIcon, Save, HelpCircle, X, Keyboard, Search } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import InvoiceList from './components/InvoiceList';
 import ClientManagement from './components/ClientManagement';
 import SavedItems from './components/SavedItems';
 import ArchiveComponent from './components/Archive';
 import Settings from './components/Settings';
+import { useDatabase } from './hooks/useDatabase';
 
 function App() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [selectedClientId, setSelectedClientId] = useState(null);
+  const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
+  const [showSearch, setShowSearch] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [searchResults, setSearchResults] = useState({ invoices: [], clients: [], items: [] });
+  const [isSearching, setIsSearching] = useState(false);
+  const invoiceListRef = useRef(null);
+  const searchInputRef = useRef(null);
+
+  const { getAllInvoices, getAllClients, getAllSavedItems } = useDatabase();
+
+  // Global search functionality
+  const performSearch = async (query) => {
+    if (!query.trim()) {
+      setSearchResults({ invoices: [], clients: [], items: [] });
+      return;
+    }
+
+    setIsSearching(true);
+    try {
+      const [invoices, clients, items] = await Promise.all([
+        getAllInvoices(),
+        getAllClients(),
+        getAllSavedItems()
+      ]);
+
+      const lowerQuery = query.toLowerCase();
+
+      const filteredInvoices = invoices.filter(inv =>
+        inv.invoice_number.toLowerCase().includes(lowerQuery) ||
+        inv.client_name?.toLowerCase().includes(lowerQuery)
+      ).slice(0, 5);
+
+      const filteredClients = clients.filter(client =>
+        client.name.toLowerCase().includes(lowerQuery) ||
+        client.email.toLowerCase().includes(lowerQuery) ||
+        client.customer_number?.toLowerCase().includes(lowerQuery)
+      ).slice(0, 5);
+
+      const filteredItems = items.filter(item =>
+        item.description.toLowerCase().includes(lowerQuery) ||
+        item.item_number?.toLowerCase().includes(lowerQuery)
+      ).slice(0, 5);
+
+      setSearchResults({
+        invoices: filteredInvoices,
+        clients: filteredClients,
+        items: filteredItems
+      });
+    } catch (error) {
+      console.error('Search error:', error);
+    } finally {
+      setIsSearching(false);
+    }
+  };
+
+  useEffect(() => {
+    if (searchQuery) {
+      const timeoutId = setTimeout(() => {
+        performSearch(searchQuery);
+      }, 300);
+      return () => clearTimeout(timeoutId);
+    } else {
+      setSearchResults({ invoices: [], clients: [], items: [] });
+    }
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (showSearch && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [showSearch]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (event) => {
+      const isMac = navigator.platform.toUpperCase().indexOf('MAC') >= 0;
+      const modifierKey = isMac ? event.metaKey : event.ctrlKey;
+      const isInInput = ['INPUT', 'TEXTAREA', 'SELECT'].includes(event.target.tagName);
+
+      // Ctrl/Cmd + ? - Show keyboard shortcuts help
+      if (modifierKey && event.key === '/') {
+        event.preventDefault();
+        setShowKeyboardHelp(true);
+        return;
+      }
+
+      // Escape - Close modals
+      if (event.key === 'Escape') {
+        if (showKeyboardHelp) {
+          event.preventDefault();
+          setShowKeyboardHelp(false);
+          return;
+        }
+        if (showSearch) {
+          event.preventDefault();
+          setShowSearch(false);
+          setSearchQuery('');
+          return;
+        }
+      }
+
+      // Ctrl/Cmd + F - Global search
+      if (modifierKey && event.key === 'f') {
+        event.preventDefault();
+        setShowSearch(true);
+        return;
+      }
+
+      // Only process other shortcuts when not in input
+      if (isInInput) return;
+
+      // Ctrl/Cmd + N - New Invoice
+      if (modifierKey && event.key === 'n') {
+        event.preventDefault();
+        setCurrentView('invoices');
+        return;
+      }
+
+      // Ctrl/Cmd + D - Dashboard
+      if (modifierKey && event.key === 'd') {
+        event.preventDefault();
+        setCurrentView('dashboard');
+        return;
+      }
+
+      // Ctrl/Cmd + I - Invoices
+      if (modifierKey && event.key === 'i') {
+        event.preventDefault();
+        setCurrentView('invoices');
+        return;
+      }
+
+      // Ctrl/Cmd + U - Clients (Users)
+      if (modifierKey && event.key === 'u') {
+        event.preventDefault();
+        setCurrentView('clients');
+        return;
+      }
+
+      // Ctrl/Cmd + , - Settings
+      if (modifierKey && event.key === ',') {
+        event.preventDefault();
+        setCurrentView('settings');
+        return;
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [showKeyboardHelp]);
 
   const navigation = [
     { id: 'dashboard', name: 'Dashboard', icon: Home },
@@ -78,6 +229,20 @@ function App() {
         </nav>
 
         <div className="absolute bottom-0 left-0 right-0 w-64 p-4 border-t">
+          <button
+            onClick={() => setShowSearch(true)}
+            className="w-full flex items-center justify-center px-3 py-2 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors mb-2"
+          >
+            <Search className="w-4 h-4 mr-2" />
+            Global Search (Ctrl+F)
+          </button>
+          <button
+            onClick={() => setShowKeyboardHelp(true)}
+            className="w-full flex items-center justify-center px-3 py-2 text-xs text-gray-600 hover:text-gray-900 hover:bg-gray-50 rounded-lg transition-colors mb-2"
+          >
+            <Keyboard className="w-4 h-4 mr-2" />
+            Keyboard Shortcuts
+          </button>
           <p className="text-xs text-gray-500 text-center">
             InvoicePro Desktop v1.0.0
           </p>
@@ -88,6 +253,243 @@ function App() {
       <div className="flex-1 overflow-auto">
         {renderView()}
       </div>
+
+      {/* Global Search Modal */}
+      {showSearch && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-start justify-center z-50 pt-20">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full mx-4 max-h-[80vh] flex flex-col">
+            <div className="p-4 border-b border-gray-200">
+              <div className="relative">
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  placeholder="Search invoices, clients, or items..."
+                  value={searchQuery}
+                  onChange={(e) => setSearchQuery(e.target.value)}
+                  className="w-full pl-10 pr-10 py-3 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent text-lg"
+                />
+                <button
+                  onClick={() => {
+                    setShowSearch(false);
+                    setSearchQuery('');
+                  }}
+                  className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4">
+              {isSearching ? (
+                <div className="text-center py-8 text-gray-500">Searching...</div>
+              ) : !searchQuery ? (
+                <div className="text-center py-8 text-gray-500">
+                  <Search className="w-12 h-12 mx-auto mb-3 text-gray-300" />
+                  <p>Start typing to search across invoices, clients, and items</p>
+                  <p className="text-sm mt-2">Press <kbd className="px-2 py-1 bg-gray-100 rounded">Esc</kbd> to close</p>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  {/* Invoices Results */}
+                  {searchResults.invoices.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                        <FileText className="w-4 h-4 mr-2" />
+                        Invoices ({searchResults.invoices.length})
+                      </h3>
+                      <div className="space-y-2">
+                        {searchResults.invoices.map((invoice) => (
+                          <button
+                            key={invoice.id}
+                            onClick={() => {
+                              setCurrentView('invoices');
+                              setShowSearch(false);
+                              setSearchQuery('');
+                            }}
+                            className="w-full text-left p-3 hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium text-gray-900">{invoice.invoice_number}</div>
+                                <div className="text-sm text-gray-500">{invoice.client_name}</div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-sm font-medium text-gray-900">${invoice.total?.toFixed(2)}</div>
+                                <span className={`inline-flex px-2 py-0.5 text-xs font-semibold rounded-full ${
+                                  invoice.status === 'paid' ? 'bg-green-100 text-green-800' :
+                                  invoice.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
+                                  invoice.status === 'overdue' ? 'bg-red-100 text-red-800' :
+                                  'bg-gray-100 text-gray-800'
+                                }`}>
+                                  {invoice.status}
+                                </span>
+                              </div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Clients Results */}
+                  {searchResults.clients.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                        <Users className="w-4 h-4 mr-2" />
+                        Clients ({searchResults.clients.length})
+                      </h3>
+                      <div className="space-y-2">
+                        {searchResults.clients.map((client) => (
+                          <button
+                            key={client.id}
+                            onClick={() => {
+                              setCurrentView('clients');
+                              setShowSearch(false);
+                              setSearchQuery('');
+                            }}
+                            className="w-full text-left p-3 hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors"
+                          >
+                            <div className="font-medium text-gray-900">{client.name}</div>
+                            <div className="text-sm text-gray-500">{client.email}</div>
+                            {client.customer_number && (
+                              <div className="text-xs text-gray-400 font-mono mt-1">#{client.customer_number}</div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Saved Items Results */}
+                  {searchResults.items.length > 0 && (
+                    <div>
+                      <h3 className="text-sm font-semibold text-gray-700 mb-2 flex items-center">
+                        <Save className="w-4 h-4 mr-2" />
+                        Saved Items ({searchResults.items.length})
+                      </h3>
+                      <div className="space-y-2">
+                        {searchResults.items.map((item) => (
+                          <button
+                            key={item.id}
+                            onClick={() => {
+                              setCurrentView('saved-items');
+                              setShowSearch(false);
+                              setSearchQuery('');
+                            }}
+                            className="w-full text-left p-3 hover:bg-gray-50 rounded-lg border border-gray-200 transition-colors"
+                          >
+                            <div className="flex items-center justify-between">
+                              <div>
+                                <div className="font-medium text-gray-900">{item.description}</div>
+                                {item.item_number && (
+                                  <div className="text-xs text-gray-400 font-mono mt-1">#{item.item_number}</div>
+                                )}
+                              </div>
+                              <div className="text-sm font-medium text-gray-900">${item.rate?.toFixed(2)}</div>
+                            </div>
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* No Results */}
+                  {searchResults.invoices.length === 0 &&
+                   searchResults.clients.length === 0 &&
+                   searchResults.items.length === 0 && (
+                    <div className="text-center py-8 text-gray-500">
+                      <p>No results found for "{searchQuery}"</p>
+                      <p className="text-sm mt-2">Try a different search term</p>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Keyboard Shortcuts Help Modal */}
+      {showKeyboardHelp && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+          <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
+            <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+              <div className="flex items-center">
+                <Keyboard className="w-6 h-6 mr-3 text-blue-600" />
+                <h2 className="text-2xl font-bold text-gray-900">Keyboard Shortcuts</h2>
+              </div>
+              <button
+                onClick={() => setShowKeyboardHelp(false)}
+                className="text-gray-400 hover:text-gray-600"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-6">
+              <div className="space-y-6">
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Navigation</h3>
+                  <div className="space-y-2">
+                    <ShortcutRow shortcut="Ctrl/Cmd + D" description="Go to Dashboard" />
+                    <ShortcutRow shortcut="Ctrl/Cmd + I" description="Go to Invoices" />
+                    <ShortcutRow shortcut="Ctrl/Cmd + U" description="Go to Clients" />
+                    <ShortcutRow shortcut="Ctrl/Cmd + ," description="Go to Settings" />
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Actions</h3>
+                  <div className="space-y-2">
+                    <ShortcutRow shortcut="Ctrl/Cmd + N" description="New Invoice (opens Invoice page)" />
+                    <ShortcutRow shortcut="Ctrl/Cmd + F" description="Global Search" />
+                    <ShortcutRow shortcut="Ctrl/Cmd + S" description="Save (in forms)" />
+                    <ShortcutRow shortcut="Ctrl/Cmd + P" description="Print (in preview)" />
+                    <ShortcutRow shortcut="Escape" description="Close modals/forms" />
+                  </div>
+                </div>
+
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900 mb-3">Help</h3>
+                  <div className="space-y-2">
+                    <ShortcutRow shortcut="Ctrl/Cmd + /" description="Show this help" />
+                  </div>
+                </div>
+
+                <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                  <p className="text-sm text-blue-900">
+                    <strong>Tip:</strong> Most shortcuts work globally except when typing in input fields.
+                    Press <kbd className="px-2 py-1 bg-white border border-blue-300 rounded text-xs font-mono">Escape</kbd> to close any modal or form.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 border-t border-gray-200 bg-gray-50">
+              <button
+                onClick={() => setShowKeyboardHelp(false)}
+                className="w-full px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Got it!
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Helper component for shortcut rows
+function ShortcutRow({ shortcut, description }) {
+  return (
+    <div className="flex justify-between items-center py-2 px-3 hover:bg-gray-50 rounded">
+      <span className="text-sm text-gray-700">{description}</span>
+      <kbd className="px-3 py-1 bg-gray-100 border border-gray-300 rounded text-xs font-mono text-gray-800">
+        {shortcut}
+      </kbd>
     </div>
   );
 }

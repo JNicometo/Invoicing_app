@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Eye, Edit, Trash2, Archive, Printer, FileText, User } from 'lucide-react';
+import { Plus, Search, Eye, Edit, Trash2, Archive, Printer, FileText, User, Filter, CheckCircle2, Clock, AlertTriangle, X } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { formatCurrency, formatDate, getStatusBadgeColor } from '../utils/formatting';
 import InvoiceForm from './InvoiceForm';
@@ -11,15 +11,21 @@ function InvoiceList({ selectedClientId, onClearClientFilter }) {
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
+  const [clientFilter, setClientFilter] = useState('');
+  const [clients, setClients] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [clientName, setClientName] = useState('');
+  const [selectedInvoices, setSelectedInvoices] = useState([]);
 
-  const { getAllInvoices, deleteInvoice, archiveInvoice, getClient } = useDatabase();
+  const { getAllInvoices, deleteInvoice, archiveInvoice, getClient, getAllClients, updateInvoice } = useDatabase();
 
   useEffect(() => {
     loadInvoices();
+    loadClients();
   }, []);
 
   useEffect(() => {
@@ -30,7 +36,7 @@ function InvoiceList({ selectedClientId, onClearClientFilter }) {
 
   useEffect(() => {
     filterInvoices();
-  }, [searchTerm, statusFilter, invoices, selectedClientId]);
+  }, [searchTerm, statusFilter, invoices, selectedClientId, dateFrom, dateTo, clientFilter]);
 
   const loadClientName = async () => {
     if (selectedClientId) {
@@ -55,14 +61,29 @@ function InvoiceList({ selectedClientId, onClearClientFilter }) {
     }
   };
 
+  const loadClients = async () => {
+    try {
+      const data = await getAllClients();
+      setClients(data);
+    } catch (error) {
+      console.error('Error loading clients:', error);
+    }
+  };
+
   const filterInvoices = () => {
     let filtered = [...invoices];
 
-    // Filter by selected client
+    // Filter by selected client (from Dashboard)
     if (selectedClientId) {
       filtered = filtered.filter(inv => inv.client_id === selectedClientId);
     }
 
+    // Filter by client dropdown
+    if (clientFilter) {
+      filtered = filtered.filter(inv => inv.client_id === parseInt(clientFilter));
+    }
+
+    // Search filter
     if (searchTerm) {
       filtered = filtered.filter(inv =>
         inv.invoice_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -70,12 +91,39 @@ function InvoiceList({ selectedClientId, onClearClientFilter }) {
       );
     }
 
+    // Status filter
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(inv => inv.status === statusFilter);
+      if (statusFilter === 'unpaid') {
+        // Unpaid includes both pending and overdue
+        filtered = filtered.filter(inv => inv.status === 'pending' || inv.status === 'overdue');
+      } else {
+        filtered = filtered.filter(inv => inv.status === statusFilter);
+      }
+    }
+
+    // Date range filter
+    if (dateFrom) {
+      filtered = filtered.filter(inv => new Date(inv.date) >= new Date(dateFrom));
+    }
+    if (dateTo) {
+      filtered = filtered.filter(inv => new Date(inv.date) <= new Date(dateTo));
     }
 
     setFilteredInvoices(filtered);
   };
+
+  const clearAllFilters = () => {
+    setSearchTerm('');
+    setStatusFilter('all');
+    setDateFrom('');
+    setDateTo('');
+    setClientFilter('');
+    if (onClearClientFilter) {
+      onClearClientFilter();
+    }
+  };
+
+  const hasActiveFilters = searchTerm || statusFilter !== 'all' || dateFrom || dateTo || clientFilter || selectedClientId;
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this invoice?')) {
@@ -122,6 +170,71 @@ function InvoiceList({ selectedClientId, onClearClientFilter }) {
     setSelectedInvoice(null);
   };
 
+  const handleToggleInvoice = (id) => {
+    setSelectedInvoices(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleAll = () => {
+    if (selectedInvoices.length === filteredInvoices.length) {
+      setSelectedInvoices([]);
+    } else {
+      setSelectedInvoices(filteredInvoices.map(inv => inv.id));
+    }
+  };
+
+  const handleBulkMarkPaid = async () => {
+    if (selectedInvoices.length === 0) return;
+
+    if (window.confirm(`Mark ${selectedInvoices.length} invoice(s) as paid?`)) {
+      try {
+        for (const id of selectedInvoices) {
+          const invoice = invoices.find(inv => inv.id === id);
+          if (invoice) {
+            await updateInvoice({ ...invoice, status: 'paid' });
+          }
+        }
+        setSelectedInvoices([]);
+        await loadInvoices();
+      } catch (error) {
+        alert('Error updating invoices: ' + error.message);
+      }
+    }
+  };
+
+  const handleBulkArchive = async () => {
+    if (selectedInvoices.length === 0) return;
+
+    if (window.confirm(`Archive ${selectedInvoices.length} invoice(s)?`)) {
+      try {
+        for (const id of selectedInvoices) {
+          await archiveInvoice(id);
+        }
+        setSelectedInvoices([]);
+        await loadInvoices();
+      } catch (error) {
+        alert('Error archiving invoices: ' + error.message);
+      }
+    }
+  };
+
+  const handleBulkDelete = async () => {
+    if (selectedInvoices.length === 0) return;
+
+    if (window.confirm(`Delete ${selectedInvoices.length} invoice(s) permanently? This cannot be undone.`)) {
+      try {
+        for (const id of selectedInvoices) {
+          await deleteInvoice(id);
+        }
+        setSelectedInvoices([]);
+        await loadInvoices();
+      } catch (error) {
+        alert('Error deleting invoices: ' + error.message);
+      }
+    }
+  };
+
   if (showForm) {
     return <InvoiceForm invoice={selectedInvoice} onClose={handleFormClose} />;
   }
@@ -166,9 +279,67 @@ function InvoiceList({ selectedClientId, onClearClientFilter }) {
           </div>
         )}
 
-        {/* Filters */}
-        <div className="flex flex-col sm:flex-row gap-4">
-          <div className="flex-1 relative">
+        {/* Quick Status Filters */}
+        <div className="flex flex-wrap gap-3 mb-4">
+          <button
+            onClick={() => setStatusFilter('all')}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              statusFilter === 'all'
+                ? 'bg-gray-900 text-white shadow-md'
+                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
+            }`}
+          >
+            <FileText className="w-4 h-4 inline mr-1.5" />
+            All
+          </button>
+          <button
+            onClick={() => setStatusFilter('unpaid')}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              statusFilter === 'unpaid'
+                ? 'bg-yellow-600 text-white shadow-md'
+                : 'bg-white text-yellow-700 border border-yellow-300 hover:bg-yellow-50'
+            }`}
+          >
+            <Clock className="w-4 h-4 inline mr-1.5" />
+            Unpaid
+          </button>
+          <button
+            onClick={() => setStatusFilter('paid')}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              statusFilter === 'paid'
+                ? 'bg-green-600 text-white shadow-md'
+                : 'bg-white text-green-700 border border-green-300 hover:bg-green-50'
+            }`}
+          >
+            <CheckCircle2 className="w-4 h-4 inline mr-1.5" />
+            Paid
+          </button>
+          <button
+            onClick={() => setStatusFilter('overdue')}
+            className={`px-4 py-2 rounded-lg font-medium transition-all ${
+              statusFilter === 'overdue'
+                ? 'bg-red-600 text-white shadow-md'
+                : 'bg-white text-red-700 border border-red-300 hover:bg-red-50'
+            }`}
+          >
+            <AlertTriangle className="w-4 h-4 inline mr-1.5" />
+            Overdue
+          </button>
+
+          {hasActiveFilters && (
+            <button
+              onClick={clearAllFilters}
+              className="ml-auto px-4 py-2 rounded-lg font-medium text-gray-600 hover:text-gray-900 hover:bg-gray-100 transition-all flex items-center"
+            >
+              <X className="w-4 h-4 mr-1.5" />
+              Clear All Filters
+            </button>
+          )}
+        </div>
+
+        {/* Advanced Filters */}
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="relative">
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
@@ -178,19 +349,82 @@ function InvoiceList({ selectedClientId, onClearClientFilter }) {
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
+
           <select
-            value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            value={clientFilter}
+            onChange={(e) => setClientFilter(e.target.value)}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
-            <option value="all">All Status</option>
-            <option value="draft">Draft</option>
-            <option value="pending">Pending</option>
-            <option value="paid">Paid</option>
-            <option value="overdue">Overdue</option>
+            <option value="">All Clients</option>
+            {clients.map(client => (
+              <option key={client.id} value={client.id}>
+                {client.name}
+              </option>
+            ))}
           </select>
+
+          <input
+            type="date"
+            placeholder="From Date"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+
+          <input
+            type="date"
+            placeholder="To Date"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+          />
+        </div>
+
+        {/* Results Summary */}
+        <div className="mt-4 text-sm text-gray-600">
+          Showing <strong>{filteredInvoices.length}</strong> of <strong>{invoices.length}</strong> invoices
         </div>
       </div>
+
+      {/* Bulk Actions Bar */}
+      {selectedInvoices.length > 0 && (
+        <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
+          <div className="flex items-center">
+            <span className="text-sm font-medium text-blue-900">
+              {selectedInvoices.length} invoice{selectedInvoices.length > 1 ? 's' : ''} selected
+            </span>
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={handleBulkMarkPaid}
+              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center"
+            >
+              <CheckCircle2 className="w-4 h-4 mr-1.5" />
+              Mark as Paid
+            </button>
+            <button
+              onClick={handleBulkArchive}
+              className="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center"
+            >
+              <Archive className="w-4 h-4 mr-1.5" />
+              Archive
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors flex items-center"
+            >
+              <Trash2 className="w-4 h-4 mr-1.5" />
+              Delete
+            </button>
+            <button
+              onClick={() => setSelectedInvoices([])}
+              className="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Invoices Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -213,6 +447,14 @@ function InvoiceList({ selectedClientId, onClearClientFilter }) {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
+                <th className="px-6 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={selectedInvoices.length === filteredInvoices.length && filteredInvoices.length > 0}
+                    onChange={handleToggleAll}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Invoice #
                 </th>
@@ -238,7 +480,15 @@ function InvoiceList({ selectedClientId, onClearClientFilter }) {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {filteredInvoices.map((invoice) => (
-                <tr key={invoice.id} className="hover:bg-gray-50">
+                <tr key={invoice.id} className={`hover:bg-gray-50 ${selectedInvoices.includes(invoice.id) ? 'bg-blue-50' : ''}`}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={selectedInvoices.includes(invoice.id)}
+                      onChange={() => handleToggleInvoice(invoice.id)}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {invoice.invoice_number}
                   </td>

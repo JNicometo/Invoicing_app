@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { DollarSign, FileText, TrendingUp, AlertCircle, Edit, Eye } from 'lucide-react';
+import { DollarSign, FileText, TrendingUp, AlertCircle, Edit, Eye, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { formatCurrency } from '../utils/formatting';
 import InvoiceForm from './InvoiceForm';
@@ -80,26 +80,51 @@ function Dashboard({ onNavigateToInvoices }) {
       name: 'Total Revenue',
       value: stats?.total_revenue || 0,
       icon: DollarSign,
-      color: 'bg-blue-500',
+      bgGradient: 'bg-gradient-to-br from-blue-500 to-blue-600',
+      iconBg: 'bg-blue-500',
+      textColor: 'text-blue-600',
+      description: 'All-time earnings',
     },
     {
       name: 'Total Invoices',
       value: stats?.total_invoices || 0,
       icon: FileText,
-      color: 'bg-green-500',
+      bgGradient: 'bg-gradient-to-br from-purple-500 to-purple-600',
+      iconBg: 'bg-purple-500',
+      textColor: 'text-purple-600',
+      description: 'Created invoices',
       isCount: true,
     },
     {
       name: 'Paid',
       value: stats?.paid_amount || 0,
-      icon: TrendingUp,
-      color: 'bg-green-500',
+      icon: CheckCircle2,
+      bgGradient: 'bg-gradient-to-br from-green-500 to-green-600',
+      iconBg: 'bg-green-500',
+      textColor: 'text-green-600',
+      description: 'Received payments',
+      percentage: stats?.total_revenue ? ((stats?.paid_amount || 0) / stats.total_revenue * 100).toFixed(1) : 0,
     },
     {
-      name: 'Outstanding',
+      name: 'Pending',
       value: stats?.pending_amount || 0,
-      icon: AlertCircle,
-      color: 'bg-yellow-500',
+      icon: Clock,
+      bgGradient: 'bg-gradient-to-br from-yellow-500 to-yellow-600',
+      iconBg: 'bg-yellow-500',
+      textColor: 'text-yellow-600',
+      description: 'Awaiting payment',
+      percentage: stats?.total_revenue ? ((stats?.pending_amount || 0) / stats.total_revenue * 100).toFixed(1) : 0,
+    },
+    {
+      name: 'Overdue',
+      value: stats?.overdue_amount || 0,
+      icon: AlertTriangle,
+      bgGradient: 'bg-gradient-to-br from-red-500 to-red-600',
+      iconBg: 'bg-red-500',
+      textColor: 'text-red-600',
+      description: 'Needs attention',
+      percentage: stats?.total_revenue ? ((stats?.overdue_amount || 0) / stats.total_revenue * 100).toFixed(1) : 0,
+      highlight: (stats?.overdue_amount || 0) > 0,
     },
   ];
 
@@ -111,21 +136,45 @@ function Dashboard({ onNavigateToInvoices }) {
       </div>
 
       {/* Stats Grid */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         {statCards.map((stat) => {
           const Icon = stat.icon;
           return (
-            <div key={stat.name} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-              <div className="flex items-center justify-between">
+            <div
+              key={stat.name}
+              className={`bg-white rounded-xl shadow-lg border-2 p-6 transition-all hover:shadow-xl ${
+                stat.highlight ? 'border-red-300 ring-2 ring-red-100' : 'border-gray-100'
+              }`}
+            >
+              <div className="flex items-start justify-between mb-4">
                 <div>
-                  <p className="text-sm font-medium text-gray-600">{stat.name}</p>
-                  <p className="text-2xl font-bold text-gray-900 mt-2">
-                    {stat.isCount ? stat.value : formatCurrency(stat.value)}
-                  </p>
+                  <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{stat.name}</p>
+                  <p className="text-sm text-gray-400 mt-1">{stat.description}</p>
                 </div>
-                <div className={`${stat.color} p-3 rounded-lg`}>
-                  <Icon className="w-6 h-6 text-white" />
+                <div className={`${stat.iconBg} p-2.5 rounded-lg shadow-md`}>
+                  <Icon className="w-5 h-5 text-white" />
                 </div>
+              </div>
+
+              <div className="mt-3">
+                <p className={`text-3xl font-bold ${stat.textColor}`}>
+                  {stat.isCount ? stat.value : formatCurrency(stat.value)}
+                </p>
+
+                {stat.percentage !== undefined && stat.percentage > 0 && (
+                  <div className="mt-3">
+                    <div className="flex items-center justify-between text-xs text-gray-500 mb-1">
+                      <span>of total</span>
+                      <span className="font-semibold">{stat.percentage}%</span>
+                    </div>
+                    <div className="w-full bg-gray-200 rounded-full h-2 overflow-hidden">
+                      <div
+                        className={`h-2 rounded-full transition-all duration-500 ${stat.bgGradient}`}
+                        style={{ width: `${Math.min(stat.percentage, 100)}%` }}
+                      />
+                    </div>
+                  </div>
+                )}
               </div>
             </div>
           );
@@ -142,46 +191,83 @@ function Dashboard({ onNavigateToInvoices }) {
             <p className="text-center text-gray-500 py-8">No invoices yet. Create your first invoice to get started!</p>
           ) : (
             <div className="space-y-4">
-              {recentInvoices.map((invoice) => (
-                <div key={invoice.id} className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-lg transition-colors">
-                  <div className="flex-1">
-                    <div className="flex items-center space-x-3">
-                      <span className="font-medium text-gray-900">{invoice.invoice_number}</span>
-                      <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${
-                        invoice.status === 'paid' ? 'bg-green-100 text-green-800' :
-                        invoice.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
-                        invoice.status === 'overdue' ? 'bg-red-100 text-red-800' :
-                        'bg-gray-100 text-gray-800'
-                      }`}>
-                        {invoice.status}
-                      </span>
+              {recentInvoices.map((invoice) => {
+                const statusConfig = {
+                  paid: {
+                    bg: 'bg-green-100',
+                    text: 'text-green-800',
+                    border: 'border-green-300',
+                    icon: CheckCircle2,
+                  },
+                  pending: {
+                    bg: 'bg-yellow-100',
+                    text: 'text-yellow-800',
+                    border: 'border-yellow-300',
+                    icon: Clock,
+                  },
+                  overdue: {
+                    bg: 'bg-red-100',
+                    text: 'text-red-800',
+                    border: 'border-red-300',
+                    icon: AlertTriangle,
+                  },
+                  draft: {
+                    bg: 'bg-gray-100',
+                    text: 'text-gray-800',
+                    border: 'border-gray-300',
+                    icon: FileText,
+                  },
+                };
+
+                const config = statusConfig[invoice.status] || statusConfig.draft;
+                const StatusIcon = config.icon;
+
+                return (
+                  <div
+                    key={invoice.id}
+                    className={`flex items-center justify-between p-4 hover:bg-gray-50 rounded-lg transition-all border-l-4 ${config.border}`}
+                  >
+                    <div className="flex-1">
+                      <div className="flex items-center space-x-3">
+                        <span className="font-semibold text-gray-900">{invoice.invoice_number}</span>
+                        <span className={`inline-flex items-center px-2.5 py-1 text-xs font-bold rounded-full ${config.bg} ${config.text}`}>
+                          <StatusIcon className="w-3 h-3 mr-1" />
+                          {invoice.status.toUpperCase()}
+                        </span>
+                      </div>
+                      <p className="text-sm text-gray-600 mt-1">{invoice.client_name}</p>
                     </div>
-                    <p className="text-sm text-gray-600 mt-1">{invoice.client_name}</p>
+                    <div className="flex items-center space-x-4">
+                      <div className="text-right">
+                        <p className={`text-lg font-bold ${
+                          invoice.status === 'paid' ? 'text-green-600' :
+                          invoice.status === 'overdue' ? 'text-red-600' :
+                          'text-gray-900'
+                        }`}>
+                          {formatCurrency(invoice.total)}
+                        </p>
+                        <p className="text-xs text-gray-500">{new Date(invoice.date).toLocaleDateString()}</p>
+                      </div>
+                      <div className="flex space-x-1">
+                        <button
+                          onClick={() => handleView(invoice)}
+                          className="text-blue-600 hover:text-blue-900 hover:bg-blue-50 p-2 rounded-lg transition-colors"
+                          title="View"
+                        >
+                          <Eye className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleEdit(invoice)}
+                          className="text-gray-600 hover:text-gray-900 hover:bg-gray-100 p-2 rounded-lg transition-colors"
+                          title="Edit"
+                        >
+                          <Edit className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </div>
                   </div>
-                  <div className="flex items-center space-x-4">
-                    <div className="text-right">
-                      <p className="font-semibold text-gray-900">{formatCurrency(invoice.total)}</p>
-                      <p className="text-sm text-gray-500">{new Date(invoice.date).toLocaleDateString()}</p>
-                    </div>
-                    <div className="flex space-x-2">
-                      <button
-                        onClick={() => handleView(invoice)}
-                        className="text-blue-600 hover:text-blue-900 p-2"
-                        title="View"
-                      >
-                        <Eye className="w-4 h-4" />
-                      </button>
-                      <button
-                        onClick={() => handleEdit(invoice)}
-                        className="text-gray-600 hover:text-gray-900 p-2"
-                        title="Edit"
-                      >
-                        <Edit className="w-4 h-4" />
-                      </button>
-                    </div>
-                  </div>
-                </div>
-              ))}
+                );
+              })}
             </div>
           )}
         </div>
