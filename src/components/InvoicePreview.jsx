@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Printer, Download } from 'lucide-react';
+import { X, Printer, Download, Mail } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { formatCurrency, formatDate } from '../utils/formatting';
 
@@ -7,7 +7,16 @@ function InvoicePreview({ invoice, onClose }) {
   const [fullInvoice, setFullInvoice] = useState(null);
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
-  const { getInvoice, getSettings, saveInvoiceAsPDF } = useDatabase();
+  const [showEmailModal, setShowEmailModal] = useState(false);
+  const [emailData, setEmailData] = useState({
+    recipient: '',
+    subject: '',
+    body: '',
+    cc: '',
+    bcc: ''
+  });
+  const [sending, setSending] = useState(false);
+  const { getInvoice, getSettings, saveInvoiceAsPDF, sendInvoiceEmail } = useDatabase();
 
   useEffect(() => {
     loadInvoiceData();
@@ -380,6 +389,70 @@ function InvoicePreview({ invoice, onClose }) {
     }
   };
 
+  const handleOpenEmailModal = () => {
+    // Populate email template variables
+    const subject = (settings?.email_subject_template || 'Invoice {invoice_number} from {company_name}')
+      .replace('{invoice_number}', fullInvoice.invoice_number)
+      .replace('{company_name}', settings?.company_name || '')
+      .replace('{total}', formatCurrency(fullInvoice.total));
+
+    const body = (settings?.email_body_template || 'Dear {client_name},\n\nPlease find attached invoice {invoice_number} for {total}.\n\nThank you for your business!\n\nBest regards,\n{company_name}')
+      .replace('{client_name}', fullInvoice.client_name)
+      .replace('{invoice_number}', fullInvoice.invoice_number)
+      .replace('{total}', formatCurrency(fullInvoice.total))
+      .replace('{due_date}', formatDate(fullInvoice.due_date))
+      .replace('{company_name}', settings?.company_name || '');
+
+    setEmailData({
+      recipient: fullInvoice.client_email || '',
+      subject: subject,
+      body: body,
+      cc: settings?.email_cc || '',
+      bcc: settings?.email_bcc || ''
+    });
+
+    setShowEmailModal(true);
+  };
+
+  const handleSendEmail = async () => {
+    // Validate
+    if (!emailData.recipient || !emailData.recipient.trim()) {
+      alert('Please enter a recipient email address');
+      return;
+    }
+
+    if (!settings?.smtp_host || !settings?.smtp_user || !settings?.smtp_password) {
+      alert('Email settings are not configured. Please configure SMTP settings in Settings > Email Templates.');
+      return;
+    }
+
+    try {
+      setSending(true);
+      const invoiceHtml = generateInvoiceHTML();
+
+      const result = await sendInvoiceEmail({
+        settings,
+        recipient: emailData.recipient,
+        subject: emailData.subject,
+        body: emailData.body,
+        cc: emailData.cc,
+        bcc: emailData.bcc,
+        invoiceHtml,
+        invoiceNumber: fullInvoice.invoice_number
+      });
+
+      if (result.success) {
+        alert(result.message || 'Invoice email sent successfully!');
+        setShowEmailModal(false);
+      }
+    } catch (error) {
+      console.error('Error sending email:', error);
+      alert('Error sending email: ' + error.message);
+    } finally {
+      setSending(false);
+    }
+  };
+
   if (loading || !fullInvoice) {
     return (
       <div className="p-8">
@@ -412,6 +485,13 @@ function InvoicePreview({ invoice, onClose }) {
               Download PDF
             </button>
             <button
+              onClick={handleOpenEmailModal}
+              className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+            >
+              <Mail className="w-4 h-4 mr-2" />
+              Send Email
+            </button>
+            <button
               onClick={onClose}
               className="text-gray-400 hover:text-gray-600"
             >
@@ -419,6 +499,130 @@ function InvoicePreview({ invoice, onClose }) {
             </button>
           </div>
         </div>
+
+        {/* Email Modal */}
+        {showEmailModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Send Invoice by Email</h2>
+                  <button
+                    onClick={() => setShowEmailModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      To <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={emailData.recipient}
+                      onChange={(e) => setEmailData(prev => ({ ...prev, recipient: e.target.value }))}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="client@example.com"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Subject <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={emailData.subject}
+                      onChange={(e) => setEmailData(prev => ({ ...prev, subject: e.target.value }))}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="Invoice subject"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Message <span className="text-red-500">*</span>
+                    </label>
+                    <textarea
+                      value={emailData.body}
+                      onChange={(e) => setEmailData(prev => ({ ...prev, body: e.target.value }))}
+                      rows="8"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent font-mono text-sm"
+                      placeholder="Email message..."
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        CC
+                      </label>
+                      <input
+                        type="text"
+                        value={emailData.cc}
+                        onChange={(e) => setEmailData(prev => ({ ...prev, cc: e.target.value }))}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="accounting@example.com"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        BCC
+                      </label>
+                      <input
+                        type="text"
+                        value={emailData.bcc}
+                        onChange={(e) => setEmailData(prev => ({ ...prev, bcc: e.target.value }))}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                        placeholder="records@example.com"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                    <p className="text-sm text-blue-800">
+                      <strong>Attachment:</strong> Invoice-{fullInvoice.invoice_number}.pdf
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 mt-6">
+                  <button
+                    onClick={() => setShowEmailModal(false)}
+                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                    disabled={sending}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleSendEmail}
+                    disabled={sending}
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  >
+                    {sending ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Sending...
+                      </>
+                    ) : (
+                      <>
+                        <Mail className="w-4 h-4 mr-2" />
+                        Send Email
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Invoice Document */}
         <div

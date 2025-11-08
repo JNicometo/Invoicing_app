@@ -132,6 +132,11 @@ export const useDatabase = () => {
     return await ipcCall('pdf:saveInvoice', invoiceHtml, invoiceNumber);
   }, [ipcCall]);
 
+  // Email Sending
+  const sendInvoiceEmail = useCallback(async (emailData) => {
+    return await ipcCall('email:sendInvoice', emailData);
+  }, [ipcCall]);
+
   return {
     loading,
     error,
@@ -167,5 +172,7 @@ export const useDatabase = () => {
     getDashboardStats,
     // PDF
     saveInvoiceAsPDF,
+    // Email
+    sendInvoiceEmail,
   };
 };

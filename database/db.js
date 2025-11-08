@@ -109,6 +109,15 @@ const runMigrations = () => {
       { name: 'email_cc', type: 'TEXT', default: "''" },
       { name: 'email_bcc', type: 'TEXT', default: "''" },
 
+      // SMTP
+      { name: 'smtp_host', type: 'TEXT', default: "''" },
+      { name: 'smtp_port', type: 'TEXT', default: "'587'" },
+      { name: 'smtp_secure', type: 'INTEGER', default: '0' },
+      { name: 'smtp_user', type: 'TEXT', default: "''" },
+      { name: 'smtp_password', type: 'TEXT', default: "''" },
+      { name: 'smtp_from_name', type: 'TEXT', default: "''" },
+      { name: 'smtp_from_email', type: 'TEXT', default: "''" },
+
       // Display
       { name: 'show_item_numbers', type: 'INTEGER', default: '1' },
       { name: 'show_customer_numbers', type: 'INTEGER', default: '1' },
@@ -225,6 +234,13 @@ const updateSettings = (settings) => {
       email_body_template = @email_body_template,
       email_cc = @email_cc,
       email_bcc = @email_bcc,
+      smtp_host = @smtp_host,
+      smtp_port = @smtp_port,
+      smtp_secure = @smtp_secure,
+      smtp_user = @smtp_user,
+      smtp_password = @smtp_password,
+      smtp_from_name = @smtp_from_name,
+      smtp_from_email = @smtp_from_email,
       show_item_numbers = @show_item_numbers,
       show_customer_numbers = @show_customer_numbers,
       show_tax_breakdown = @show_tax_breakdown,

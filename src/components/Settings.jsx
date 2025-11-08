@@ -60,6 +60,15 @@ function Settings() {
     email_cc: '',
     email_bcc: '',
 
+    // SMTP Configuration
+    smtp_host: '',
+    smtp_port: '',
+    smtp_secure: true,
+    smtp_user: '',
+    smtp_password: '',
+    smtp_from_name: '',
+    smtp_from_email: '',
+
     // Display Options
     show_item_numbers: true,
     show_customer_numbers: true,
@@ -157,6 +166,15 @@ function Settings() {
           email_body_template: data.email_body_template || 'Dear {client_name},\n\nPlease find attached invoice {invoice_number} for {total}.\n\nThank you for your business!\n\nBest regards,\n{company_name}',
           email_cc: data.email_cc || '',
           email_bcc: data.email_bcc || '',
+
+          // SMTP Configuration
+          smtp_host: data.smtp_host || '',
+          smtp_port: data.smtp_port || '587',
+          smtp_secure: data.smtp_secure !== undefined ? data.smtp_secure : false,
+          smtp_user: data.smtp_user || '',
+          smtp_password: data.smtp_password || '',
+          smtp_from_name: data.smtp_from_name || '',
+          smtp_from_email: data.smtp_from_email || '',
 
           // Display Options
           show_item_numbers: data.show_item_numbers !== undefined ? data.show_item_numbers : true,
@@ -966,15 +984,164 @@ function Settings() {
 
               {/* Email Templates Tab */}
               {activeTab === 'email' && (
-                <div className="space-y-6">
+                <div className="space-y-8">
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Email Templates</h2>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Email Configuration</h2>
                     <p className="text-sm text-gray-600 mb-6">
-                      Customize email templates for sending invoices
+                      Configure SMTP settings and email templates for sending invoices
                     </p>
                   </div>
 
+                  {/* SMTP Configuration */}
                   <div className="space-y-4">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <Mail className="w-5 h-5 text-gray-700" />
+                      <h3 className="text-lg font-semibold text-gray-900">SMTP Settings</h3>
+                    </div>
+
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-800 mb-2">
+                        <strong>Email Provider Examples:</strong>
+                      </p>
+                      <ul className="text-xs text-blue-700 space-y-1 ml-4">
+                        <li><strong>Gmail:</strong> smtp.gmail.com, Port 587 (Enable "App Passwords" in Google Account)</li>
+                        <li><strong>Outlook/Hotmail:</strong> smtp-mail.outlook.com, Port 587</li>
+                        <li><strong>Yahoo:</strong> smtp.mail.yahoo.com, Port 587</li>
+                        <li><strong>Custom SMTP:</strong> Contact your email provider for settings</li>
+                      </ul>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="md:col-span-2">
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          SMTP Host <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="smtp_host"
+                          value={formData.smtp_host}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="smtp.gmail.com"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Your email provider's SMTP server address
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          SMTP Port <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="number"
+                          name="smtp_port"
+                          value={formData.smtp_port}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="587"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Usually 587 (TLS) or 465 (SSL)
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Encryption
+                        </label>
+                        <select
+                          name="smtp_secure"
+                          value={formData.smtp_secure.toString()}
+                          onChange={(e) => setFormData(prev => ({ ...prev, smtp_secure: e.target.value === 'true' }))}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="false">TLS (Port 587)</option>
+                          <option value="true">SSL (Port 465)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          SMTP Username <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="smtp_user"
+                          value={formData.smtp_user}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="your-email@gmail.com"
+                          autoComplete="username"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Usually your full email address
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          SMTP Password <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="password"
+                          name="smtp_password"
+                          value={formData.smtp_password}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="••••••••"
+                          autoComplete="current-password"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Use App Password for Gmail (not your account password)
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          From Name
+                        </label>
+                        <input
+                          type="text"
+                          name="smtp_from_name"
+                          value={formData.smtp_from_name}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="Your Company Name"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Name that appears in recipient's inbox
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          From Email Address
+                        </label>
+                        <input
+                          type="email"
+                          name="smtp_from_email"
+                          value={formData.smtp_from_email}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="invoices@yourcompany.com"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Email address emails will be sent from
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-8"></div>
+
+                  {/* Email Templates */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <FileText className="w-5 h-5 text-gray-700" />
+                      <h3 className="text-lg font-semibold text-gray-900">Email Templates</h3>
+                    </div>
+
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
                         Email Subject Template
@@ -1046,9 +1213,9 @@ function Settings() {
                     </div>
                   </div>
 
-                  <div className="mt-6 p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
-                    <p className="text-sm text-yellow-800">
-                      <strong>Coming Soon:</strong> Email sending functionality will be available in a future update. These templates will be used when that feature is enabled.
+                  <div className="mt-6 p-4 bg-green-50 border border-green-200 rounded-lg">
+                    <p className="text-sm text-green-800">
+                      <strong>✓ Email Sending Enabled:</strong> Configure your SMTP settings above and save to start sending invoices via email with PDF attachments.
                     </p>
                   </div>
                 </div>

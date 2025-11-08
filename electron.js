@@ -3,6 +3,7 @@ const path = require('path');
 const fs = require('fs');
 const isDev = require('electron-is-dev');
 const db = require('./database/db');
+const nodemailer = require('nodemailer');
 
 let mainWindow;
 
@@ -346,5 +347,110 @@ ipcMain.handle('pdf:saveInvoice', async (event, invoiceHtml, invoiceNumber) => {
   } catch (error) {
     console.error('Error generating PDF:', error);
     throw error;
+  }
+});
+
+// Email Sending
+ipcMain.handle('email:sendInvoice', async (event, emailData) => {
+  try {
+    const { settings, recipient, subject, body, invoiceHtml, invoiceNumber, cc, bcc } = emailData;
+
+    // Validate SMTP settings
+    if (!settings.smtp_host || !settings.smtp_user || !settings.smtp_password) {
+      throw new Error('SMTP settings are not configured. Please configure email settings first.');
+    }
+
+    // Create a transporter
+    const transporter = nodemailer.createTransporter({
+      host: settings.smtp_host,
+      port: parseInt(settings.smtp_port) || 587,
+      secure: settings.smtp_secure === true || settings.smtp_secure === 1, // true for 465, false for other ports
+      auth: {
+        user: settings.smtp_user,
+        pass: settings.smtp_password,
+      },
+      tls: {
+        rejectUnauthorized: false // Allow self-signed certificates (for development)
+      }
+    });
+
+    // Verify connection configuration
+    await transporter.verify();
+
+    // Generate PDF in memory for attachment
+    const pdfWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    await pdfWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(invoiceHtml)}`);
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const pdfData = await pdfWindow.webContents.printToPDF({
+      printBackground: true,
+      pageSize: 'Letter',
+      margins: {
+        top: 0.5,
+        bottom: 0.5,
+        left: 0.5,
+        right: 0.5
+      }
+    });
+
+    pdfWindow.close();
+
+    // Prepare email options
+    const mailOptions = {
+      from: settings.smtp_from_email
+        ? `"${settings.smtp_from_name || settings.company_name}" <${settings.smtp_from_email}>`
+        : settings.smtp_user,
+      to: recipient,
+      subject: subject,
+      text: body, // Plain text body
+      html: `<pre style="font-family: Arial, sans-serif; white-space: pre-wrap;">${body}</pre>`, // HTML body
+      attachments: [
+        {
+          filename: `Invoice-${invoiceNumber}.pdf`,
+          content: pdfData,
+          contentType: 'application/pdf'
+        }
+      ]
+    };
+
+    // Add CC and BCC if provided
+    if (cc && cc.trim()) {
+      mailOptions.cc = cc;
+    }
+    if (bcc && bcc.trim()) {
+      mailOptions.bcc = bcc;
+    }
+
+    // Send the email
+    const info = await transporter.sendMail(mailOptions);
+
+    console.log('Email sent successfully:', info.messageId);
+    return {
+      success: true,
+      messageId: info.messageId,
+      message: 'Invoice sent successfully!'
+    };
+
+  } catch (error) {
+    console.error('Error sending email:', error);
+
+    // Provide user-friendly error messages
+    let errorMessage = error.message;
+    if (error.code === 'EAUTH') {
+      errorMessage = 'Authentication failed. Please check your SMTP username and password.';
+    } else if (error.code === 'ESOCKET') {
+      errorMessage = 'Could not connect to email server. Please check your SMTP host and port.';
+    } else if (error.code === 'ECONNECTION') {
+      errorMessage = 'Connection failed. Please check your internet connection and SMTP settings.';
+    }
+
+    throw new Error(errorMessage);
   }
 });
