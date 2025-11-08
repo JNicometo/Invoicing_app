@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, Building, FileText, Palette, Check, Settings as SettingsIcon, Globe, Mail, Hash, Upload, X as XIcon } from 'lucide-react';
+import { Save, Building, FileText, Palette, Check, Settings as SettingsIcon, Globe, Mail, Hash, Upload, X as XIcon, Type, Layout, Paintbrush, Eye } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { validateSettings } from '../utils/validation';
 
@@ -66,8 +66,41 @@ function Settings() {
     show_tax_breakdown: true,
     show_payment_terms: true,
 
-    // Theme
-    theme: 'blue'
+    // Theme - Basic
+    theme: 'blue',
+
+    // Theme - Colors
+    primary_color: '#3B82F6',
+    secondary_color: '#8B5CF6',
+    accent_color: '#10B981',
+    invoice_header_color: '#1F2937',
+    invoice_accent_color: '#3B82F6',
+    text_primary_color: '#111827',
+    text_secondary_color: '#6B7280',
+
+    // Theme - Invoice Layout
+    invoice_template: 'modern',
+    invoice_header_style: 'left',
+    invoice_border_style: 'subtle',
+    invoice_spacing: 'normal',
+    invoice_table_style: 'striped',
+
+    // Theme - Typography
+    heading_font: 'Inter',
+    body_font: 'Inter',
+    heading_size: 'normal',
+    body_size: 'normal',
+
+    // Theme - Invoice Elements
+    show_logo_on_invoice: true,
+    show_company_address_on_invoice: true,
+    show_invoice_border: true,
+    invoice_corner_style: 'rounded',
+
+    // Theme - PDF Options
+    pdf_page_size: 'letter',
+    pdf_margin_size: 'normal',
+    pdf_header_height: 'normal'
   });
 
   useEffect(() => {
@@ -131,8 +164,41 @@ function Settings() {
           show_tax_breakdown: data.show_tax_breakdown !== undefined ? data.show_tax_breakdown : true,
           show_payment_terms: data.show_payment_terms !== undefined ? data.show_payment_terms : true,
 
-          // Theme
-          theme: data.theme || 'blue'
+          // Theme - Basic
+          theme: data.theme || 'blue',
+
+          // Theme - Colors
+          primary_color: data.primary_color || '#3B82F6',
+          secondary_color: data.secondary_color || '#8B5CF6',
+          accent_color: data.accent_color || '#10B981',
+          invoice_header_color: data.invoice_header_color || '#1F2937',
+          invoice_accent_color: data.invoice_accent_color || '#3B82F6',
+          text_primary_color: data.text_primary_color || '#111827',
+          text_secondary_color: data.text_secondary_color || '#6B7280',
+
+          // Theme - Invoice Layout
+          invoice_template: data.invoice_template || 'modern',
+          invoice_header_style: data.invoice_header_style || 'left',
+          invoice_border_style: data.invoice_border_style || 'subtle',
+          invoice_spacing: data.invoice_spacing || 'normal',
+          invoice_table_style: data.invoice_table_style || 'striped',
+
+          // Theme - Typography
+          heading_font: data.heading_font || 'Inter',
+          body_font: data.body_font || 'Inter',
+          heading_size: data.heading_size || 'normal',
+          body_size: data.body_size || 'normal',
+
+          // Theme - Invoice Elements
+          show_logo_on_invoice: data.show_logo_on_invoice !== undefined ? data.show_logo_on_invoice : true,
+          show_company_address_on_invoice: data.show_company_address_on_invoice !== undefined ? data.show_company_address_on_invoice : true,
+          show_invoice_border: data.show_invoice_border !== undefined ? data.show_invoice_border : true,
+          invoice_corner_style: data.invoice_corner_style || 'rounded',
+
+          // Theme - PDF Options
+          pdf_page_size: data.pdf_page_size || 'letter',
+          pdf_margin_size: data.pdf_margin_size || 'normal',
+          pdf_header_height: data.pdf_header_height || 'normal'
         });
 
         // Set logo preview if exists
@@ -1072,42 +1138,545 @@ function Settings() {
 
               {/* Theme Tab */}
               {activeTab === 'theme' && (
-                <div className="space-y-6">
+                <div className="space-y-8">
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Theme Settings</h2>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Theme & Invoice Customization</h2>
                     <p className="text-sm text-gray-600 mb-6">
-                      Choose a color theme for your application
+                      Customize the appearance of your invoices and application
                     </p>
                   </div>
 
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                    {themes.map((theme) => (
-                      <button
-                        key={theme.id}
-                        type="button"
-                        onClick={() => setFormData(prev => ({ ...prev, theme: theme.id }))}
-                        className={`relative p-6 rounded-lg border-2 transition-all ${
-                          formData.theme === theme.id
-                            ? 'border-blue-600 bg-blue-50'
-                            : 'border-gray-200 hover:border-gray-300'
-                        }`}
-                      >
-                        <div className={`w-full h-16 ${theme.color} rounded-lg mb-3`}></div>
-                        <p className="text-sm font-medium text-gray-900">{theme.name}</p>
-                        {formData.theme === theme.id && (
-                          <div className="absolute top-2 right-2 bg-blue-600 rounded-full p-1">
-                            <Check className="w-4 h-4 text-white" />
+                  {/* Color Customization */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <Paintbrush className="w-5 h-5 text-gray-700" />
+                      <h3 className="text-lg font-semibold text-gray-900">Color Scheme</h3>
+                    </div>
+
+                    {/* Quick Theme Presets */}
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-3">
+                        Quick Presets
+                      </label>
+                      <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+                        {themes.map((theme) => (
+                          <button
+                            key={theme.id}
+                            type="button"
+                            onClick={() => {
+                              const colorMap = {
+                                blue: { primary: '#3B82F6', secondary: '#8B5CF6', accent: '#10B981', invoice_accent: '#3B82F6' },
+                                green: { primary: '#10B981', secondary: '#3B82F6', accent: '#8B5CF6', invoice_accent: '#10B981' },
+                                purple: { primary: '#8B5CF6', secondary: '#3B82F6', accent: '#10B981', invoice_accent: '#8B5CF6' },
+                                red: { primary: '#EF4444', secondary: '#F59E0B', accent: '#10B981', invoice_accent: '#EF4444' },
+                              };
+                              const colors = colorMap[theme.id];
+                              setFormData(prev => ({
+                                ...prev,
+                                theme: theme.id,
+                                primary_color: colors.primary,
+                                secondary_color: colors.secondary,
+                                accent_color: colors.accent,
+                                invoice_accent_color: colors.invoice_accent
+                              }));
+                            }}
+                            className={`relative p-4 rounded-lg border-2 transition-all ${
+                              formData.theme === theme.id
+                                ? 'border-blue-600 bg-blue-50'
+                                : 'border-gray-200 hover:border-gray-300'
+                            }`}
+                          >
+                            <div className={`w-full h-10 ${theme.color} rounded-md mb-2`}></div>
+                            <p className="text-xs font-medium text-gray-900">{theme.name}</p>
+                            {formData.theme === theme.id && (
+                              <div className="absolute top-1 right-1 bg-blue-600 rounded-full p-0.5">
+                                <Check className="w-3 h-3 text-white" />
+                              </div>
+                            )}
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Custom Colors */}
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 mt-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Primary Color
+                        </label>
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="color"
+                            name="primary_color"
+                            value={formData.primary_color}
+                            onChange={handleInputChange}
+                            className="w-14 h-10 rounded border border-gray-300 cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={formData.primary_color}
+                            onChange={(e) => setFormData(prev => ({ ...prev, primary_color: e.target.value }))}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm"
+                            placeholder="#3B82F6"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">Used for buttons and highlights</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Secondary Color
+                        </label>
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="color"
+                            name="secondary_color"
+                            value={formData.secondary_color}
+                            onChange={handleInputChange}
+                            className="w-14 h-10 rounded border border-gray-300 cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={formData.secondary_color}
+                            onChange={(e) => setFormData(prev => ({ ...prev, secondary_color: e.target.value }))}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm"
+                            placeholder="#8B5CF6"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">Used for accents and badges</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Accent Color
+                        </label>
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="color"
+                            name="accent_color"
+                            value={formData.accent_color}
+                            onChange={handleInputChange}
+                            className="w-14 h-10 rounded border border-gray-300 cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={formData.accent_color}
+                            onChange={(e) => setFormData(prev => ({ ...prev, accent_color: e.target.value }))}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm"
+                            placeholder="#10B981"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">Used for success states</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Invoice Header Color
+                        </label>
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="color"
+                            name="invoice_header_color"
+                            value={formData.invoice_header_color}
+                            onChange={handleInputChange}
+                            className="w-14 h-10 rounded border border-gray-300 cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={formData.invoice_header_color}
+                            onChange={(e) => setFormData(prev => ({ ...prev, invoice_header_color: e.target.value }))}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm"
+                            placeholder="#1F2937"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">Invoice header text color</p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Invoice Accent Color
+                        </label>
+                        <div className="flex items-center space-x-3">
+                          <input
+                            type="color"
+                            name="invoice_accent_color"
+                            value={formData.invoice_accent_color}
+                            onChange={handleInputChange}
+                            className="w-14 h-10 rounded border border-gray-300 cursor-pointer"
+                          />
+                          <input
+                            type="text"
+                            value={formData.invoice_accent_color}
+                            onChange={(e) => setFormData(prev => ({ ...prev, invoice_accent_color: e.target.value }))}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg font-mono text-sm"
+                            placeholder="#3B82F6"
+                          />
+                        </div>
+                        <p className="text-xs text-gray-500 mt-1">Invoice borders and highlights</p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-8"></div>
+
+                  {/* Invoice Templates */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <Layout className="w-5 h-5 text-gray-700" />
+                      <h3 className="text-lg font-semibold text-gray-900">Invoice Template</h3>
+                    </div>
+
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                      {[
+                        { id: 'classic', name: 'Classic', desc: 'Traditional layout' },
+                        { id: 'modern', name: 'Modern', desc: 'Clean and minimal' },
+                        { id: 'professional', name: 'Professional', desc: 'Corporate style' },
+                        { id: 'minimal', name: 'Minimal', desc: 'Simple and elegant' },
+                      ].map((template) => (
+                        <button
+                          key={template.id}
+                          type="button"
+                          onClick={() => setFormData(prev => ({ ...prev, invoice_template: template.id }))}
+                          className={`relative p-4 rounded-lg border-2 transition-all text-left ${
+                            formData.invoice_template === template.id
+                              ? 'border-blue-600 bg-blue-50'
+                              : 'border-gray-200 hover:border-gray-300'
+                          }`}
+                        >
+                          <div className={`w-full h-20 bg-gradient-to-br ${
+                            template.id === 'classic' ? 'from-gray-100 to-gray-200' :
+                            template.id === 'modern' ? 'from-blue-50 to-blue-100' :
+                            template.id === 'professional' ? 'from-gray-700 to-gray-800' :
+                            'from-white to-gray-50'
+                          } rounded-md mb-3 border border-gray-200 flex items-center justify-center`}>
+                            <FileText className={`w-8 h-8 ${
+                              template.id === 'professional' ? 'text-white' : 'text-gray-400'
+                            }`} />
                           </div>
-                        )}
-                      </button>
-                    ))}
+                          <p className="text-sm font-semibold text-gray-900">{template.name}</p>
+                          <p className="text-xs text-gray-500">{template.desc}</p>
+                          {formData.invoice_template === template.id && (
+                            <div className="absolute top-2 right-2 bg-blue-600 rounded-full p-1">
+                              <Check className="w-3 h-3 text-white" />
+                            </div>
+                          )}
+                        </button>
+                      ))}
+                    </div>
+
+                    {/* Layout Options */}
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mt-6">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Header Alignment
+                        </label>
+                        <select
+                          name="invoice_header_style"
+                          value={formData.invoice_header_style}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="left">Left Aligned</option>
+                          <option value="center">Centered</option>
+                          <option value="right">Right Aligned</option>
+                          <option value="split">Split (Logo Left, Info Right)</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Border Style
+                        </label>
+                        <select
+                          name="invoice_border_style"
+                          value={formData.invoice_border_style}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="none">No Borders</option>
+                          <option value="subtle">Subtle</option>
+                          <option value="bold">Bold</option>
+                          <option value="colored">Colored</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Corner Style
+                        </label>
+                        <select
+                          name="invoice_corner_style"
+                          value={formData.invoice_corner_style}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="square">Square</option>
+                          <option value="rounded">Rounded</option>
+                          <option value="sharp">Sharp</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Spacing
+                        </label>
+                        <select
+                          name="invoice_spacing"
+                          value={formData.invoice_spacing}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="compact">Compact</option>
+                          <option value="normal">Normal</option>
+                          <option value="spacious">Spacious</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Table Style
+                        </label>
+                        <select
+                          name="invoice_table_style"
+                          value={formData.invoice_table_style}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="simple">Simple</option>
+                          <option value="striped">Striped Rows</option>
+                          <option value="bordered">Bordered</option>
+                          <option value="minimal">Minimal</option>
+                        </select>
+                      </div>
+                    </div>
                   </div>
 
-                  <div className="mt-6 p-4 bg-gray-50 rounded-lg">
-                    <p className="text-sm text-gray-600">
-                      <strong>Preview:</strong> The selected theme will be applied to the application interface.
-                      Note: Full theme customization is coming in a future update.
-                    </p>
+                  <div className="border-t border-gray-200 pt-8"></div>
+
+                  {/* Typography */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <Type className="w-5 h-5 text-gray-700" />
+                      <h3 className="text-lg font-semibold text-gray-900">Typography</h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Heading Font
+                        </label>
+                        <select
+                          name="heading_font"
+                          value={formData.heading_font}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="Inter">Inter</option>
+                          <option value="Helvetica">Helvetica</option>
+                          <option value="Arial">Arial</option>
+                          <option value="Georgia">Georgia</option>
+                          <option value="Times New Roman">Times New Roman</option>
+                          <option value="Roboto">Roboto</option>
+                          <option value="Open Sans">Open Sans</option>
+                          <option value="Lato">Lato</option>
+                          <option value="Montserrat">Montserrat</option>
+                          <option value="Playfair Display">Playfair Display</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Body Font
+                        </label>
+                        <select
+                          name="body_font"
+                          value={formData.body_font}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="Inter">Inter</option>
+                          <option value="Helvetica">Helvetica</option>
+                          <option value="Arial">Arial</option>
+                          <option value="Georgia">Georgia</option>
+                          <option value="Times New Roman">Times New Roman</option>
+                          <option value="Roboto">Roboto</option>
+                          <option value="Open Sans">Open Sans</option>
+                          <option value="Lato">Lato</option>
+                          <option value="Montserrat">Montserrat</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Heading Size
+                        </label>
+                        <select
+                          name="heading_size"
+                          value={formData.heading_size}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="small">Small</option>
+                          <option value="normal">Normal</option>
+                          <option value="large">Large</option>
+                          <option value="extra-large">Extra Large</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Body Size
+                        </label>
+                        <select
+                          name="body_size"
+                          value={formData.body_size}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="small">Small (10pt)</option>
+                          <option value="normal">Normal (12pt)</option>
+                          <option value="large">Large (14pt)</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-8"></div>
+
+                  {/* Invoice Elements */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <Eye className="w-5 h-5 text-gray-700" />
+                      <h3 className="text-lg font-semibold text-gray-900">Invoice Elements</h3>
+                    </div>
+
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">Show Logo on Invoice</p>
+                          <p className="text-sm text-gray-500">Display company logo in invoice header</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="show_logo_on_invoice"
+                            checked={formData.show_logo_on_invoice}
+                            onChange={(e) => setFormData(prev => ({ ...prev, show_logo_on_invoice: e.target.checked }))}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">Show Company Address on Invoice</p>
+                          <p className="text-sm text-gray-500">Display full company address in header</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="show_company_address_on_invoice"
+                            checked={formData.show_company_address_on_invoice}
+                            onChange={(e) => setFormData(prev => ({ ...prev, show_company_address_on_invoice: e.target.checked }))}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">Show Invoice Border</p>
+                          <p className="text-sm text-gray-500">Add decorative border around invoice</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="show_invoice_border"
+                            checked={formData.show_invoice_border}
+                            onChange={(e) => setFormData(prev => ({ ...prev, show_invoice_border: e.target.checked }))}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-8"></div>
+
+                  {/* PDF Options */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <FileText className="w-5 h-5 text-gray-700" />
+                      <h3 className="text-lg font-semibold text-gray-900">PDF Options</h3>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Page Size
+                        </label>
+                        <select
+                          name="pdf_page_size"
+                          value={formData.pdf_page_size}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="letter">Letter (8.5" × 11")</option>
+                          <option value="a4">A4 (210mm × 297mm)</option>
+                          <option value="legal">Legal (8.5" × 14")</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Page Margins
+                        </label>
+                        <select
+                          name="pdf_margin_size"
+                          value={formData.pdf_margin_size}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="narrow">Narrow (0.5")</option>
+                          <option value="normal">Normal (1")</option>
+                          <option value="wide">Wide (1.5")</option>
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Header Height
+                        </label>
+                        <select
+                          name="pdf_header_height"
+                          value={formData.pdf_header_height}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="compact">Compact</option>
+                          <option value="normal">Normal</option>
+                          <option value="tall">Tall</option>
+                        </select>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Preview Notice */}
+                  <div className="mt-8 p-6 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-lg border border-blue-200">
+                    <div className="flex items-start space-x-3">
+                      <Eye className="w-5 h-5 text-blue-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-blue-900 mb-2">
+                          Preview Your Customizations
+                        </p>
+                        <p className="text-sm text-blue-800">
+                          Your theme settings will be applied when you view or generate invoice PDFs. Create or view an invoice to see your customizations in action!
+                        </p>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

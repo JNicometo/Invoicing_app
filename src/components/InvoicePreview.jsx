@@ -40,6 +40,60 @@ function InvoicePreview({ invoice, onClose }) {
   };
 
   const generateInvoiceHTML = () => {
+    // Apply theme settings
+    const headingFont = settings?.heading_font || 'Arial';
+    const bodyFont = settings?.body_font || 'Arial';
+    const headingSize = settings?.heading_size || 'normal';
+    const bodySize = settings?.body_size || 'normal';
+    const invoiceAccentColor = settings?.invoice_accent_color || '#3B82F6';
+    const invoiceHeaderColor = settings?.invoice_header_color || '#1F2937';
+    const textPrimaryColor = settings?.text_primary_color || '#111827';
+    const textSecondaryColor = settings?.text_secondary_color || '#6B7280';
+    const borderStyle = settings?.invoice_border_style || 'subtle';
+    const tableStyle = settings?.invoice_table_style || 'striped';
+    const spacing = settings?.invoice_spacing || 'normal';
+    const cornerStyle = settings?.invoice_corner_style || 'rounded';
+    const showLogo = settings?.show_logo_on_invoice !== false;
+    const showAddress = settings?.show_company_address_on_invoice !== false;
+    const showBorder = settings?.show_invoice_border !== false;
+    const marginSize = settings?.pdf_margin_size || 'normal';
+    const headerHeight = settings?.pdf_header_height || 'normal';
+
+    // Font size mapping
+    const headingSizeMap = { small: '28px', normal: '36px', large: '44px', 'extra-large': '52px' };
+    const bodySizeMap = { small: '10pt', normal: '12pt', large: '14pt' };
+    const headingFontSize = headingSizeMap[headingSize];
+    const bodyFontSize = bodySizeMap[bodySize];
+
+    // Spacing mapping
+    const spacingMap = { compact: '20px', normal: '40px', spacious: '60px' };
+    const sectionSpacing = spacingMap[spacing];
+
+    // Margin mapping
+    const marginMap = { narrow: '0.5in', normal: '1in', wide: '1.5in' };
+    const pageMargin = marginMap[marginSize];
+
+    // Header height mapping
+    const headerHeightMap = { compact: '60px', normal: '80px', tall: '120px' };
+    const logoHeight = headerHeightMap[headerHeight];
+
+    // Border styling
+    const borderStyleMap = {
+      none: 'none',
+      subtle: '1px solid #e5e7eb',
+      bold: '3px solid ' + invoiceAccentColor,
+      colored: '2px solid ' + invoiceAccentColor
+    };
+    const borderCSS = showBorder ? borderStyleMap[borderStyle] : 'none';
+
+    // Corner styling
+    const cornerMap = { square: '0', rounded: '8px', sharp: '0' };
+    const borderRadius = cornerMap[cornerStyle];
+
+    // Table row styling
+    const tableRowBg = tableStyle === 'striped' ? '#f9fafb' : 'transparent';
+    const tableBorder = tableStyle === 'bordered' ? '1px solid #e5e7eb' : tableStyle === 'minimal' ? 'none' : '1px solid #e5e7eb';
+
     return `
       <!DOCTYPE html>
       <html>
@@ -48,47 +102,176 @@ function InvoicePreview({ invoice, onClose }) {
         <title>Invoice ${fullInvoice.invoice_number}</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
-          body { font-family: Arial, sans-serif; padding: 40px; color: #333; }
-          .container { max-width: 800px; margin: 0 auto; }
-          .header { display: flex; justify-content: space-between; margin-bottom: 40px; }
-          .company-info h2 { font-size: 24px; margin-bottom: 10px; }
-          .company-info p { font-size: 12px; color: #666; margin: 2px 0; }
+          body {
+            font-family: ${bodyFont}, sans-serif;
+            padding: ${pageMargin};
+            color: ${textPrimaryColor};
+            font-size: ${bodyFontSize};
+          }
+          .container {
+            max-width: 800px;
+            margin: 0 auto;
+            ${borderCSS !== 'none' ? `border: ${borderCSS}; padding: ${sectionSpacing}; border-radius: ${borderRadius};` : ''}
+          }
+          .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: ${sectionSpacing};
+            padding-bottom: 20px;
+            border-bottom: 2px solid ${invoiceAccentColor};
+          }
+          ${showLogo && settings?.logo_url ? `
+          .company-logo {
+            height: ${logoHeight};
+            margin-bottom: 15px;
+          }` : ''}
+          .company-info h2 {
+            font-family: ${headingFont}, sans-serif;
+            font-size: ${parseInt(headingFontSize) * 0.6}px;
+            margin-bottom: 10px;
+            color: ${invoiceHeaderColor};
+          }
+          .company-info p {
+            font-size: ${parseInt(bodyFontSize) - 1}pt;
+            color: ${textSecondaryColor};
+            margin: 2px 0;
+          }
           .invoice-title { text-align: right; }
-          .invoice-title h1 { font-size: 36px; color: #000; }
-          .invoice-title p { font-size: 16px; font-weight: bold; color: #666; margin-top: 8px; }
-          .details { display: flex; justify-content: space-between; margin-bottom: 40px; padding-bottom: 20px; border-bottom: 2px solid #ddd; }
-          .bill-to h3, .invoice-details h3 { font-size: 12px; color: #000; margin-bottom: 10px; }
-          .bill-to p, .invoice-details p { font-size: 12px; color: #666; margin: 4px 0; }
+          .invoice-title h1 {
+            font-family: ${headingFont}, sans-serif;
+            font-size: ${headingFontSize};
+            color: ${invoiceHeaderColor};
+            margin-bottom: 8px;
+          }
+          .invoice-title p {
+            font-size: ${parseInt(bodyFontSize) + 2}pt;
+            font-weight: bold;
+            color: ${invoiceAccentColor};
+          }
+          .details {
+            display: flex;
+            justify-content: space-between;
+            margin-bottom: ${sectionSpacing};
+            padding: 20px 0;
+            background: ${tableStyle === 'striped' ? '#f9fafb' : 'transparent'};
+            ${tableStyle === 'bordered' ? `border: ${tableBorder}; padding: 20px;` : ''}
+            border-radius: ${borderRadius};
+          }
+          .bill-to h3, .invoice-details h3 {
+            font-size: ${parseInt(bodyFontSize) + 1}pt;
+            color: ${invoiceHeaderColor};
+            margin-bottom: 10px;
+            font-weight: 700;
+          }
+          .bill-to p, .invoice-details p {
+            font-size: ${bodyFontSize};
+            color: ${textSecondaryColor};
+            margin: 4px 0;
+          }
           .invoice-details { text-align: right; }
-          .status { display: inline-block; padding: 4px 12px; font-size: 10px; font-weight: bold; border-radius: 12px; }
+          .status {
+            display: inline-block;
+            padding: 4px 12px;
+            font-size: ${parseInt(bodyFontSize) - 2}pt;
+            font-weight: bold;
+            border-radius: ${borderRadius};
+          }
           .status.paid { background: #d4edda; color: #155724; }
           .status.pending { background: #fff3cd; color: #856404; }
           .status.overdue { background: #f8d7da; color: #721c24; }
           .status.draft { background: #e2e3e5; color: #383d41; }
-          table { width: 100%; border-collapse: collapse; margin-bottom: 30px; }
-          thead tr { border-bottom: 2px solid #333; }
-          th { text-align: left; padding: 12px 8px; font-size: 12px; font-weight: bold; }
+          table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: ${sectionSpacing};
+            ${tableStyle === 'bordered' ? `border: ${tableBorder};` : ''}
+          }
+          thead tr {
+            border-bottom: 2px solid ${invoiceAccentColor};
+            background: ${tableStyle === 'striped' || tableStyle === 'bordered' ? '#f9fafb' : 'transparent'};
+          }
+          th {
+            text-align: left;
+            padding: ${spacing === 'compact' ? '8px' : spacing === 'spacious' ? '16px' : '12px'};
+            font-size: ${bodyFontSize};
+            font-weight: bold;
+            color: ${invoiceHeaderColor};
+            ${tableStyle === 'bordered' ? `border: ${tableBorder};` : ''}
+          }
           th.text-center { text-align: center; }
           th.text-right { text-align: right; }
-          td { padding: 12px 8px; font-size: 12px; border-bottom: 1px solid #ddd; }
+          tbody tr:nth-child(even) {
+            background: ${tableStyle === 'striped' ? tableRowBg : 'transparent'};
+          }
+          td {
+            padding: ${spacing === 'compact' ? '8px' : spacing === 'spacious' ? '16px' : '12px'};
+            font-size: ${bodyFontSize};
+            border-bottom: ${tableStyle === 'minimal' ? 'none' : tableBorder};
+            ${tableStyle === 'bordered' ? `border: ${tableBorder};` : ''}
+          }
           td.text-center { text-align: center; }
           td.text-right { text-align: right; }
-          .totals { margin-left: auto; width: 320px; }
-          .totals-row { display: flex; justify-content: space-between; padding: 8px 0; font-size: 12px; }
-          .totals-row.total { border-top: 2px solid #333; padding-top: 12px; margin-top: 8px; font-size: 16px; font-weight: bold; }
-          .notes, .payment-terms, .bank-details { margin-bottom: 20px; }
-          .notes h3, .payment-terms h3, .bank-details h3 { font-size: 12px; margin-bottom: 8px; }
-          .notes p, .payment-terms p, .bank-details p { font-size: 11px; color: #666; white-space: pre-wrap; }
-          .footer { text-align: center; padding-top: 30px; margin-top: 30px; border-top: 1px solid #ddd; font-size: 11px; color: #999; }
+          .totals {
+            margin-left: auto;
+            width: 320px;
+            padding: 20px;
+            background: ${tableStyle === 'striped' ? '#f9fafb' : 'transparent'};
+            border-radius: ${borderRadius};
+          }
+          .totals-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 8px 0;
+            font-size: ${bodyFontSize};
+            color: ${textSecondaryColor};
+          }
+          .totals-row.total {
+            border-top: 2px solid ${invoiceAccentColor};
+            padding-top: 12px;
+            margin-top: 8px;
+            font-size: ${parseInt(bodyFontSize) + 4}pt;
+            font-weight: bold;
+            color: ${textPrimaryColor};
+          }
+          .notes, .payment-terms, .bank-details {
+            margin-bottom: ${parseInt(sectionSpacing) / 2}px;
+            padding: 15px;
+            background: ${tableStyle === 'striped' ? '#f9fafb' : 'transparent'};
+            border-radius: ${borderRadius};
+            ${tableStyle === 'bordered' ? `border: ${tableBorder};` : ''}
+          }
+          .notes h3, .payment-terms h3, .bank-details h3 {
+            font-size: ${parseInt(bodyFontSize) + 1}pt;
+            margin-bottom: 8px;
+            color: ${invoiceHeaderColor};
+            font-weight: 700;
+          }
+          .notes p, .payment-terms p, .bank-details p {
+            font-size: ${bodyFontSize};
+            color: ${textSecondaryColor};
+            white-space: pre-wrap;
+          }
+          .footer {
+            text-align: center;
+            padding-top: ${sectionSpacing};
+            margin-top: ${sectionSpacing};
+            border-top: 1px solid ${textSecondaryColor};
+            font-size: ${parseInt(bodyFontSize) - 1}pt;
+            color: ${textSecondaryColor};
+          }
         </style>
       </head>
       <body>
         <div class="container">
           <div class="header">
             <div class="company-info">
+              ${showLogo && settings?.logo_url ? `<img src="${settings.logo_url}" alt="Logo" class="company-logo" />` : ''}
               <h2>${settings?.company_name || 'Your Company'}</h2>
-              ${settings?.company_address ? `<p>${settings.company_address}</p>` : ''}
-              ${settings?.company_city ? `<p>${settings.company_city}, ${settings.company_state} ${settings.company_zip}</p>` : ''}
+              ${showAddress ? `
+                ${settings?.company_address ? `<p>${settings.company_address}</p>` : ''}
+                ${settings?.company_city ? `<p>${settings.company_city}, ${settings.company_state} ${settings.company_zip}</p>` : ''}
+              ` : ''}
               ${settings?.company_email ? `<p>${settings.company_email}</p>` : ''}
               ${settings?.company_phone ? `<p>${settings.company_phone}</p>` : ''}
             </div>
@@ -172,7 +355,7 @@ function InvoicePreview({ invoice, onClose }) {
           ` : ''}
 
           <div class="footer">
-            <p>Thank you for your business!</p>
+            <p>${settings?.invoice_footer || 'Thank you for your business!'}</p>
           </div>
         </div>
       </body>
@@ -238,22 +421,60 @@ function InvoicePreview({ invoice, onClose }) {
         </div>
 
         {/* Invoice Document */}
-        <div className="bg-white rounded-lg shadow-lg border border-gray-200 p-12">
+        <div
+          className={`bg-white shadow-lg p-12 ${
+            settings?.invoice_corner_style === 'rounded' ? 'rounded-lg' :
+            settings?.invoice_corner_style === 'sharp' ? '' : 'rounded-lg'
+          }`}
+          style={{
+            border: settings?.show_invoice_border !== false ? (
+              settings?.invoice_border_style === 'bold' ? `3px solid ${settings?.invoice_accent_color || '#3B82F6'}` :
+              settings?.invoice_border_style === 'colored' ? `2px solid ${settings?.invoice_accent_color || '#3B82F6'}` :
+              settings?.invoice_border_style === 'subtle' ? '1px solid #e5e7eb' :
+              'none'
+            ) : 'none',
+            fontFamily: settings?.body_font || 'Inter',
+            padding: settings?.invoice_spacing === 'compact' ? '2rem' :
+                    settings?.invoice_spacing === 'spacious' ? '4rem' : '3rem'
+          }}
+        >
           {/* Company Header */}
-          <div className="flex justify-between items-start mb-8">
+          <div
+            className="flex justify-between items-start mb-8 pb-6"
+            style={{ borderBottom: `2px solid ${settings?.invoice_accent_color || '#3B82F6'}` }}
+          >
             <div>
-              {settings?.logo_url && (
+              {settings?.show_logo_on_invoice !== false && settings?.logo_url && (
                 <img
                   src={settings.logo_url}
                   alt="Company Logo"
-                  className="h-16 mb-4"
+                  className="mb-4"
+                  style={{
+                    height: settings?.pdf_header_height === 'compact' ? '60px' :
+                           settings?.pdf_header_height === 'tall' ? '120px' : '80px'
+                  }}
                 />
               )}
-              <h2 className="text-2xl font-bold text-gray-900">{settings?.company_name || 'Your Company'}</h2>
-              <div className="text-sm text-gray-600 mt-2">
-                {settings?.company_address && <p>{settings.company_address}</p>}
-                {settings?.company_city && (
-                  <p>{settings.company_city}, {settings.company_state} {settings.company_zip}</p>
+              <h2
+                className="text-2xl font-bold mb-2"
+                style={{
+                  fontFamily: settings?.heading_font || 'Inter',
+                  color: settings?.invoice_header_color || '#1F2937',
+                  fontSize: settings?.heading_size === 'small' ? '1.25rem' :
+                           settings?.heading_size === 'large' ? '2rem' :
+                           settings?.heading_size === 'extra-large' ? '2.5rem' : '1.5rem'
+                }}
+              >
+                {settings?.company_name || 'Your Company'}
+              </h2>
+              <div className="text-sm mt-2" style={{ color: settings?.text_secondary_color || '#6B7280' }}>
+                {settings?.show_company_address_on_invoice !== false && (
+                  <>
+                    {settings?.company_address && <p>{settings.company_address}</p>}
+                    {settings?.company_city && (
+                      <p>{settings.company_city}, {settings.company_state} {settings.company_zip}</p>
+                    )}
+                  </>
                 )}
                 {settings?.company_email && <p>{settings.company_email}</p>}
                 {settings?.company_phone && <p>{settings.company_phone}</p>}
@@ -261,17 +482,49 @@ function InvoicePreview({ invoice, onClose }) {
             </div>
 
             <div className="text-right">
-              <h1 className="text-4xl font-bold text-gray-900">INVOICE</h1>
-              <p className="text-lg font-semibold text-gray-700 mt-2">{fullInvoice.invoice_number}</p>
+              <h1
+                className="text-4xl font-bold"
+                style={{
+                  fontFamily: settings?.heading_font || 'Inter',
+                  color: settings?.invoice_header_color || '#1F2937',
+                  fontSize: settings?.heading_size === 'small' ? '1.75rem' :
+                           settings?.heading_size === 'large' ? '2.75rem' :
+                           settings?.heading_size === 'extra-large' ? '3.25rem' : '2.25rem'
+                }}
+              >
+                INVOICE
+              </h1>
+              <p
+                className="text-lg font-semibold mt-2"
+                style={{ color: settings?.invoice_accent_color || '#3B82F6' }}
+              >
+                {fullInvoice.invoice_number}
+              </p>
             </div>
           </div>
 
           {/* Invoice Details */}
-          <div className="grid grid-cols-2 gap-8 mb-8 pb-8 border-b">
+          <div
+            className={`grid grid-cols-2 gap-8 mb-8 p-5 ${
+              settings?.invoice_corner_style === 'rounded' ? 'rounded-lg' :
+              settings?.invoice_corner_style === 'sharp' ? '' : 'rounded-lg'
+            }`}
+            style={{
+              background: settings?.invoice_table_style === 'striped' ? '#f9fafb' : 'transparent',
+              border: settings?.invoice_table_style === 'bordered' ? '1px solid #e5e7eb' : 'none'
+            }}
+          >
             <div>
-              <h3 className="text-sm font-semibold text-gray-900 mb-2">BILL TO:</h3>
-              <div className="text-gray-700">
-                <p className="font-semibold">{fullInvoice.client_name}</p>
+              <h3
+                className="text-sm font-semibold mb-2"
+                style={{ color: settings?.invoice_header_color || '#1F2937' }}
+              >
+                BILL TO:
+              </h3>
+              <div style={{ color: settings?.text_secondary_color || '#6B7280' }}>
+                <p className="font-semibold" style={{ color: settings?.text_primary_color || '#111827' }}>
+                  {fullInvoice.client_name}
+                </p>
                 {fullInvoice.client_email && <p className="text-sm">{fullInvoice.client_email}</p>}
                 {fullInvoice.client_phone && <p className="text-sm">{fullInvoice.client_phone}</p>}
                 {fullInvoice.client_address && (
@@ -288,16 +541,29 @@ function InvoicePreview({ invoice, onClose }) {
             <div>
               <div className="space-y-2">
                 <div className="flex justify-between">
-                  <span className="font-semibold text-gray-900">Invoice Date:</span>
-                  <span className="text-gray-700">{formatDate(fullInvoice.date)}</span>
+                  <span className="font-semibold" style={{ color: settings?.invoice_header_color || '#1F2937' }}>
+                    Invoice Date:
+                  </span>
+                  <span style={{ color: settings?.text_secondary_color || '#6B7280' }}>
+                    {formatDate(fullInvoice.date)}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="font-semibold text-gray-900">Due Date:</span>
-                  <span className="text-gray-700">{formatDate(fullInvoice.due_date)}</span>
+                  <span className="font-semibold" style={{ color: settings?.invoice_header_color || '#1F2937' }}>
+                    Due Date:
+                  </span>
+                  <span style={{ color: settings?.text_secondary_color || '#6B7280' }}>
+                    {formatDate(fullInvoice.due_date)}
+                  </span>
                 </div>
                 <div className="flex justify-between">
-                  <span className="font-semibold text-gray-900">Status:</span>
-                  <span className={`px-2 py-1 text-xs font-semibold rounded-full ${
+                  <span className="font-semibold" style={{ color: settings?.invoice_header_color || '#1F2937' }}>
+                    Status:
+                  </span>
+                  <span className={`px-2 py-1 text-xs font-semibold ${
+                    settings?.invoice_corner_style === 'rounded' ? 'rounded-full' :
+                    settings?.invoice_corner_style === 'sharp' ? '' : 'rounded-full'
+                  } ${
                     fullInvoice.status === 'paid' ? 'bg-green-100 text-green-800' :
                     fullInvoice.status === 'pending' ? 'bg-yellow-100 text-yellow-800' :
                     fullInvoice.status === 'overdue' ? 'bg-red-100 text-red-800' :
@@ -312,22 +578,109 @@ function InvoicePreview({ invoice, onClose }) {
 
           {/* Line Items */}
           <div className="mb-8">
-            <table className="w-full">
+            <table className="w-full" style={{ borderCollapse: 'collapse' }}>
               <thead>
-                <tr className="border-b-2 border-gray-300">
-                  <th className="text-left py-3 px-2 font-semibold text-gray-900">Description</th>
-                  <th className="text-center py-3 px-2 font-semibold text-gray-900">Qty</th>
-                  <th className="text-right py-3 px-2 font-semibold text-gray-900">Rate</th>
-                  <th className="text-right py-3 px-2 font-semibold text-gray-900">Amount</th>
+                <tr style={{
+                  borderBottom: `2px solid ${settings?.invoice_accent_color || '#3B82F6'}`,
+                  background: settings?.invoice_table_style === 'striped' || settings?.invoice_table_style === 'bordered' ? '#f9fafb' : 'transparent'
+                }}>
+                  <th
+                    className="text-left py-3 px-2 font-semibold"
+                    style={{
+                      color: settings?.invoice_header_color || '#1F2937',
+                      border: settings?.invoice_table_style === 'bordered' ? '1px solid #e5e7eb' : 'none',
+                      padding: settings?.invoice_spacing === 'compact' ? '0.5rem' :
+                              settings?.invoice_spacing === 'spacious' ? '1rem' : '0.75rem'
+                    }}
+                  >
+                    Description
+                  </th>
+                  <th
+                    className="text-center py-3 px-2 font-semibold"
+                    style={{
+                      color: settings?.invoice_header_color || '#1F2937',
+                      border: settings?.invoice_table_style === 'bordered' ? '1px solid #e5e7eb' : 'none',
+                      padding: settings?.invoice_spacing === 'compact' ? '0.5rem' :
+                              settings?.invoice_spacing === 'spacious' ? '1rem' : '0.75rem'
+                    }}
+                  >
+                    Qty
+                  </th>
+                  <th
+                    className="text-right py-3 px-2 font-semibold"
+                    style={{
+                      color: settings?.invoice_header_color || '#1F2937',
+                      border: settings?.invoice_table_style === 'bordered' ? '1px solid #e5e7eb' : 'none',
+                      padding: settings?.invoice_spacing === 'compact' ? '0.5rem' :
+                              settings?.invoice_spacing === 'spacious' ? '1rem' : '0.75rem'
+                    }}
+                  >
+                    Rate
+                  </th>
+                  <th
+                    className="text-right py-3 px-2 font-semibold"
+                    style={{
+                      color: settings?.invoice_header_color || '#1F2937',
+                      border: settings?.invoice_table_style === 'bordered' ? '1px solid #e5e7eb' : 'none',
+                      padding: settings?.invoice_spacing === 'compact' ? '0.5rem' :
+                              settings?.invoice_spacing === 'spacious' ? '1rem' : '0.75rem'
+                    }}
+                  >
+                    Amount
+                  </th>
                 </tr>
               </thead>
               <tbody>
                 {fullInvoice.items && fullInvoice.items.map((item, index) => (
-                  <tr key={index} className="border-b border-gray-200">
-                    <td className="py-3 px-2 text-gray-700">{item.description}</td>
-                    <td className="py-3 px-2 text-center text-gray-700">{item.quantity}</td>
-                    <td className="py-3 px-2 text-right text-gray-700">{formatCurrency(item.rate)}</td>
-                    <td className="py-3 px-2 text-right text-gray-900 font-medium">
+                  <tr
+                    key={index}
+                    style={{
+                      background: settings?.invoice_table_style === 'striped' && index % 2 === 1 ? '#f9fafb' : 'transparent',
+                      borderBottom: settings?.invoice_table_style === 'minimal' ? 'none' : '1px solid #e5e7eb'
+                    }}
+                  >
+                    <td
+                      className="py-3 px-2"
+                      style={{
+                        color: settings?.text_secondary_color || '#6B7280',
+                        border: settings?.invoice_table_style === 'bordered' ? '1px solid #e5e7eb' : 'none',
+                        padding: settings?.invoice_spacing === 'compact' ? '0.5rem' :
+                                settings?.invoice_spacing === 'spacious' ? '1rem' : '0.75rem'
+                      }}
+                    >
+                      {item.description}
+                    </td>
+                    <td
+                      className="py-3 px-2 text-center"
+                      style={{
+                        color: settings?.text_secondary_color || '#6B7280',
+                        border: settings?.invoice_table_style === 'bordered' ? '1px solid #e5e7eb' : 'none',
+                        padding: settings?.invoice_spacing === 'compact' ? '0.5rem' :
+                                settings?.invoice_spacing === 'spacious' ? '1rem' : '0.75rem'
+                      }}
+                    >
+                      {item.quantity}
+                    </td>
+                    <td
+                      className="py-3 px-2 text-right"
+                      style={{
+                        color: settings?.text_secondary_color || '#6B7280',
+                        border: settings?.invoice_table_style === 'bordered' ? '1px solid #e5e7eb' : 'none',
+                        padding: settings?.invoice_spacing === 'compact' ? '0.5rem' :
+                                settings?.invoice_spacing === 'spacious' ? '1rem' : '0.75rem'
+                      }}
+                    >
+                      {formatCurrency(item.rate)}
+                    </td>
+                    <td
+                      className="py-3 px-2 text-right font-medium"
+                      style={{
+                        color: settings?.text_primary_color || '#111827',
+                        border: settings?.invoice_table_style === 'bordered' ? '1px solid #e5e7eb' : 'none',
+                        padding: settings?.invoice_spacing === 'compact' ? '0.5rem' :
+                                settings?.invoice_spacing === 'spacious' ? '1rem' : '0.75rem'
+                      }}
+                    >
                       {formatCurrency(item.amount)}
                     </td>
                   </tr>
@@ -338,49 +691,117 @@ function InvoicePreview({ invoice, onClose }) {
 
           {/* Totals */}
           <div className="flex justify-end mb-8">
-            <div className="w-80 space-y-2">
+            <div
+              className={`w-80 space-y-2 p-5 ${
+                settings?.invoice_corner_style === 'rounded' ? 'rounded-lg' :
+                settings?.invoice_corner_style === 'sharp' ? '' : 'rounded-lg'
+              }`}
+              style={{
+                background: settings?.invoice_table_style === 'striped' ? '#f9fafb' : 'transparent'
+              }}
+            >
               <div className="flex justify-between py-2">
-                <span className="font-medium text-gray-700">Subtotal:</span>
-                <span className="text-gray-900">{formatCurrency(fullInvoice.subtotal)}</span>
+                <span className="font-medium" style={{ color: settings?.text_secondary_color || '#6B7280' }}>
+                  Subtotal:
+                </span>
+                <span style={{ color: settings?.text_primary_color || '#111827' }}>
+                  {formatCurrency(fullInvoice.subtotal)}
+                </span>
               </div>
               <div className="flex justify-between py-2">
-                <span className="font-medium text-gray-700">Tax ({settings?.tax_rate || 0}%):</span>
-                <span className="text-gray-900">{formatCurrency(fullInvoice.tax)}</span>
+                <span className="font-medium" style={{ color: settings?.text_secondary_color || '#6B7280' }}>
+                  Tax ({settings?.tax_rate || 0}%):
+                </span>
+                <span style={{ color: settings?.text_primary_color || '#111827' }}>
+                  {formatCurrency(fullInvoice.tax)}
+                </span>
               </div>
-              <div className="flex justify-between py-3 border-t-2 border-gray-300">
-                <span className="text-xl font-bold text-gray-900">Total:</span>
-                <span className="text-xl font-bold text-gray-900">{formatCurrency(fullInvoice.total)}</span>
+              <div
+                className="flex justify-between py-3"
+                style={{ borderTop: `2px solid ${settings?.invoice_accent_color || '#3B82F6'}` }}
+              >
+                <span className="text-xl font-bold" style={{ color: settings?.text_primary_color || '#111827' }}>
+                  Total:
+                </span>
+                <span className="text-xl font-bold" style={{ color: settings?.text_primary_color || '#111827' }}>
+                  {formatCurrency(fullInvoice.total)}
+                </span>
               </div>
             </div>
           </div>
 
           {/* Notes */}
           {fullInvoice.notes && (
-            <div className="mb-6">
-              <h3 className="font-semibold text-gray-900 mb-2">Notes:</h3>
-              <p className="text-gray-700 text-sm whitespace-pre-wrap">{fullInvoice.notes}</p>
+            <div
+              className={`mb-6 p-4 ${
+                settings?.invoice_corner_style === 'rounded' ? 'rounded-lg' :
+                settings?.invoice_corner_style === 'sharp' ? '' : 'rounded-lg'
+              }`}
+              style={{
+                background: settings?.invoice_table_style === 'striped' ? '#f9fafb' : 'transparent',
+                border: settings?.invoice_table_style === 'bordered' ? '1px solid #e5e7eb' : 'none'
+              }}
+            >
+              <h3 className="font-semibold mb-2" style={{ color: settings?.invoice_header_color || '#1F2937' }}>
+                Notes:
+              </h3>
+              <p className="text-sm whitespace-pre-wrap" style={{ color: settings?.text_secondary_color || '#6B7280' }}>
+                {fullInvoice.notes}
+              </p>
             </div>
           )}
 
           {/* Payment Terms */}
           {fullInvoice.payment_terms && (
-            <div className="mb-6">
-              <h3 className="font-semibold text-gray-900 mb-2">Payment Terms:</h3>
-              <p className="text-gray-700 text-sm whitespace-pre-wrap">{fullInvoice.payment_terms}</p>
+            <div
+              className={`mb-6 p-4 ${
+                settings?.invoice_corner_style === 'rounded' ? 'rounded-lg' :
+                settings?.invoice_corner_style === 'sharp' ? '' : 'rounded-lg'
+              }`}
+              style={{
+                background: settings?.invoice_table_style === 'striped' ? '#f9fafb' : 'transparent',
+                border: settings?.invoice_table_style === 'bordered' ? '1px solid #e5e7eb' : 'none'
+              }}
+            >
+              <h3 className="font-semibold mb-2" style={{ color: settings?.invoice_header_color || '#1F2937' }}>
+                Payment Terms:
+              </h3>
+              <p className="text-sm whitespace-pre-wrap" style={{ color: settings?.text_secondary_color || '#6B7280' }}>
+                {fullInvoice.payment_terms}
+              </p>
             </div>
           )}
 
           {/* Bank Details */}
           {settings?.bank_details && (
-            <div className="mb-6">
-              <h3 className="font-semibold text-gray-900 mb-2">Bank Details:</h3>
-              <p className="text-gray-700 text-sm whitespace-pre-wrap">{settings.bank_details}</p>
+            <div
+              className={`mb-6 p-4 ${
+                settings?.invoice_corner_style === 'rounded' ? 'rounded-lg' :
+                settings?.invoice_corner_style === 'sharp' ? '' : 'rounded-lg'
+              }`}
+              style={{
+                background: settings?.invoice_table_style === 'striped' ? '#f9fafb' : 'transparent',
+                border: settings?.invoice_table_style === 'bordered' ? '1px solid #e5e7eb' : 'none'
+              }}
+            >
+              <h3 className="font-semibold mb-2" style={{ color: settings?.invoice_header_color || '#1F2937' }}>
+                Bank Details:
+              </h3>
+              <p className="text-sm whitespace-pre-wrap" style={{ color: settings?.text_secondary_color || '#6B7280' }}>
+                {settings.bank_details}
+              </p>
             </div>
           )}
 
           {/* Footer */}
-          <div className="text-center text-sm text-gray-500 pt-8 border-t">
-            <p>Thank you for your business!</p>
+          <div
+            className="text-center text-sm pt-8"
+            style={{
+              borderTop: `1px solid ${settings?.text_secondary_color || '#6B7280'}`,
+              color: settings?.text_secondary_color || '#6B7280'
+            }}
+          >
+            <p>{settings?.invoice_footer || 'Thank you for your business!'}</p>
           </div>
         </div>
       </div>
