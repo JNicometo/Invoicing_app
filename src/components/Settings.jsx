@@ -936,7 +936,7 @@ function Settings() {
                         onChange={handleInputChange}
                         rows="8"
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                        placeholder="Dear {client_name},...${"\n\n"}Please find attached invoice {invoice_number} for {total}.${"\n\n"}Thank you!"
+                        placeholder="Dear {client_name},&#10;&#10;Please find attached invoice {invoice_number} for {total}.&#10;&#10;Thank you for your business!&#10;&#10;Best regards,&#10;{company_name}"
                       />
                       <p className="text-xs text-gray-500 mt-1">
                         Available variables: {'{client_name}'}, {'{invoice_number}'}, {'{total}'}, {'{due_date}'}, {'{company_name}'}
