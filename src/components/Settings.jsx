@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Save, Building, FileText, Palette, Check, Settings as SettingsIcon, Globe, Mail, Hash } from 'lucide-react';
+import React, { useState, useEffect, useRef } from 'react';
+import { Save, Building, FileText, Palette, Check, Settings as SettingsIcon, Globe, Mail, Hash, Upload, X as XIcon } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { validateSettings } from '../utils/validation';
 
@@ -9,7 +9,9 @@ function Settings() {
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
+  const [logoPreview, setLogoPreview] = useState('');
 
+  const fileInputRef = useRef(null);
   const { getSettings, updateSettings } = useDatabase();
 
   const [formData, setFormData] = useState({
@@ -132,12 +134,61 @@ function Settings() {
           // Theme
           theme: data.theme || 'blue'
         });
+
+        // Set logo preview if exists
+        if (data.logo_url) {
+          setLogoPreview(data.logo_url);
+        }
       }
     } catch (error) {
       console.error('Error loading settings:', error);
     } finally {
       setLoading(false);
     }
+  };
+
+  const handleLogoUpload = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ['image/png', 'image/jpeg', 'image/jpg', 'image/svg+xml', 'image/webp'];
+    if (!validTypes.includes(file.type)) {
+      alert('Please upload a valid image file (PNG, JPG, SVG, or WebP)');
+      return;
+    }
+
+    // Validate file size (max 2MB)
+    const maxSize = 2 * 1024 * 1024; // 2MB
+    if (file.size > maxSize) {
+      alert('Image size must be less than 2MB. Please choose a smaller file.');
+      return;
+    }
+
+    // Read file and convert to base64
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      const base64String = event.target.result;
+      setFormData(prev => ({ ...prev, logo_url: base64String }));
+      setLogoPreview(base64String);
+      setSuccessMessage('');
+    };
+    reader.onerror = () => {
+      alert('Error reading file. Please try again.');
+    };
+    reader.readAsDataURL(file);
+  };
+
+  const handleLogoRemove = () => {
+    setFormData(prev => ({ ...prev, logo_url: '' }));
+    setLogoPreview('');
+    if (fileInputRef.current) {
+      fileInputRef.current.value = '';
+    }
+  };
+
+  const handleLogoButtonClick = () => {
+    fileInputRef.current?.click();
   };
 
   const handleInputChange = (e) => {
@@ -413,19 +464,68 @@ function Settings() {
 
                     <div className="md:col-span-2">
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Logo URL
+                        Company Logo
                       </label>
-                      <input
-                        type="url"
-                        name="logo_url"
-                        value={formData.logo_url}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="https://example.com/logo.png"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Enter a URL to your company logo (recommended size: 200x200px)
-                      </p>
+
+                      <div className="flex items-start space-x-4">
+                        {/* Logo Preview */}
+                        <div className="flex-shrink-0">
+                          {logoPreview ? (
+                            <div className="relative">
+                              <img
+                                src={logoPreview}
+                                alt="Company Logo"
+                                className="w-32 h-32 object-contain border-2 border-gray-200 rounded-lg bg-white p-2"
+                              />
+                              <button
+                                type="button"
+                                onClick={handleLogoRemove}
+                                className="absolute -top-2 -right-2 bg-red-500 text-white rounded-full p-1 hover:bg-red-600 transition-colors shadow-lg"
+                                title="Remove logo"
+                              >
+                                <XIcon className="w-4 h-4" />
+                              </button>
+                            </div>
+                          ) : (
+                            <div className="w-32 h-32 border-2 border-dashed border-gray-300 rounded-lg flex items-center justify-center bg-gray-50">
+                              <div className="text-center">
+                                <Building className="w-8 h-8 text-gray-400 mx-auto mb-2" />
+                                <p className="text-xs text-gray-500">No logo</p>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+
+                        {/* Upload Button */}
+                        <div className="flex-1">
+                          <input
+                            ref={fileInputRef}
+                            type="file"
+                            accept="image/png,image/jpeg,image/jpg,image/svg+xml,image/webp"
+                            onChange={handleLogoUpload}
+                            className="hidden"
+                          />
+                          <button
+                            type="button"
+                            onClick={handleLogoButtonClick}
+                            className="flex items-center px-4 py-2 border border-gray-300 rounded-lg hover:bg-gray-50 transition-colors"
+                          >
+                            <Upload className="w-4 h-4 mr-2" />
+                            {logoPreview ? 'Change Logo' : 'Upload Logo'}
+                          </button>
+                          <div className="mt-2 space-y-1">
+                            <p className="text-xs text-gray-600">
+                              <strong>Accepted formats:</strong> PNG, JPG, SVG, WebP
+                            </p>
+                            <p className="text-xs text-gray-600">
+                              <strong>Max size:</strong> 2MB
+                            </p>
+                            <p className="text-xs text-gray-600">
+                              <strong>Recommended:</strong> 200x200px square
+                            </p>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
