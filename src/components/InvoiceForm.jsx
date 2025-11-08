@@ -15,7 +15,9 @@ function InvoiceForm({ invoice, onClose }) {
     getSettings,
     getInvoice,
     getClientByCustomerNumber,
-    getSavedItemByItemNumber
+    getSavedItemByItemNumber,
+    createClient,
+    createSavedItem
   } = useDatabase();
 
   const [clients, setClients] = useState([]);
@@ -41,6 +43,31 @@ function InvoiceForm({ invoice, onClose }) {
   const [customerNumberSearch, setCustomerNumberSearch] = useState('');
   const [showItemSearchModal, setShowItemSearchModal] = useState(false);
   const [currentItemIndex, setCurrentItemIndex] = useState(null);
+
+  // Quick create modals
+  const [showCreateCustomerModal, setShowCreateCustomerModal] = useState(false);
+  const [showCreateItemModal, setShowCreateItemModal] = useState(false);
+  const [pendingCustomerNumber, setPendingCustomerNumber] = useState('');
+  const [pendingItemNumber, setPendingItemNumber] = useState('');
+  const [pendingItemIndex, setPendingItemIndex] = useState(null);
+
+  const [newCustomerData, setNewCustomerData] = useState({
+    customer_number: '',
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    zip: ''
+  });
+
+  const [newItemData, setNewItemData] = useState({
+    item_number: '',
+    description: '',
+    rate: 0,
+    category: 'General'
+  });
 
   useEffect(() => {
     loadInitialData();
@@ -184,11 +211,52 @@ function InvoiceForm({ invoice, onClose }) {
         setFormData(prev => ({ ...prev, client_id: client.id }));
         setCustomerNumberSearch('');
       } else {
-        alert(`No client found with customer number: ${customerNumberSearch}`);
+        // Customer not found - offer to create
+        setPendingCustomerNumber(customerNumberSearch.trim());
+        setNewCustomerData({
+          customer_number: customerNumberSearch.trim(),
+          name: '',
+          email: '',
+          phone: '',
+          address: '',
+          city: '',
+          state: '',
+          zip: ''
+        });
+        setShowCreateCustomerModal(true);
       }
     } catch (error) {
       console.error('Error searching for customer:', error);
       alert('Error searching for customer: ' + error.message);
+    }
+  };
+
+  const handleCreateCustomer = async () => {
+    // Validate required fields
+    if (!newCustomerData.name || !newCustomerData.email) {
+      alert('Please fill in Name and Email (required fields)');
+      return;
+    }
+
+    try {
+      const newClient = await createClient(newCustomerData);
+
+      // Refresh clients list
+      const clientsData = await getAllClients();
+      setClients(clientsData);
+
+      // Auto-select the new client
+      setFormData(prev => ({ ...prev, client_id: newClient.id }));
+
+      // Clear search and close modal
+      setCustomerNumberSearch('');
+      setShowCreateCustomerModal(false);
+      setPendingCustomerNumber('');
+
+      alert('Customer created successfully!');
+    } catch (error) {
+      console.error('Error creating customer:', error);
+      alert('Error creating customer: ' + error.message);
     }
   };
 
@@ -206,10 +274,48 @@ function InvoiceForm({ invoice, onClose }) {
         newItems[index].rate = savedItem.rate;
         newItems[index].amount = calculateItemAmount(newItems[index].quantity, savedItem.rate);
         setItems(newItems);
+      } else {
+        // Item not found and has description - offer to save as new item
+        if (items[index].description && items[index].description.trim()) {
+          setPendingItemNumber(itemNumber.trim());
+          setPendingItemIndex(index);
+          setNewItemData({
+            item_number: itemNumber.trim(),
+            description: items[index].description,
+            rate: parseFloat(items[index].rate) || 0,
+            category: 'General'
+          });
+          setShowCreateItemModal(true);
+        }
       }
-      // Don't show alert if not found, user might be typing custom item number
     } catch (error) {
       console.error('Error searching for item:', error);
+    }
+  };
+
+  const handleCreateItem = async () => {
+    // Validate required fields
+    if (!newItemData.description || !newItemData.rate) {
+      alert('Please fill in Description and Rate (required fields)');
+      return;
+    }
+
+    try {
+      await createSavedItem(newItemData);
+
+      // Refresh saved items list
+      const itemsData = await getAllSavedItems();
+      setSavedItems(itemsData);
+
+      // Close modal
+      setShowCreateItemModal(false);
+      setPendingItemNumber('');
+      setPendingItemIndex(null);
+
+      alert('Item saved successfully! You can now use it in future invoices.');
+    } catch (error) {
+      console.error('Error creating item:', error);
+      alert('Error creating item: ' + error.message);
     }
   };
 
@@ -605,6 +711,284 @@ function InvoiceForm({ invoice, onClose }) {
                     ))}
                   </div>
                 )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Create Customer Modal */}
+        {showCreateCustomerModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Customer Not Found</h2>
+                    <p className="text-sm text-gray-600 mt-1">
+                      No customer found with number "{pendingCustomerNumber}". Would you like to create a new customer?
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowCreateCustomerModal(false);
+                      setPendingCustomerNumber('');
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="space-y-4">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p className="text-sm text-yellow-800">
+                      ⚠️ This will create a new customer and save it to your database for future use.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Customer Number
+                    </label>
+                    <input
+                      type="text"
+                      value={newCustomerData.customer_number}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, customer_number: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg font-mono"
+                      placeholder="e.g., CUST-001"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newCustomerData.name}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, name: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg"
+                      placeholder="Customer name"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={newCustomerData.email}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, email: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg"
+                      placeholder="customer@example.com"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Phone
+                    </label>
+                    <input
+                      type="tel"
+                      value={newCustomerData.phone}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, phone: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg"
+                      placeholder="(555) 555-5555"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Address
+                    </label>
+                    <input
+                      type="text"
+                      value={newCustomerData.address}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, address: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg"
+                      placeholder="123 Main St"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        City
+                      </label>
+                      <input
+                        type="text"
+                        value={newCustomerData.city}
+                        onChange={(e) => setNewCustomerData({ ...newCustomerData, city: e.target.value })}
+                        className="w-full px-4 py-2 border rounded-lg"
+                        placeholder="City"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        State
+                      </label>
+                      <input
+                        type="text"
+                        value={newCustomerData.state}
+                        onChange={(e) => setNewCustomerData({ ...newCustomerData, state: e.target.value })}
+                        className="w-full px-4 py-2 border rounded-lg"
+                        placeholder="ST"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        ZIP
+                      </label>
+                      <input
+                        type="text"
+                        value={newCustomerData.zip}
+                        onChange={(e) => setNewCustomerData({ ...newCustomerData, zip: e.target.value })}
+                        className="w-full px-4 py-2 border rounded-lg"
+                        placeholder="12345"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowCreateCustomerModal(false);
+                    setPendingCustomerNumber('');
+                  }}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateCustomer}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Create Customer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Create Item Modal */}
+        {showCreateItemModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-xl w-full mx-4 max-h-[90vh] flex flex-col">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Save This Item?</h2>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Item number "{pendingItemNumber}" doesn't exist. Would you like to save it for future invoices?
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowCreateItemModal(false);
+                      setPendingItemNumber('');
+                      setPendingItemIndex(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800">
+                      💡 Saving this item will allow you to quickly add it to future invoices using the item number.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Item Number
+                    </label>
+                    <input
+                      type="text"
+                      value={newItemData.item_number}
+                      onChange={(e) => setNewItemData({ ...newItemData, item_number: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg font-mono"
+                      placeholder="e.g., ITEM-001, SRV-001"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Description <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newItemData.description}
+                      onChange={(e) => setNewItemData({ ...newItemData, description: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg"
+                      placeholder="What is this item/service?"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Rate <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newItemData.rate}
+                      onChange={(e) => setNewItemData({ ...newItemData, rate: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg"
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Category
+                    </label>
+                    <select
+                      value={newItemData.category}
+                      onChange={(e) => setNewItemData({ ...newItemData, category: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg"
+                    >
+                      <option value="General">General</option>
+                      <option value="Service">Service</option>
+                      <option value="Product">Product</option>
+                      <option value="Consulting">Consulting</option>
+                      <option value="Development">Development</option>
+                      <option value="Design">Design</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowCreateItemModal(false);
+                    setPendingItemNumber('');
+                    setPendingItemIndex(null);
+                  }}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={handleCreateItem}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Save Item
+                </button>
               </div>
             </div>
           </div>
