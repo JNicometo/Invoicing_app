@@ -137,6 +137,85 @@ export const useDatabase = () => {
     return await ipcCall('email:sendInvoice', emailData);
   }, [ipcCall]);
 
+  // Payments
+  const createPayment = useCallback(async (payment) => {
+    return await ipcCall('db:createPayment', payment);
+  }, [ipcCall]);
+
+  const getPaymentsByInvoice = useCallback(async (invoiceId) => {
+    return await ipcCall('db:getPaymentsByInvoice', invoiceId);
+  }, [ipcCall]);
+
+  const deletePayment = useCallback(async (id) => {
+    return await ipcCall('db:deletePayment', id);
+  }, [ipcCall]);
+
+  // Recurring Invoices
+  const createRecurringInvoice = useCallback(async (recurringInvoice, items) => {
+    return await ipcCall('db:createRecurringInvoice', recurringInvoice, items);
+  }, [ipcCall]);
+
+  const getAllRecurringInvoices = useCallback(async () => {
+    return await ipcCall('db:getAllRecurringInvoices');
+  }, [ipcCall]);
+
+  const getRecurringInvoice = useCallback(async (id) => {
+    return await ipcCall('db:getRecurringInvoice', id);
+  }, [ipcCall]);
+
+  const updateRecurringInvoice = useCallback(async (id, recurringInvoice, items) => {
+    return await ipcCall('db:updateRecurringInvoice', id, recurringInvoice, items);
+  }, [ipcCall]);
+
+  const deleteRecurringInvoice = useCallback(async (id) => {
+    return await ipcCall('db:deleteRecurringInvoice', id);
+  }, [ipcCall]);
+
+  const generateInvoiceFromRecurring = useCallback(async (recurringInvoiceId) => {
+    return await ipcCall('db:generateInvoiceFromRecurring', recurringInvoiceId);
+  }, [ipcCall]);
+
+  // Estimates
+  const generateEstimateNumber = useCallback(async () => {
+    return await ipcCall('db:generateEstimateNumber');
+  }, [ipcCall]);
+
+  const createEstimate = useCallback(async (estimate, items) => {
+    return await ipcCall('db:createEstimate', estimate, items);
+  }, [ipcCall]);
+
+  const getAllEstimates = useCallback(async () => {
+    return await ipcCall('db:getAllEstimates');
+  }, [ipcCall]);
+
+  const getArchivedEstimates = useCallback(async () => {
+    return await ipcCall('db:getArchivedEstimates');
+  }, [ipcCall]);
+
+  const getEstimate = useCallback(async (id) => {
+    return await ipcCall('db:getEstimate', id);
+  }, [ipcCall]);
+
+  const updateEstimate = useCallback(async (id, estimate, items) => {
+    return await ipcCall('db:updateEstimate', id, estimate, items);
+  }, [ipcCall]);
+
+  const deleteEstimate = useCallback(async (id) => {
+    return await ipcCall('db:deleteEstimate', id);
+  }, [ipcCall]);
+
+  const archiveEstimate = useCallback(async (id) => {
+    return await ipcCall('db:archiveEstimate', id);
+  }, [ipcCall]);
+
+  const restoreEstimate = useCallback(async (id) => {
+    return await ipcCall('db:restoreEstimate', id);
+  }, [ipcCall]);
+
+  const convertEstimateToInvoice = useCallback(async (estimateId) => {
+    return await ipcCall('db:convertEstimateToInvoice', estimateId);
+  }, [ipcCall]);
+
   return {
     loading,
     error,
@@ -174,5 +253,27 @@ export const useDatabase = () => {
     saveInvoiceAsPDF,
     // Email
     sendInvoiceEmail,
+    // Payments
+    createPayment,
+    getPaymentsByInvoice,
+    deletePayment,
+    // Recurring Invoices
+    createRecurringInvoice,
+    getAllRecurringInvoices,
+    getRecurringInvoice,
+    updateRecurringInvoice,
+    deleteRecurringInvoice,
+    generateInvoiceFromRecurring,
+    // Estimates
+    generateEstimateNumber,
+    createEstimate,
+    getAllEstimates,
+    getArchivedEstimates,
+    getEstimate,
+    updateEstimate,
+    deleteEstimate,
+    archiveEstimate,
+    restoreEstimate,
+    convertEstimateToInvoice,
   };
 };
