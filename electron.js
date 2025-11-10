@@ -454,3 +454,177 @@ ipcMain.handle('email:sendInvoice', async (event, emailData) => {
     throw new Error(errorMessage);
   }
 });
+
+// Payments
+ipcMain.handle('db:createPayment', async (event, payment) => {
+  try {
+    return db.createPayment(payment);
+  } catch (error) {
+    console.error('Error creating payment:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:getPaymentsByInvoice', async (event, invoiceId) => {
+  try {
+    return db.getPaymentsByInvoice(invoiceId);
+  } catch (error) {
+    console.error('Error getting payments:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:deletePayment', async (event, id) => {
+  try {
+    return db.deletePayment(id);
+  } catch (error) {
+    console.error('Error deleting payment:', error);
+    throw error;
+  }
+});
+
+// Recurring Invoices
+ipcMain.handle('db:createRecurringInvoice', async (event, recurringInvoice, items) => {
+  try {
+    return db.createRecurringInvoice(recurringInvoice, items);
+  } catch (error) {
+    console.error('Error creating recurring invoice:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:getAllRecurringInvoices', async () => {
+  try {
+    return db.getAllRecurringInvoices();
+  } catch (error) {
+    console.error('Error getting recurring invoices:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:getRecurringInvoice', async (event, id) => {
+  try {
+    return db.getRecurringInvoice(id);
+  } catch (error) {
+    console.error('Error getting recurring invoice:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:updateRecurringInvoice', async (event, id, recurringInvoice, items) => {
+  try {
+    return db.updateRecurringInvoice(id, recurringInvoice, items);
+  } catch (error) {
+    console.error('Error updating recurring invoice:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:deleteRecurringInvoice', async (event, id) => {
+  try {
+    return db.deleteRecurringInvoice(id);
+  } catch (error) {
+    console.error('Error deleting recurring invoice:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:generateInvoiceFromRecurring', async (event, recurringInvoiceId) => {
+  try {
+    return db.generateInvoiceFromRecurring(recurringInvoiceId);
+  } catch (error) {
+    console.error('Error generating invoice from recurring:', error);
+    throw error;
+  }
+});
+
+// Estimates
+ipcMain.handle('db:generateEstimateNumber', async () => {
+  try {
+    return db.generateEstimateNumber();
+  } catch (error) {
+    console.error('Error generating estimate number:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:createEstimate', async (event, estimate, items) => {
+  try {
+    return db.createEstimate(estimate, items);
+  } catch (error) {
+    console.error('Error creating estimate:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:getAllEstimates', async () => {
+  try {
+    return db.getAllEstimates();
+  } catch (error) {
+    console.error('Error getting estimates:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:getArchivedEstimates', async () => {
+  try {
+    return db.getArchivedEstimates();
+  } catch (error) {
+    console.error('Error getting archived estimates:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:getEstimate', async (event, id) => {
+  try {
+    return db.getEstimate(id);
+  } catch (error) {
+    console.error('Error getting estimate:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:updateEstimate', async (event, id, estimate, items) => {
+  try {
+    return db.updateEstimate(id, estimate, items);
+  } catch (error) {
+    console.error('Error updating estimate:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:deleteEstimate', async (event, id) => {
+  try {
+    return db.deleteEstimate(id);
+  } catch (error) {
+    console.error('Error deleting estimate:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:archiveEstimate', async (event, id) => {
+  try {
+    return db.archiveEstimate(id);
+  } catch (error) {
+    console.error('Error archiving estimate:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:restoreEstimate', async (event, id) => {
+  try {
+    return db.restoreEstimate(id);
+  } catch (error) {
+    console.error('Error restoring estimate:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:convertEstimateToInvoice', async (event, estimateId) => {
+  try {
+    return db.convertEstimateToInvoice(estimateId);
+  } catch (error) {
+    console.error('Error converting estimate to invoice:', error);
+    throw error;
+  }
+});

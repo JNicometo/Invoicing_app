@@ -574,6 +574,401 @@ const getDashboardStats = () => {
   return stats;
 };
 
+// Payment operations
+const createPayment = (payment) => {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    INSERT INTO payments (invoice_id, amount, payment_date, payment_method, reference_number, notes)
+    VALUES (@invoice_id, @amount, @payment_date, @payment_method, @reference_number, @notes)
+  `);
+
+  const result = stmt.run(payment);
+
+  // Update invoice status based on total payments
+  updateInvoiceStatusAfterPayment(payment.invoice_id);
+
+  return result;
+};
+
+const getPaymentsByInvoice = (invoiceId) => {
+  const db = getDatabase();
+  return db.prepare('SELECT * FROM payments WHERE invoice_id = ? ORDER BY payment_date DESC').all(invoiceId);
+};
+
+const deletePayment = (id) => {
+  const db = getDatabase();
+
+  // Get the invoice_id before deleting
+  const payment = db.prepare('SELECT invoice_id FROM payments WHERE id = ?').get(id);
+
+  const result = db.prepare('DELETE FROM payments WHERE id = ?').run(id);
+
+  // Update invoice status after deleting payment
+  if (payment) {
+    updateInvoiceStatusAfterPayment(payment.invoice_id);
+  }
+
+  return result;
+};
+
+const updateInvoiceStatusAfterPayment = (invoiceId) => {
+  const db = getDatabase();
+
+  // Get invoice total and sum of payments
+  const invoice = db.prepare('SELECT total FROM invoices WHERE id = ?').get(invoiceId);
+  const paymentsSum = db.prepare('SELECT COALESCE(SUM(amount), 0) as total_paid FROM payments WHERE invoice_id = ?').get(invoiceId);
+
+  if (!invoice) return;
+
+  const totalPaid = paymentsSum.total_paid || 0;
+  const invoiceTotal = invoice.total || 0;
+
+  let newStatus = 'pending';
+
+  if (totalPaid >= invoiceTotal && totalPaid > 0) {
+    newStatus = 'paid';
+  } else if (totalPaid > 0 && totalPaid < invoiceTotal) {
+    newStatus = 'partial';
+  }
+
+  // Update the invoice status
+  db.prepare('UPDATE invoices SET status = ? WHERE id = ?').run(newStatus, invoiceId);
+};
+
+// Recurring invoice operations
+const createRecurringInvoice = (recurringInvoice, items) => {
+  const db = getDatabase();
+
+  const stmt = db.prepare(`
+    INSERT INTO recurring_invoices (client_id, frequency, start_date, end_date, next_generation,
+      template_name, subtotal, tax, total, notes, payment_terms, active)
+    VALUES (@client_id, @frequency, @start_date, @end_date, @next_generation,
+      @template_name, @subtotal, @tax, @total, @notes, @payment_terms, @active)
+  `);
+
+  const result = stmt.run(recurringInvoice);
+  const recurringInvoiceId = result.lastInsertRowid;
+
+  // Insert items
+  const itemStmt = db.prepare(`
+    INSERT INTO recurring_invoice_items (recurring_invoice_id, description, quantity, rate, amount)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  items.forEach(item => {
+    itemStmt.run(recurringInvoiceId, item.description, item.quantity, item.rate, item.amount);
+  });
+
+  return result;
+};
+
+const getAllRecurringInvoices = () => {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT r.*, c.name as client_name, c.email as client_email
+    FROM recurring_invoices r
+    LEFT JOIN clients c ON r.client_id = c.id
+    ORDER BY r.active DESC, r.next_generation ASC
+  `).all();
+};
+
+const getRecurringInvoice = (id) => {
+  const db = getDatabase();
+  const recurringInvoice = db.prepare(`
+    SELECT r.*, c.name as client_name, c.email as client_email, c.phone as client_phone,
+           c.address as client_address, c.city as client_city, c.state as client_state, c.zip as client_zip
+    FROM recurring_invoices r
+    LEFT JOIN clients c ON r.client_id = c.id
+    WHERE r.id = ?
+  `).get(id);
+
+  if (recurringInvoice) {
+    recurringInvoice.items = db.prepare('SELECT * FROM recurring_invoice_items WHERE recurring_invoice_id = ?').all(id);
+  }
+
+  return recurringInvoice;
+};
+
+const updateRecurringInvoice = (id, recurringInvoice, items) => {
+  const db = getDatabase();
+
+  const stmt = db.prepare(`
+    UPDATE recurring_invoices SET
+      client_id = @client_id,
+      frequency = @frequency,
+      start_date = @start_date,
+      end_date = @end_date,
+      next_generation = @next_generation,
+      template_name = @template_name,
+      subtotal = @subtotal,
+      tax = @tax,
+      total = @total,
+      notes = @notes,
+      payment_terms = @payment_terms,
+      active = @active,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = @id
+  `);
+
+  const result = stmt.run({ ...recurringInvoice, id });
+
+  // Delete existing items and insert new ones
+  db.prepare('DELETE FROM recurring_invoice_items WHERE recurring_invoice_id = ?').run(id);
+
+  const itemStmt = db.prepare(`
+    INSERT INTO recurring_invoice_items (recurring_invoice_id, description, quantity, rate, amount)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  items.forEach(item => {
+    itemStmt.run(id, item.description, item.quantity, item.rate, item.amount);
+  });
+
+  return result;
+};
+
+const deleteRecurringInvoice = (id) => {
+  const db = getDatabase();
+  return db.prepare('DELETE FROM recurring_invoices WHERE id = ?').run(id);
+};
+
+const generateInvoiceFromRecurring = (recurringInvoiceId) => {
+  const db = getDatabase();
+
+  // Get the recurring invoice
+  const recurring = getRecurringInvoice(recurringInvoiceId);
+  if (!recurring || !recurring.active) return null;
+
+  // Generate new invoice number
+  const invoiceNumber = generateInvoiceNumber();
+
+  // Calculate next generation date based on frequency
+  const today = new Date();
+  const nextDate = new Date(recurring.next_generation);
+
+  let futureDate = new Date(nextDate);
+  switch (recurring.frequency) {
+    case 'weekly':
+      futureDate.setDate(futureDate.getDate() + 7);
+      break;
+    case 'biweekly':
+      futureDate.setDate(futureDate.getDate() + 14);
+      break;
+    case 'monthly':
+      futureDate.setMonth(futureDate.getMonth() + 1);
+      break;
+    case 'quarterly':
+      futureDate.setMonth(futureDate.getMonth() + 3);
+      break;
+    case 'yearly':
+      futureDate.setFullYear(futureDate.getFullYear() + 1);
+      break;
+  }
+
+  // Calculate due date (30 days from today)
+  const dueDate = new Date(today);
+  dueDate.setDate(dueDate.getDate() + 30);
+
+  // Create the invoice
+  const invoice = {
+    invoice_number: invoiceNumber,
+    client_id: recurring.client_id,
+    date: today.toISOString().split('T')[0],
+    due_date: dueDate.toISOString().split('T')[0],
+    status: 'pending',
+    subtotal: recurring.subtotal,
+    tax: recurring.tax,
+    total: recurring.total,
+    notes: recurring.notes,
+    payment_terms: recurring.payment_terms,
+    archived: 0
+  };
+
+  const result = createInvoice(invoice, recurring.items);
+
+  // Update recurring invoice
+  db.prepare(`
+    UPDATE recurring_invoices SET
+      last_generated = ?,
+      next_generation = ?,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(today.toISOString().split('T')[0], futureDate.toISOString().split('T')[0], recurringInvoiceId);
+
+  return result;
+};
+
+// Estimate operations
+const generateEstimateNumber = () => {
+  const db = getDatabase();
+  const settings = getSettings();
+  const prefix = settings.quote_prefix || 'EST-';
+
+  const lastEstimate = db.prepare('SELECT estimate_number FROM estimates ORDER BY id DESC LIMIT 1').get();
+
+  if (!lastEstimate) {
+    return `${prefix}0001`;
+  }
+
+  const lastNumber = parseInt(lastEstimate.estimate_number.replace(prefix, ''));
+  const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
+
+  return `${prefix}${nextNumber}`;
+};
+
+const createEstimate = (estimate, items) => {
+  const db = getDatabase();
+
+  const stmt = db.prepare(`
+    INSERT INTO estimates (estimate_number, client_id, date, expiry_date, status, subtotal, tax, total, notes, terms)
+    VALUES (@estimate_number, @client_id, @date, @expiry_date, @status, @subtotal, @tax, @total, @notes, @terms)
+  `);
+
+  const result = stmt.run(estimate);
+  const estimateId = result.lastInsertRowid;
+
+  // Insert items
+  const itemStmt = db.prepare(`
+    INSERT INTO estimate_items (estimate_id, description, quantity, rate, amount)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  items.forEach(item => {
+    itemStmt.run(estimateId, item.description, item.quantity, item.rate, item.amount);
+  });
+
+  return result;
+};
+
+const getAllEstimates = () => {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT e.*, c.name as client_name, c.email as client_email
+    FROM estimates e
+    LEFT JOIN clients c ON e.client_id = c.id
+    WHERE e.archived = 0
+    ORDER BY e.created_at DESC
+  `).all();
+};
+
+const getArchivedEstimates = () => {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT e.*, c.name as client_name, c.email as client_email
+    FROM estimates e
+    LEFT JOIN clients c ON e.client_id = c.id
+    WHERE e.archived = 1
+    ORDER BY e.created_at DESC
+  `).all();
+};
+
+const getEstimate = (id) => {
+  const db = getDatabase();
+  const estimate = db.prepare(`
+    SELECT e.*, c.name as client_name, c.email as client_email, c.phone as client_phone,
+           c.address as client_address, c.city as client_city, c.state as client_state, c.zip as client_zip
+    FROM estimates e
+    LEFT JOIN clients c ON e.client_id = c.id
+    WHERE e.id = ?
+  `).get(id);
+
+  if (estimate) {
+    estimate.items = db.prepare('SELECT * FROM estimate_items WHERE estimate_id = ?').all(id);
+  }
+
+  return estimate;
+};
+
+const updateEstimate = (id, estimate, items) => {
+  const db = getDatabase();
+
+  const stmt = db.prepare(`
+    UPDATE estimates SET
+      client_id = @client_id,
+      date = @date,
+      expiry_date = @expiry_date,
+      status = @status,
+      subtotal = @subtotal,
+      tax = @tax,
+      total = @total,
+      notes = @notes,
+      terms = @terms,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = @id
+  `);
+
+  const result = stmt.run({ ...estimate, id });
+
+  // Delete existing items and insert new ones
+  db.prepare('DELETE FROM estimate_items WHERE estimate_id = ?').run(id);
+
+  const itemStmt = db.prepare(`
+    INSERT INTO estimate_items (estimate_id, description, quantity, rate, amount)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  items.forEach(item => {
+    itemStmt.run(id, item.description, item.quantity, item.rate, item.amount);
+  });
+
+  return result;
+};
+
+const deleteEstimate = (id) => {
+  const db = getDatabase();
+  return db.prepare('DELETE FROM estimates WHERE id = ?').run(id);
+};
+
+const archiveEstimate = (id) => {
+  const db = getDatabase();
+  return db.prepare('UPDATE estimates SET archived = 1 WHERE id = ?').run(id);
+};
+
+const restoreEstimate = (id) => {
+  const db = getDatabase();
+  return db.prepare('UPDATE estimates SET archived = 0 WHERE id = ?').run(id);
+};
+
+const convertEstimateToInvoice = (estimateId) => {
+  const db = getDatabase();
+
+  // Get the estimate
+  const estimate = getEstimate(estimateId);
+  if (!estimate) return null;
+
+  // Generate new invoice number
+  const invoiceNumber = generateInvoiceNumber();
+
+  // Create the invoice from estimate
+  const invoice = {
+    invoice_number: invoiceNumber,
+    client_id: estimate.client_id,
+    date: new Date().toISOString().split('T')[0],
+    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
+    status: 'pending',
+    subtotal: estimate.subtotal,
+    tax: estimate.tax,
+    total: estimate.total,
+    notes: estimate.notes,
+    payment_terms: estimate.terms,
+    archived: 0
+  };
+
+  const result = createInvoice(invoice, estimate.items);
+  const invoiceId = result.lastInsertRowid;
+
+  // Update estimate to mark as converted
+  db.prepare(`
+    UPDATE estimates SET
+      status = 'converted',
+      converted_to_invoice_id = ?,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = ?
+  `).run(invoiceId, estimateId);
+
+  return { invoiceId, invoiceNumber };
+};
+
 module.exports = {
   initDatabase,
   getDatabase,
@@ -602,5 +997,28 @@ module.exports = {
   createSavedItem,
   updateSavedItem,
   deleteSavedItem,
-  getDashboardStats
+  getDashboardStats,
+  // Payments
+  createPayment,
+  getPaymentsByInvoice,
+  deletePayment,
+  updateInvoiceStatusAfterPayment,
+  // Recurring Invoices
+  createRecurringInvoice,
+  getAllRecurringInvoices,
+  getRecurringInvoice,
+  updateRecurringInvoice,
+  deleteRecurringInvoice,
+  generateInvoiceFromRecurring,
+  // Estimates
+  generateEstimateNumber,
+  createEstimate,
+  getAllEstimates,
+  getArchivedEstimates,
+  getEstimate,
+  updateEstimate,
+  deleteEstimate,
+  archiveEstimate,
+  restoreEstimate,
+  convertEstimateToInvoice
 };
