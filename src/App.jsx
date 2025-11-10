@@ -1,11 +1,14 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Home, FileText, Users, Archive as ArchiveIcon, Settings as SettingsIcon, Save, HelpCircle, X, Keyboard, Search } from 'lucide-react';
+import { Home, FileText, Users, Archive as ArchiveIcon, Settings as SettingsIcon, Save, HelpCircle, X, Keyboard, Search, Repeat, ClipboardList, TrendingUp } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import InvoiceList from './components/InvoiceList';
 import ClientManagement from './components/ClientManagement';
 import SavedItems from './components/SavedItems';
 import ArchiveComponent from './components/Archive';
 import Settings from './components/Settings';
+import RecurringInvoices from './components/RecurringInvoices';
+import EstimateList from './components/EstimateList';
+import Reports from './components/Reports';
 import { useDatabase } from './hooks/useDatabase';
 
 function App() {
@@ -165,7 +168,10 @@ function App() {
   const navigation = [
     { id: 'dashboard', name: 'Dashboard', icon: Home },
     { id: 'invoices', name: 'Invoices', icon: FileText },
+    { id: 'estimates', name: 'Estimates', icon: ClipboardList },
+    { id: 'recurring', name: 'Recurring', icon: Repeat },
     { id: 'clients', name: 'Clients', icon: Users },
+    { id: 'reports', name: 'Reports', icon: TrendingUp },
     { id: 'saved-items', name: 'Saved Items', icon: Save },
     { id: 'archive', name: 'Archive', icon: ArchiveIcon },
     { id: 'settings', name: 'Settings', icon: SettingsIcon },
@@ -186,8 +192,14 @@ function App() {
         return <Dashboard onNavigateToInvoices={handleNavigateToInvoices} />;
       case 'invoices':
         return <InvoiceList selectedClientId={selectedClientId} onClearClientFilter={handleClearClientFilter} />;
+      case 'estimates':
+        return <EstimateList />;
+      case 'recurring':
+        return <RecurringInvoices />;
       case 'clients':
         return <ClientManagement onNavigateToInvoices={handleNavigateToInvoices} />;
+      case 'reports':
+        return <Reports />;
       case 'saved-items':
         return <SavedItems />;
       case 'archive':

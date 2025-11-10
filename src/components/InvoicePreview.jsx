@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { X, Printer, Download, Mail } from 'lucide-react';
+import { X, Printer, Download, Mail, DollarSign, CreditCard, Trash2 } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { formatCurrency, formatDate } from '../utils/formatting';
 
@@ -16,7 +16,18 @@ function InvoicePreview({ invoice, onClose }) {
     bcc: ''
   });
   const [sending, setSending] = useState(false);
-  const { getInvoice, getSettings, saveInvoiceAsPDF, sendInvoiceEmail } = useDatabase();
+  const [payments, setPayments] = useState([]);
+  const [totalPaid, setTotalPaid] = useState(0);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [paymentData, setPaymentData] = useState({
+    amount: '',
+    payment_date: new Date().toISOString().split('T')[0],
+    payment_method: 'Cash',
+    reference_number: '',
+    notes: ''
+  });
+  const [savingPayment, setSavingPayment] = useState(false);
+  const { getInvoice, getSettings, saveInvoiceAsPDF, sendInvoiceEmail, createPayment, getPaymentsByInvoice, deletePayment } = useDatabase();
 
   useEffect(() => {
     loadInvoiceData();
@@ -31,11 +42,25 @@ function InvoicePreview({ invoice, onClose }) {
       ]);
       setFullInvoice(invoiceData);
       setSettings(settingsData);
+
+      // Load payments
+      await loadPayments(invoice.id);
     } catch (error) {
       console.error('Error loading invoice:', error);
       alert('Error loading invoice: ' + error.message);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadPayments = async (invoiceId) => {
+    try {
+      const paymentsData = await getPaymentsByInvoice(invoiceId || invoice.id);
+      setPayments(paymentsData || []);
+      const total = (paymentsData || []).reduce((sum, p) => sum + p.amount, 0);
+      setTotalPaid(total);
+    } catch (error) {
+      console.error('Error loading payments:', error);
     }
   };
 
@@ -453,6 +478,74 @@ function InvoicePreview({ invoice, onClose }) {
     }
   };
 
+  const handleOpenPaymentModal = () => {
+    // Reset payment form with remaining balance as suggested amount
+    const balanceDue = fullInvoice.total - totalPaid;
+    setPaymentData({
+      amount: balanceDue > 0 ? balanceDue.toFixed(2) : '',
+      payment_date: new Date().toISOString().split('T')[0],
+      payment_method: 'Cash',
+      reference_number: '',
+      notes: ''
+    });
+    setShowPaymentModal(true);
+  };
+
+  const handleRecordPayment = async () => {
+    // Validate
+    if (!paymentData.amount || parseFloat(paymentData.amount) <= 0) {
+      alert('Please enter a valid payment amount');
+      return;
+    }
+
+    try {
+      setSavingPayment(true);
+      await createPayment({
+        invoice_id: fullInvoice.id,
+        amount: parseFloat(paymentData.amount),
+        payment_date: paymentData.payment_date,
+        payment_method: paymentData.payment_method,
+        reference_number: paymentData.reference_number,
+        notes: paymentData.notes
+      });
+
+      // Reload payments and invoice to get updated status
+      await Promise.all([
+        loadPayments(fullInvoice.id),
+        loadInvoiceData()
+      ]);
+
+      alert('Payment recorded successfully!');
+      setShowPaymentModal(false);
+    } catch (error) {
+      console.error('Error recording payment:', error);
+      alert('Error recording payment: ' + error.message);
+    } finally {
+      setSavingPayment(false);
+    }
+  };
+
+  const handleDeletePayment = async (paymentId) => {
+    if (!window.confirm('Are you sure you want to delete this payment? This will update the invoice status.')) {
+      return;
+    }
+
+    try {
+      await deletePayment(paymentId);
+
+      // Reload payments and invoice
+      await Promise.all([
+        loadPayments(fullInvoice.id),
+        loadInvoiceData()
+      ]);
+
+      alert('Payment deleted successfully');
+    } catch (error) {
+      console.error('Error deleting payment:', error);
+      alert('Error deleting payment: ' + error.message);
+    }
+  };
+
   if (loading || !fullInvoice) {
     return (
       <div className="p-8">
@@ -499,6 +592,235 @@ function InvoicePreview({ invoice, onClose }) {
             </button>
           </div>
         </div>
+
+        {/* Payment Tracking Section */}
+        {fullInvoice && (
+          <div className="bg-white shadow-lg rounded-lg p-6 mb-6 print:hidden">
+            <div className="flex justify-between items-center mb-4">
+              <h2 className="text-xl font-bold text-gray-900 flex items-center">
+                <DollarSign className="w-6 h-6 mr-2 text-green-600" />
+                Payment Tracking
+              </h2>
+              <button
+                onClick={handleOpenPaymentModal}
+                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+              >
+                <CreditCard className="w-4 h-4 mr-2" />
+                Record Payment
+              </button>
+            </div>
+
+            {/* Balance Summary */}
+            <div className="grid grid-cols-3 gap-4 mb-6">
+              <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                <p className="text-sm text-blue-600 font-medium">Total Amount</p>
+                <p className="text-2xl font-bold text-blue-900">{formatCurrency(fullInvoice.total)}</p>
+              </div>
+              <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                <p className="text-sm text-green-600 font-medium">Total Paid</p>
+                <p className="text-2xl font-bold text-green-900">{formatCurrency(totalPaid)}</p>
+              </div>
+              <div className={`p-4 rounded-lg border ${
+                fullInvoice.total - totalPaid > 0 ? 'bg-orange-50 border-orange-200' : 'bg-gray-50 border-gray-200'
+              }`}>
+                <p className={`text-sm font-medium ${
+                  fullInvoice.total - totalPaid > 0 ? 'text-orange-600' : 'text-gray-600'
+                }`}>Balance Due</p>
+                <p className={`text-2xl font-bold ${
+                  fullInvoice.total - totalPaid > 0 ? 'text-orange-900' : 'text-gray-900'
+                }`}>{formatCurrency(Math.max(0, fullInvoice.total - totalPaid))}</p>
+              </div>
+            </div>
+
+            {/* Progress Bar */}
+            <div className="mb-6">
+              <div className="flex justify-between text-sm text-gray-600 mb-2">
+                <span>Payment Progress</span>
+                <span>{fullInvoice.total > 0 ? Math.min(100, Math.round((totalPaid / fullInvoice.total) * 100)) : 0}%</span>
+              </div>
+              <div className="w-full bg-gray-200 rounded-full h-3 overflow-hidden">
+                <div
+                  className={`h-3 rounded-full transition-all duration-500 ${
+                    totalPaid >= fullInvoice.total ? 'bg-green-600' :
+                    totalPaid > 0 ? 'bg-yellow-500' : 'bg-gray-300'
+                  }`}
+                  style={{ width: `${fullInvoice.total > 0 ? Math.min(100, (totalPaid / fullInvoice.total) * 100) : 0}%` }}
+                ></div>
+              </div>
+            </div>
+
+            {/* Payment History */}
+            {payments.length > 0 ? (
+              <div>
+                <h3 className="text-lg font-semibold text-gray-900 mb-3">Payment History</h3>
+                <div className="overflow-x-auto">
+                  <table className="w-full">
+                    <thead>
+                      <tr className="border-b border-gray-200 bg-gray-50">
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Date</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Amount</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Method</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Reference</th>
+                        <th className="text-left py-3 px-4 text-sm font-semibold text-gray-700">Notes</th>
+                        <th className="text-center py-3 px-4 text-sm font-semibold text-gray-700">Action</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {payments.map((payment) => (
+                        <tr key={payment.id} className="border-b border-gray-100 hover:bg-gray-50">
+                          <td className="py-3 px-4 text-sm text-gray-900">{formatDate(payment.payment_date)}</td>
+                          <td className="py-3 px-4 text-sm font-semibold text-green-600">{formatCurrency(payment.amount)}</td>
+                          <td className="py-3 px-4 text-sm text-gray-700">{payment.payment_method}</td>
+                          <td className="py-3 px-4 text-sm text-gray-600">{payment.reference_number || '-'}</td>
+                          <td className="py-3 px-4 text-sm text-gray-600">{payment.notes || '-'}</td>
+                          <td className="py-3 px-4 text-center">
+                            <button
+                              onClick={() => handleDeletePayment(payment.id)}
+                              className="text-red-600 hover:text-red-800"
+                              title="Delete payment"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+            ) : (
+              <div className="text-center py-8 text-gray-500">
+                <CreditCard className="w-12 h-12 mx-auto mb-3 text-gray-400" />
+                <p>No payments recorded yet</p>
+                <p className="text-sm mt-1">Click "Record Payment" to add a payment</p>
+              </div>
+            )}
+          </div>
+        )}
+
+        {/* Payment Modal */}
+        {showPaymentModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-lg w-full">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Record Payment</h2>
+                  <button
+                    onClick={() => setShowPaymentModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Payment Amount <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      min="0"
+                      value={paymentData.amount}
+                      onChange={(e) => setPaymentData(prev => ({ ...prev, amount: e.target.value }))}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="0.00"
+                    />
+                    <p className="text-xs text-gray-500 mt-1">
+                      Balance due: {formatCurrency(Math.max(0, fullInvoice.total - totalPaid))}
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Payment Date <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="date"
+                      value={paymentData.payment_date}
+                      onChange={(e) => setPaymentData(prev => ({ ...prev, payment_date: e.target.value }))}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Payment Method <span className="text-red-500">*</span>
+                    </label>
+                    <select
+                      value={paymentData.payment_method}
+                      onChange={(e) => setPaymentData(prev => ({ ...prev, payment_method: e.target.value }))}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    >
+                      <option value="Cash">Cash</option>
+                      <option value="Check">Check</option>
+                      <option value="Credit Card">Credit Card</option>
+                      <option value="Bank Transfer">Bank Transfer</option>
+                      <option value="Other">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Reference Number
+                    </label>
+                    <input
+                      type="text"
+                      value={paymentData.reference_number}
+                      onChange={(e) => setPaymentData(prev => ({ ...prev, reference_number: e.target.value }))}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="Check #, Transaction ID, etc."
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Notes
+                    </label>
+                    <textarea
+                      value={paymentData.notes}
+                      onChange={(e) => setPaymentData(prev => ({ ...prev, notes: e.target.value }))}
+                      rows="3"
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                      placeholder="Additional notes about this payment..."
+                    />
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 mt-6">
+                  <button
+                    onClick={() => setShowPaymentModal(false)}
+                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                    disabled={savingPayment}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleRecordPayment}
+                    disabled={savingPayment}
+                    className="px-6 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  >
+                    {savingPayment ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Saving...
+                      </>
+                    ) : (
+                      <>
+                        <DollarSign className="w-4 h-4 mr-2" />
+                        Record Payment
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* Email Modal */}
         {showEmailModal && (
