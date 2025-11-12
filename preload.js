@@ -7,8 +7,10 @@ contextBridge.exposeInMainWorld('electron', {
     invoke: (channel, ...args) => {
       // Whitelist of allowed channels
       const validChannels = [
+        // Settings
         'db:getSettings',
         'db:updateSettings',
+        // Clients
         'db:getAllClients',
         'db:getClient',
         'db:getClientByCustomerNumber',
@@ -16,6 +18,7 @@ contextBridge.exposeInMainWorld('electron', {
         'db:updateClient',
         'db:deleteClient',
         'db:getClientStats',
+        // Invoices
         'db:getAllInvoices',
         'db:getArchivedInvoices',
         'db:getInvoice',
@@ -25,14 +28,79 @@ contextBridge.exposeInMainWorld('electron', {
         'db:archiveInvoice',
         'db:restoreInvoice',
         'db:generateInvoiceNumber',
+        // Saved Items
         'db:getAllSavedItems',
         'db:getSavedItem',
         'db:getSavedItemByItemNumber',
         'db:createSavedItem',
         'db:updateSavedItem',
         'db:deleteSavedItem',
+        // Dashboard
         'db:getDashboardStats',
+        // Payments
+        'db:createPayment',
+        'db:getPaymentsByInvoice',
+        'db:deletePayment',
+        // Recurring Invoices
+        'db:createRecurringInvoice',
+        'db:getAllRecurringInvoices',
+        'db:getRecurringInvoice',
+        'db:updateRecurringInvoice',
+        'db:deleteRecurringInvoice',
+        'db:generateInvoiceFromRecurring',
+        // Estimates
+        'db:generateEstimateNumber',
+        'db:createEstimate',
+        'db:getAllEstimates',
+        'db:getArchivedEstimates',
+        'db:getEstimate',
+        'db:updateEstimate',
+        'db:deleteEstimate',
+        'db:archiveEstimate',
+        'db:restoreEstimate',
+        'db:convertEstimateToInvoice',
+        // Credit Notes
+        'db:generateCreditNoteNumber',
+        'db:createCreditNote',
+        'db:getAllCreditNotes',
+        'db:getCreditNote',
+        'db:getCreditNotesByInvoice',
+        'db:updateCreditNote',
+        'db:deleteCreditNote',
+        'db:archiveCreditNote',
+        // Expenses
+        'db:generateExpenseNumber',
+        'db:createExpense',
+        'db:getAllExpenses',
+        'db:getExpense',
+        'db:updateExpense',
+        'db:deleteExpense',
+        'db:getExpensesByClient',
+        'db:getBillableExpenses',
+        // Expense Categories
+        'db:getAllExpenseCategories',
+        'db:createExpenseCategory',
+        'db:updateExpenseCategory',
+        'db:deleteExpenseCategory',
+        // Reminder Templates
+        'db:getAllReminderTemplates',
+        'db:getReminderTemplate',
+        'db:createReminderTemplate',
+        'db:updateReminderTemplate',
+        'db:deleteReminderTemplate',
+        // Invoice Reminders
+        'db:createInvoiceReminder',
+        'db:getInvoiceReminders',
+        'db:getAllInvoiceReminders',
+        'db:deleteInvoiceReminder',
+        'db:getInvoicesNeedingReminders',
+        // Batch Operations
+        'db:batchUpdateInvoiceStatus',
+        'db:batchArchiveInvoices',
+        'db:batchDeleteInvoices',
+        // PDF & Email
         'pdf:saveInvoice',
+        'email:sendInvoice',
       ];
 
       if (validChannels.includes(channel)) {

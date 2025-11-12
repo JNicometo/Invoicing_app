@@ -628,3 +628,306 @@ ipcMain.handle('db:convertEstimateToInvoice', async (event, estimateId) => {
     throw error;
   }
 });
+
+// Credit Notes
+ipcMain.handle('db:generateCreditNoteNumber', async () => {
+  try {
+    return db.generateCreditNoteNumber();
+  } catch (error) {
+    console.error('Error generating credit note number:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:createCreditNote', async (event, creditNote, items) => {
+  try {
+    return db.createCreditNote(creditNote, items);
+  } catch (error) {
+    console.error('Error creating credit note:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:getAllCreditNotes', async () => {
+  try {
+    return db.getAllCreditNotes();
+  } catch (error) {
+    console.error('Error getting credit notes:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:getCreditNote', async (event, id) => {
+  try {
+    return db.getCreditNote(id);
+  } catch (error) {
+    console.error('Error getting credit note:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:getCreditNotesByInvoice', async (event, invoiceId) => {
+  try {
+    return db.getCreditNotesByInvoice(invoiceId);
+  } catch (error) {
+    console.error('Error getting credit notes by invoice:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:updateCreditNote', async (event, id, creditNote, items) => {
+  try {
+    return db.updateCreditNote(id, creditNote, items);
+  } catch (error) {
+    console.error('Error updating credit note:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:deleteCreditNote', async (event, id) => {
+  try {
+    return db.deleteCreditNote(id);
+  } catch (error) {
+    console.error('Error deleting credit note:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:archiveCreditNote', async (event, id) => {
+  try {
+    return db.archiveCreditNote(id);
+  } catch (error) {
+    console.error('Error archiving credit note:', error);
+    throw error;
+  }
+});
+
+// Expenses
+ipcMain.handle('db:generateExpenseNumber', async () => {
+  try {
+    return db.generateExpenseNumber();
+  } catch (error) {
+    console.error('Error generating expense number:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:createExpense', async (event, expense) => {
+  try {
+    return db.createExpense(expense);
+  } catch (error) {
+    console.error('Error creating expense:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:getAllExpenses', async () => {
+  try {
+    return db.getAllExpenses();
+  } catch (error) {
+    console.error('Error getting expenses:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:getExpense', async (event, id) => {
+  try {
+    return db.getExpense(id);
+  } catch (error) {
+    console.error('Error getting expense:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:updateExpense', async (event, id, expense) => {
+  try {
+    return db.updateExpense(id, expense);
+  } catch (error) {
+    console.error('Error updating expense:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:deleteExpense', async (event, id) => {
+  try {
+    return db.deleteExpense(id);
+  } catch (error) {
+    console.error('Error deleting expense:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:getExpensesByClient', async (event, clientId) => {
+  try {
+    return db.getExpensesByClient(clientId);
+  } catch (error) {
+    console.error('Error getting expenses by client:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:getBillableExpenses', async () => {
+  try {
+    return db.getBillableExpenses();
+  } catch (error) {
+    console.error('Error getting billable expenses:', error);
+    throw error;
+  }
+});
+
+// Expense Categories
+ipcMain.handle('db:getAllExpenseCategories', async () => {
+  try {
+    return db.getAllExpenseCategories();
+  } catch (error) {
+    console.error('Error getting expense categories:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:createExpenseCategory', async (event, category) => {
+  try {
+    return db.createExpenseCategory(category);
+  } catch (error) {
+    console.error('Error creating expense category:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:updateExpenseCategory', async (event, id, category) => {
+  try {
+    return db.updateExpenseCategory(id, category);
+  } catch (error) {
+    console.error('Error updating expense category:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:deleteExpenseCategory', async (event, id) => {
+  try {
+    return db.deleteExpenseCategory(id);
+  } catch (error) {
+    console.error('Error deleting expense category:', error);
+    throw error;
+  }
+});
+
+// Reminder Templates
+ipcMain.handle('db:getAllReminderTemplates', async () => {
+  try {
+    return db.getAllReminderTemplates();
+  } catch (error) {
+    console.error('Error getting reminder templates:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:getReminderTemplate', async (event, id) => {
+  try {
+    return db.getReminderTemplate(id);
+  } catch (error) {
+    console.error('Error getting reminder template:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:createReminderTemplate', async (event, template) => {
+  try {
+    return db.createReminderTemplate(template);
+  } catch (error) {
+    console.error('Error creating reminder template:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:updateReminderTemplate', async (event, id, template) => {
+  try {
+    return db.updateReminderTemplate(id, template);
+  } catch (error) {
+    console.error('Error updating reminder template:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:deleteReminderTemplate', async (event, id) => {
+  try {
+    return db.deleteReminderTemplate(id);
+  } catch (error) {
+    console.error('Error deleting reminder template:', error);
+    throw error;
+  }
+});
+
+// Invoice Reminders
+ipcMain.handle('db:createInvoiceReminder', async (event, reminder) => {
+  try {
+    return db.createInvoiceReminder(reminder);
+  } catch (error) {
+    console.error('Error creating invoice reminder:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:getInvoiceReminders', async (event, invoiceId) => {
+  try {
+    return db.getInvoiceReminders(invoiceId);
+  } catch (error) {
+    console.error('Error getting invoice reminders:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:getAllInvoiceReminders', async () => {
+  try {
+    return db.getAllInvoiceReminders();
+  } catch (error) {
+    console.error('Error getting all invoice reminders:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:deleteInvoiceReminder', async (event, id) => {
+  try {
+    return db.deleteInvoiceReminder(id);
+  } catch (error) {
+    console.error('Error deleting invoice reminder:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:getInvoicesNeedingReminders', async () => {
+  try {
+    return db.getInvoicesNeedingReminders();
+  } catch (error) {
+    console.error('Error getting invoices needing reminders:', error);
+    throw error;
+  }
+});
+
+// Batch Operations
+ipcMain.handle('db:batchUpdateInvoiceStatus', async (event, invoiceIds, status) => {
+  try {
+    return db.batchUpdateInvoiceStatus(invoiceIds, status);
+  } catch (error) {
+    console.error('Error batch updating invoice status:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:batchArchiveInvoices', async (event, invoiceIds) => {
+  try {
+    return db.batchArchiveInvoices(invoiceIds);
+  } catch (error) {
+    console.error('Error batch archiving invoices:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:batchDeleteInvoices', async (event, invoiceIds) => {
+  try {
+    return db.batchDeleteInvoices(invoiceIds);
+  } catch (error) {
+    console.error('Error batch deleting invoices:', error);
+    throw error;
+  }
+});

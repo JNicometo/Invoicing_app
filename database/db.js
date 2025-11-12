@@ -173,6 +173,61 @@ const runMigrations = () => {
       console.log('✓ All theme customization columns already exist');
     }
 
+    // Add discount and adjustment columns to invoices table
+    console.log('Checking for invoice discount/adjustment columns...');
+    const invoiceColumns = db.pragma('table_info(invoices)');
+    const invoiceColumnNames = invoiceColumns.map(col => col.name);
+
+    const invoiceNewColumns = [
+      { name: 'discount_type', type: 'TEXT', default: "'none'" },
+      { name: 'discount_value', type: 'REAL', default: '0' },
+      { name: 'discount_amount', type: 'REAL', default: '0' },
+      { name: 'shipping', type: 'REAL', default: '0' },
+      { name: 'adjustment', type: 'REAL', default: '0' },
+      { name: 'adjustment_label', type: 'TEXT', default: "''" }
+    ];
+
+    let invoiceAddedCount = 0;
+    invoiceNewColumns.forEach(column => {
+      if (!invoiceColumnNames.includes(column.name)) {
+        console.log(`Adding ${column.name} column to invoices table...`);
+        db.exec(`ALTER TABLE invoices ADD COLUMN ${column.name} ${column.type} DEFAULT ${column.default}`);
+        invoiceAddedCount++;
+      }
+    });
+
+    if (invoiceAddedCount > 0) {
+      console.log(`✓ Added ${invoiceAddedCount} new columns to invoices table`);
+    } else {
+      console.log('✓ All invoice discount/adjustment columns already exist');
+    }
+
+    // Add discount columns to invoice_items table
+    console.log('Checking for invoice item discount columns...');
+    const itemColumns = db.pragma('table_info(invoice_items)');
+    const itemColumnNames = itemColumns.map(col => col.name);
+
+    const itemNewColumns = [
+      { name: 'discount_type', type: 'TEXT', default: "'none'" },
+      { name: 'discount_value', type: 'REAL', default: '0' },
+      { name: 'discount_amount', type: 'REAL', default: '0' }
+    ];
+
+    let itemAddedCount = 0;
+    itemNewColumns.forEach(column => {
+      if (!itemColumnNames.includes(column.name)) {
+        console.log(`Adding ${column.name} column to invoice_items table...`);
+        db.exec(`ALTER TABLE invoice_items ADD COLUMN ${column.name} ${column.type} DEFAULT ${column.default}`);
+        itemAddedCount++;
+      }
+    });
+
+    if (itemAddedCount > 0) {
+      console.log(`✓ Added ${itemAddedCount} new columns to invoice_items table`);
+    } else {
+      console.log('✓ All invoice item discount columns already exist');
+    }
+
     console.log('Migrations completed successfully');
   } catch (error) {
     console.error('Migration error:', error);
@@ -413,13 +468,17 @@ const createInvoice = (invoice, items) => {
   const db = getDatabase();
 
   const invoiceStmt = db.prepare(`
-    INSERT INTO invoices (invoice_number, client_id, date, due_date, status, subtotal, tax, total, notes, payment_terms)
-    VALUES (@invoice_number, @client_id, @date, @due_date, @status, @subtotal, @tax, @total, @notes, @payment_terms)
+    INSERT INTO invoices (invoice_number, client_id, date, due_date, status, subtotal, tax,
+      discount_type, discount_value, discount_amount, shipping, adjustment, adjustment_label,
+      total, notes, payment_terms)
+    VALUES (@invoice_number, @client_id, @date, @due_date, @status, @subtotal, @tax,
+      @discount_type, @discount_value, @discount_amount, @shipping, @adjustment, @adjustment_label,
+      @total, @notes, @payment_terms)
   `);
 
   const itemStmt = db.prepare(`
-    INSERT INTO invoice_items (invoice_id, description, quantity, rate, amount)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO invoice_items (invoice_id, description, quantity, rate, discount_type, discount_value, discount_amount, amount)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const transaction = db.transaction((invoice, items) => {
@@ -427,7 +486,16 @@ const createInvoice = (invoice, items) => {
     const invoiceId = result.lastInsertRowid;
 
     for (const item of items) {
-      itemStmt.run(invoiceId, item.description, item.quantity, item.rate, item.amount);
+      itemStmt.run(
+        invoiceId,
+        item.description,
+        item.quantity,
+        item.rate,
+        item.discount_type || 'none',
+        item.discount_value || 0,
+        item.discount_amount || 0,
+        item.amount
+      );
     }
 
     return invoiceId;
@@ -448,6 +516,12 @@ const updateInvoice = (id, invoice, items) => {
       status = @status,
       subtotal = @subtotal,
       tax = @tax,
+      discount_type = @discount_type,
+      discount_value = @discount_value,
+      discount_amount = @discount_amount,
+      shipping = @shipping,
+      adjustment = @adjustment,
+      adjustment_label = @adjustment_label,
       total = @total,
       notes = @notes,
       payment_terms = @payment_terms,
@@ -457,8 +531,8 @@ const updateInvoice = (id, invoice, items) => {
 
   const deleteItemsStmt = db.prepare('DELETE FROM invoice_items WHERE invoice_id = ?');
   const itemStmt = db.prepare(`
-    INSERT INTO invoice_items (invoice_id, description, quantity, rate, amount)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO invoice_items (invoice_id, description, quantity, rate, discount_type, discount_value, discount_amount, amount)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   const transaction = db.transaction((id, invoice, items) => {
@@ -466,7 +540,16 @@ const updateInvoice = (id, invoice, items) => {
     deleteItemsStmt.run(id);
 
     for (const item of items) {
-      itemStmt.run(id, item.description, item.quantity, item.rate, item.amount);
+      itemStmt.run(
+        id,
+        item.description,
+        item.quantity,
+        item.rate,
+        item.discount_type || 'none',
+        item.discount_value || 0,
+        item.discount_amount || 0,
+        item.amount
+      );
     }
   });
 
@@ -969,6 +1052,388 @@ const convertEstimateToInvoice = (estimateId) => {
   return { invoiceId, invoiceNumber };
 };
 
+// Credit Note operations
+const generateCreditNoteNumber = () => {
+  const db = getDatabase();
+  const prefix = 'CN-';
+
+  const lastCreditNote = db.prepare('SELECT credit_note_number FROM credit_notes ORDER BY id DESC LIMIT 1').get();
+
+  if (!lastCreditNote) {
+    return `${prefix}0001`;
+  }
+
+  const lastNumber = parseInt(lastCreditNote.credit_note_number.replace(prefix, ''));
+  const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
+  return `${prefix}${nextNumber}`;
+};
+
+const createCreditNote = (creditNote, items) => {
+  const db = getDatabase();
+
+  const stmt = db.prepare(`
+    INSERT INTO credit_notes (credit_note_number, invoice_id, client_id, date, reason, subtotal, tax, total, status, notes)
+    VALUES (@credit_note_number, @invoice_id, @client_id, @date, @reason, @subtotal, @tax, @total, @status, @notes)
+  `);
+
+  const result = stmt.run(creditNote);
+  const creditNoteId = result.lastInsertRowid;
+
+  // Insert items
+  const itemStmt = db.prepare(`
+    INSERT INTO credit_note_items (credit_note_id, description, quantity, rate, amount)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  items.forEach(item => {
+    itemStmt.run(creditNoteId, item.description, item.quantity, item.rate, item.amount);
+  });
+
+  return result;
+};
+
+const getAllCreditNotes = () => {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT cn.*, c.name as client_name, c.email as client_email, i.invoice_number
+    FROM credit_notes cn
+    LEFT JOIN clients c ON cn.client_id = c.id
+    LEFT JOIN invoices i ON cn.invoice_id = i.id
+    WHERE cn.archived = 0
+    ORDER BY cn.created_at DESC
+  `).all();
+};
+
+const getCreditNote = (id) => {
+  const db = getDatabase();
+  const creditNote = db.prepare(`
+    SELECT cn.*, c.name as client_name, c.email as client_email, c.phone as client_phone,
+           c.address as client_address, c.city as client_city, c.state as client_state, c.zip as client_zip,
+           i.invoice_number
+    FROM credit_notes cn
+    LEFT JOIN clients c ON cn.client_id = c.id
+    LEFT JOIN invoices i ON cn.invoice_id = i.id
+    WHERE cn.id = ?
+  `).get(id);
+
+  if (creditNote) {
+    creditNote.items = db.prepare('SELECT * FROM credit_note_items WHERE credit_note_id = ?').all(id);
+  }
+
+  return creditNote;
+};
+
+const getCreditNotesByInvoice = (invoiceId) => {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT cn.*, c.name as client_name
+    FROM credit_notes cn
+    LEFT JOIN clients c ON cn.client_id = c.id
+    WHERE cn.invoice_id = ? AND cn.archived = 0
+    ORDER BY cn.created_at DESC
+  `).all(invoiceId);
+};
+
+const updateCreditNote = (id, creditNote, items) => {
+  const db = getDatabase();
+
+  const stmt = db.prepare(`
+    UPDATE credit_notes SET
+      date = @date,
+      reason = @reason,
+      subtotal = @subtotal,
+      tax = @tax,
+      total = @total,
+      status = @status,
+      notes = @notes,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = @id
+  `);
+
+  const result = stmt.run({ ...creditNote, id });
+
+  // Delete existing items and insert new ones
+  db.prepare('DELETE FROM credit_note_items WHERE credit_note_id = ?').run(id);
+
+  const itemStmt = db.prepare(`
+    INSERT INTO credit_note_items (credit_note_id, description, quantity, rate, amount)
+    VALUES (?, ?, ?, ?, ?)
+  `);
+
+  items.forEach(item => {
+    itemStmt.run(id, item.description, item.quantity, item.rate, item.amount);
+  });
+
+  return result;
+};
+
+const deleteCreditNote = (id) => {
+  const db = getDatabase();
+  return db.prepare('DELETE FROM credit_notes WHERE id = ?').run(id);
+};
+
+const archiveCreditNote = (id) => {
+  const db = getDatabase();
+  return db.prepare('UPDATE credit_notes SET archived = 1 WHERE id = ?').run(id);
+};
+
+// Expense operations
+const generateExpenseNumber = () => {
+  const db = getDatabase();
+  const prefix = 'EXP-';
+
+  const lastExpense = db.prepare('SELECT expense_number FROM expenses ORDER BY id DESC LIMIT 1').get();
+
+  if (!lastExpense) {
+    return `${prefix}0001`;
+  }
+
+  const lastNumber = parseInt(lastExpense.expense_number.replace(prefix, ''));
+  const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
+  return `${prefix}${nextNumber}`;
+};
+
+const createExpense = (expense) => {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    INSERT INTO expenses (expense_number, category_id, vendor, amount, date, payment_method,
+      reference_number, description, receipt_url, billable, client_id, invoice_id, notes)
+    VALUES (@expense_number, @category_id, @vendor, @amount, @date, @payment_method,
+      @reference_number, @description, @receipt_url, @billable, @client_id, @invoice_id, @notes)
+  `);
+  return stmt.run(expense);
+};
+
+const getAllExpenses = () => {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT e.*, ec.name as category_name, c.name as client_name, i.invoice_number
+    FROM expenses e
+    LEFT JOIN expense_categories ec ON e.category_id = ec.id
+    LEFT JOIN clients c ON e.client_id = c.id
+    LEFT JOIN invoices i ON e.invoice_id = i.id
+    ORDER BY e.date DESC
+  `).all();
+};
+
+const getExpense = (id) => {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT e.*, ec.name as category_name, c.name as client_name, i.invoice_number
+    FROM expenses e
+    LEFT JOIN expense_categories ec ON e.category_id = ec.id
+    LEFT JOIN clients c ON e.client_id = c.id
+    LEFT JOIN invoices i ON e.invoice_id = i.id
+    WHERE e.id = ?
+  `).get(id);
+};
+
+const updateExpense = (id, expense) => {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    UPDATE expenses SET
+      category_id = @category_id,
+      vendor = @vendor,
+      amount = @amount,
+      date = @date,
+      payment_method = @payment_method,
+      reference_number = @reference_number,
+      description = @description,
+      receipt_url = @receipt_url,
+      billable = @billable,
+      client_id = @client_id,
+      invoice_id = @invoice_id,
+      notes = @notes,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = @id
+  `);
+  return stmt.run({ ...expense, id });
+};
+
+const deleteExpense = (id) => {
+  const db = getDatabase();
+  return db.prepare('DELETE FROM expenses WHERE id = ?').run(id);
+};
+
+const getExpensesByClient = (clientId) => {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT e.*, ec.name as category_name
+    FROM expenses e
+    LEFT JOIN expense_categories ec ON e.category_id = ec.id
+    WHERE e.client_id = ?
+    ORDER BY e.date DESC
+  `).all(clientId);
+};
+
+const getBillableExpenses = () => {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT e.*, ec.name as category_name, c.name as client_name
+    FROM expenses e
+    LEFT JOIN expense_categories ec ON e.category_id = ec.id
+    LEFT JOIN clients c ON e.client_id = c.id
+    WHERE e.billable = 1 AND e.invoice_id IS NULL
+    ORDER BY e.date DESC
+  `).all();
+};
+
+// Expense Category operations
+const getAllExpenseCategories = () => {
+  const db = getDatabase();
+  return db.prepare('SELECT * FROM expense_categories ORDER BY name').all();
+};
+
+const createExpenseCategory = (category) => {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    INSERT INTO expense_categories (name, description)
+    VALUES (@name, @description)
+  `);
+  return stmt.run(category);
+};
+
+const updateExpenseCategory = (id, category) => {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    UPDATE expense_categories SET
+      name = @name,
+      description = @description
+    WHERE id = @id
+  `);
+  return stmt.run({ ...category, id });
+};
+
+const deleteExpenseCategory = (id) => {
+  const db = getDatabase();
+  return db.prepare('DELETE FROM expense_categories WHERE id = ?').run(id);
+};
+
+// Reminder Template operations
+const getAllReminderTemplates = () => {
+  const db = getDatabase();
+  return db.prepare('SELECT * FROM reminder_templates ORDER BY days_before_due DESC').all();
+};
+
+const getReminderTemplate = (id) => {
+  const db = getDatabase();
+  return db.prepare('SELECT * FROM reminder_templates WHERE id = ?').get(id);
+};
+
+const createReminderTemplate = (template) => {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    INSERT INTO reminder_templates (name, subject, body, days_before_due, active)
+    VALUES (@name, @subject, @body, @days_before_due, @active)
+  `);
+  return stmt.run(template);
+};
+
+const updateReminderTemplate = (id, template) => {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    UPDATE reminder_templates SET
+      name = @name,
+      subject = @subject,
+      body = @body,
+      days_before_due = @days_before_due,
+      active = @active,
+      updated_at = CURRENT_TIMESTAMP
+    WHERE id = @id
+  `);
+  return stmt.run({ ...template, id });
+};
+
+const deleteReminderTemplate = (id) => {
+  const db = getDatabase();
+  return db.prepare('DELETE FROM reminder_templates WHERE id = ?').run(id);
+};
+
+// Invoice Reminder operations
+const createInvoiceReminder = (reminder) => {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    INSERT INTO invoice_reminders (invoice_id, template_id, sent_date, reminder_type, days_overdue, status, notes)
+    VALUES (@invoice_id, @template_id, @sent_date, @reminder_type, @days_overdue, @status, @notes)
+  `);
+  return stmt.run(reminder);
+};
+
+const getInvoiceReminders = (invoiceId) => {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT ir.*, rt.name as template_name
+    FROM invoice_reminders ir
+    LEFT JOIN reminder_templates rt ON ir.template_id = rt.id
+    WHERE ir.invoice_id = ?
+    ORDER BY ir.sent_date DESC
+  `).all(invoiceId);
+};
+
+const getAllInvoiceReminders = () => {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT ir.*, i.invoice_number, c.name as client_name, rt.name as template_name
+    FROM invoice_reminders ir
+    LEFT JOIN invoices i ON ir.invoice_id = i.id
+    LEFT JOIN clients c ON i.client_id = c.id
+    LEFT JOIN reminder_templates rt ON ir.template_id = rt.id
+    ORDER BY ir.sent_date DESC
+  `).all();
+};
+
+const deleteInvoiceReminder = (id) => {
+  const db = getDatabase();
+  return db.prepare('DELETE FROM invoice_reminders WHERE id = ?').run(id);
+};
+
+// Get invoices that need reminders
+const getInvoicesNeedingReminders = () => {
+  const db = getDatabase();
+  const today = new Date().toISOString().split('T')[0];
+
+  return db.prepare(`
+    SELECT i.*, c.name as client_name, c.email as client_email
+    FROM invoices i
+    LEFT JOIN clients c ON i.client_id = c.id
+    WHERE i.status IN ('pending', 'overdue', 'partial')
+      AND i.archived = 0
+      AND (
+        (i.status = 'overdue' AND date(i.due_date) < date(?))
+        OR (i.status = 'pending' AND date(i.due_date) <= date(?, '+3 days'))
+      )
+    ORDER BY i.due_date ASC
+  `).all(today, today);
+};
+
+// Batch operations for invoices
+const batchUpdateInvoiceStatus = (invoiceIds, status) => {
+  const db = getDatabase();
+  const placeholders = invoiceIds.map(() => '?').join(',');
+  const stmt = db.prepare(`
+    UPDATE invoices SET status = ?, updated_at = CURRENT_TIMESTAMP
+    WHERE id IN (${placeholders})
+  `);
+  return stmt.run(status, ...invoiceIds);
+};
+
+const batchArchiveInvoices = (invoiceIds) => {
+  const db = getDatabase();
+  const placeholders = invoiceIds.map(() => '?').join(',');
+  const stmt = db.prepare(`
+    UPDATE invoices SET archived = 1, updated_at = CURRENT_TIMESTAMP
+    WHERE id IN (${placeholders})
+  `);
+  return stmt.run(...invoiceIds);
+};
+
+const batchDeleteInvoices = (invoiceIds) => {
+  const db = getDatabase();
+  const placeholders = invoiceIds.map(() => '?').join(',');
+  const stmt = db.prepare(`DELETE FROM invoices WHERE id IN (${placeholders})`);
+  return stmt.run(...invoiceIds);
+};
+
 module.exports = {
   initDatabase,
   getDatabase,
@@ -1020,5 +1485,44 @@ module.exports = {
   deleteEstimate,
   archiveEstimate,
   restoreEstimate,
-  convertEstimateToInvoice
+  convertEstimateToInvoice,
+  // Credit Notes
+  generateCreditNoteNumber,
+  createCreditNote,
+  getAllCreditNotes,
+  getCreditNote,
+  getCreditNotesByInvoice,
+  updateCreditNote,
+  deleteCreditNote,
+  archiveCreditNote,
+  // Expenses
+  generateExpenseNumber,
+  createExpense,
+  getAllExpenses,
+  getExpense,
+  updateExpense,
+  deleteExpense,
+  getExpensesByClient,
+  getBillableExpenses,
+  // Expense Categories
+  getAllExpenseCategories,
+  createExpenseCategory,
+  updateExpenseCategory,
+  deleteExpenseCategory,
+  // Reminder Templates
+  getAllReminderTemplates,
+  getReminderTemplate,
+  createReminderTemplate,
+  updateReminderTemplate,
+  deleteReminderTemplate,
+  // Invoice Reminders
+  createInvoiceReminder,
+  getInvoiceReminders,
+  getAllInvoiceReminders,
+  deleteInvoiceReminder,
+  getInvoicesNeedingReminders,
+  // Batch Operations
+  batchUpdateInvoiceStatus,
+  batchArchiveInvoices,
+  batchDeleteInvoices
 };

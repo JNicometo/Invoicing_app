@@ -47,6 +47,12 @@ CREATE TABLE IF NOT EXISTS invoices (
   status TEXT DEFAULT 'draft',
   subtotal REAL DEFAULT 0,
   tax REAL DEFAULT 0,
+  discount_type TEXT DEFAULT 'none',
+  discount_value REAL DEFAULT 0,
+  discount_amount REAL DEFAULT 0,
+  shipping REAL DEFAULT 0,
+  adjustment REAL DEFAULT 0,
+  adjustment_label TEXT DEFAULT '',
   total REAL DEFAULT 0,
   notes TEXT DEFAULT '',
   payment_terms TEXT DEFAULT '',
@@ -63,6 +69,9 @@ CREATE TABLE IF NOT EXISTS invoice_items (
   description TEXT NOT NULL,
   quantity REAL DEFAULT 1,
   rate REAL DEFAULT 0,
+  discount_type TEXT DEFAULT 'none',
+  discount_value REAL DEFAULT 0,
+  discount_amount REAL DEFAULT 0,
   amount REAL DEFAULT 0,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
@@ -158,8 +167,117 @@ CREATE TABLE IF NOT EXISTS estimate_items (
   FOREIGN KEY (estimate_id) REFERENCES estimates(id) ON DELETE CASCADE
 );
 
+-- Credit notes table for refunds and adjustments
+CREATE TABLE IF NOT EXISTS credit_notes (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  credit_note_number TEXT NOT NULL UNIQUE,
+  invoice_id INTEGER NOT NULL,
+  client_id INTEGER NOT NULL,
+  date TEXT NOT NULL,
+  reason TEXT DEFAULT '',
+  subtotal REAL DEFAULT 0,
+  tax REAL DEFAULT 0,
+  total REAL DEFAULT 0,
+  status TEXT DEFAULT 'draft',
+  notes TEXT DEFAULT '',
+  archived INTEGER DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (invoice_id) REFERENCES invoices(id),
+  FOREIGN KEY (client_id) REFERENCES clients(id)
+);
+
+-- Credit note items table
+CREATE TABLE IF NOT EXISTS credit_note_items (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  credit_note_id INTEGER NOT NULL,
+  description TEXT NOT NULL,
+  quantity REAL DEFAULT 1,
+  rate REAL DEFAULT 0,
+  amount REAL DEFAULT 0,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (credit_note_id) REFERENCES credit_notes(id) ON DELETE CASCADE
+);
+
+-- Expense categories table
+CREATE TABLE IF NOT EXISTS expense_categories (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL UNIQUE,
+  description TEXT DEFAULT '',
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Expenses table for tracking business expenses
+CREATE TABLE IF NOT EXISTS expenses (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  expense_number TEXT NOT NULL UNIQUE,
+  category_id INTEGER NOT NULL,
+  vendor TEXT NOT NULL,
+  amount REAL NOT NULL,
+  date TEXT NOT NULL,
+  payment_method TEXT DEFAULT 'Cash',
+  reference_number TEXT DEFAULT '',
+  description TEXT DEFAULT '',
+  receipt_url TEXT DEFAULT '',
+  billable INTEGER DEFAULT 0,
+  client_id INTEGER DEFAULT NULL,
+  invoice_id INTEGER DEFAULT NULL,
+  notes TEXT DEFAULT '',
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (category_id) REFERENCES expense_categories(id),
+  FOREIGN KEY (client_id) REFERENCES clients(id),
+  FOREIGN KEY (invoice_id) REFERENCES invoices(id)
+);
+
+-- Reminder templates table for email templates
+CREATE TABLE IF NOT EXISTS reminder_templates (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  subject TEXT NOT NULL,
+  body TEXT NOT NULL,
+  days_before_due INTEGER DEFAULT 0,
+  active INTEGER DEFAULT 1,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  updated_at TEXT DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Invoice reminders table for tracking sent reminders
+CREATE TABLE IF NOT EXISTS invoice_reminders (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  invoice_id INTEGER NOT NULL,
+  template_id INTEGER DEFAULT NULL,
+  sent_date TEXT NOT NULL,
+  reminder_type TEXT DEFAULT 'manual',
+  days_overdue INTEGER DEFAULT 0,
+  status TEXT DEFAULT 'sent',
+  notes TEXT DEFAULT '',
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE,
+  FOREIGN KEY (template_id) REFERENCES reminder_templates(id)
+);
+
 -- Insert default settings
 INSERT OR IGNORE INTO settings (id) VALUES (1);
+
+-- Insert default expense categories
+INSERT OR IGNORE INTO expense_categories (id, name, description) VALUES
+  (1, 'Office Supplies', 'General office supplies and materials'),
+  (2, 'Travel', 'Business travel expenses'),
+  (3, 'Meals & Entertainment', 'Client meals and business entertainment'),
+  (4, 'Software & Subscriptions', 'Software licenses and online subscriptions'),
+  (5, 'Utilities', 'Internet, phone, electricity'),
+  (6, 'Professional Services', 'Consulting, legal, accounting services'),
+  (7, 'Marketing', 'Advertising and promotional expenses'),
+  (8, 'Equipment', 'Computer equipment and hardware'),
+  (9, 'Rent', 'Office rent and facilities'),
+  (10, 'Other', 'Miscellaneous expenses');
+
+-- Insert default reminder templates
+INSERT OR IGNORE INTO reminder_templates (id, name, subject, body, days_before_due, active) VALUES
+  (1, 'Payment Due Soon', 'Reminder: Invoice {invoice_number} Due Soon', 'Dear {client_name},\n\nThis is a friendly reminder that Invoice {invoice_number} for {total} is due on {due_date}.\n\nPlease let us know if you have any questions.\n\nBest regards,\n{company_name}', 3, 1),
+  (2, 'Payment Overdue', 'Overdue: Invoice {invoice_number}', 'Dear {client_name},\n\nOur records indicate that Invoice {invoice_number} for {total} is now overdue.\n\nPlease remit payment at your earliest convenience.\n\nThank you,\n{company_name}', -7, 1),
+  (3, 'Second Reminder', 'Second Notice: Invoice {invoice_number}', 'Dear {client_name},\n\nThis is our second notice regarding Invoice {invoice_number} for {total}.\n\nImmediate payment would be appreciated.\n\nRegards,\n{company_name}', -14, 1);
 
 -- Create indexes for better performance
 CREATE INDEX IF NOT EXISTS idx_invoices_client_id ON invoices(client_id);
@@ -175,5 +293,19 @@ CREATE INDEX IF NOT EXISTS idx_estimates_client_id ON estimates(client_id);
 CREATE INDEX IF NOT EXISTS idx_estimates_status ON estimates(status);
 CREATE INDEX IF NOT EXISTS idx_estimates_archived ON estimates(archived);
 CREATE INDEX IF NOT EXISTS idx_estimate_items_estimate_id ON estimate_items(estimate_id);
+CREATE INDEX IF NOT EXISTS idx_credit_notes_invoice_id ON credit_notes(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_credit_notes_client_id ON credit_notes(client_id);
+CREATE INDEX IF NOT EXISTS idx_credit_notes_status ON credit_notes(status);
+CREATE INDEX IF NOT EXISTS idx_credit_notes_archived ON credit_notes(archived);
+CREATE INDEX IF NOT EXISTS idx_credit_note_items_credit_note_id ON credit_note_items(credit_note_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_category_id ON expenses(category_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_client_id ON expenses(client_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_invoice_id ON expenses(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_expenses_date ON expenses(date);
+CREATE INDEX IF NOT EXISTS idx_expenses_billable ON expenses(billable);
+CREATE INDEX IF NOT EXISTS idx_invoice_reminders_invoice_id ON invoice_reminders(invoice_id);
+CREATE INDEX IF NOT EXISTS idx_invoice_reminders_template_id ON invoice_reminders(template_id);
+CREATE INDEX IF NOT EXISTS idx_invoice_reminders_sent_date ON invoice_reminders(sent_date);
+CREATE INDEX IF NOT EXISTS idx_reminder_templates_active ON reminder_templates(active);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_customer_number ON clients(customer_number) WHERE customer_number IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_items_item_number ON saved_items(item_number) WHERE item_number IS NOT NULL;

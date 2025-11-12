@@ -216,6 +216,144 @@ export const useDatabase = () => {
     return await ipcCall('db:convertEstimateToInvoice', estimateId);
   }, [ipcCall]);
 
+  // Credit Notes
+  const generateCreditNoteNumber = useCallback(async () => {
+    return await ipcCall('db:generateCreditNoteNumber');
+  }, [ipcCall]);
+
+  const createCreditNote = useCallback(async (creditNote, items) => {
+    return await ipcCall('db:createCreditNote', creditNote, items);
+  }, [ipcCall]);
+
+  const getAllCreditNotes = useCallback(async () => {
+    return await ipcCall('db:getAllCreditNotes');
+  }, [ipcCall]);
+
+  const getCreditNote = useCallback(async (id) => {
+    return await ipcCall('db:getCreditNote', id);
+  }, [ipcCall]);
+
+  const getCreditNotesByInvoice = useCallback(async (invoiceId) => {
+    return await ipcCall('db:getCreditNotesByInvoice', invoiceId);
+  }, [ipcCall]);
+
+  const updateCreditNote = useCallback(async (id, creditNote, items) => {
+    return await ipcCall('db:updateCreditNote', id, creditNote, items);
+  }, [ipcCall]);
+
+  const deleteCreditNote = useCallback(async (id) => {
+    return await ipcCall('db:deleteCreditNote', id);
+  }, [ipcCall]);
+
+  const archiveCreditNote = useCallback(async (id) => {
+    return await ipcCall('db:archiveCreditNote', id);
+  }, [ipcCall]);
+
+  // Expenses
+  const generateExpenseNumber = useCallback(async () => {
+    return await ipcCall('db:generateExpenseNumber');
+  }, [ipcCall]);
+
+  const createExpense = useCallback(async (expense) => {
+    return await ipcCall('db:createExpense', expense);
+  }, [ipcCall]);
+
+  const getAllExpenses = useCallback(async () => {
+    return await ipcCall('db:getAllExpenses');
+  }, [ipcCall]);
+
+  const getExpense = useCallback(async (id) => {
+    return await ipcCall('db:getExpense', id);
+  }, [ipcCall]);
+
+  const updateExpense = useCallback(async (id, expense) => {
+    return await ipcCall('db:updateExpense', id, expense);
+  }, [ipcCall]);
+
+  const deleteExpense = useCallback(async (id) => {
+    return await ipcCall('db:deleteExpense', id);
+  }, [ipcCall]);
+
+  const getExpensesByClient = useCallback(async (clientId) => {
+    return await ipcCall('db:getExpensesByClient', clientId);
+  }, [ipcCall]);
+
+  const getBillableExpenses = useCallback(async () => {
+    return await ipcCall('db:getBillableExpenses');
+  }, [ipcCall]);
+
+  // Expense Categories
+  const getAllExpenseCategories = useCallback(async () => {
+    return await ipcCall('db:getAllExpenseCategories');
+  }, [ipcCall]);
+
+  const createExpenseCategory = useCallback(async (category) => {
+    return await ipcCall('db:createExpenseCategory', category);
+  }, [ipcCall]);
+
+  const updateExpenseCategory = useCallback(async (id, category) => {
+    return await ipcCall('db:updateExpenseCategory', id, category);
+  }, [ipcCall]);
+
+  const deleteExpenseCategory = useCallback(async (id) => {
+    return await ipcCall('db:deleteExpenseCategory', id);
+  }, [ipcCall]);
+
+  // Reminder Templates
+  const getAllReminderTemplates = useCallback(async () => {
+    return await ipcCall('db:getAllReminderTemplates');
+  }, [ipcCall]);
+
+  const getReminderTemplate = useCallback(async (id) => {
+    return await ipcCall('db:getReminderTemplate', id);
+  }, [ipcCall]);
+
+  const createReminderTemplate = useCallback(async (template) => {
+    return await ipcCall('db:createReminderTemplate', template);
+  }, [ipcCall]);
+
+  const updateReminderTemplate = useCallback(async (id, template) => {
+    return await ipcCall('db:updateReminderTemplate', id, template);
+  }, [ipcCall]);
+
+  const deleteReminderTemplate = useCallback(async (id) => {
+    return await ipcCall('db:deleteReminderTemplate', id);
+  }, [ipcCall]);
+
+  // Invoice Reminders
+  const createInvoiceReminder = useCallback(async (reminder) => {
+    return await ipcCall('db:createInvoiceReminder', reminder);
+  }, [ipcCall]);
+
+  const getInvoiceReminders = useCallback(async (invoiceId) => {
+    return await ipcCall('db:getInvoiceReminders', invoiceId);
+  }, [ipcCall]);
+
+  const getAllInvoiceReminders = useCallback(async () => {
+    return await ipcCall('db:getAllInvoiceReminders');
+  }, [ipcCall]);
+
+  const deleteInvoiceReminder = useCallback(async (id) => {
+    return await ipcCall('db:deleteInvoiceReminder', id);
+  }, [ipcCall]);
+
+  const getInvoicesNeedingReminders = useCallback(async () => {
+    return await ipcCall('db:getInvoicesNeedingReminders');
+  }, [ipcCall]);
+
+  // Batch Operations
+  const batchUpdateInvoiceStatus = useCallback(async (invoiceIds, status) => {
+    return await ipcCall('db:batchUpdateInvoiceStatus', invoiceIds, status);
+  }, [ipcCall]);
+
+  const batchArchiveInvoices = useCallback(async (invoiceIds) => {
+    return await ipcCall('db:batchArchiveInvoices', invoiceIds);
+  }, [ipcCall]);
+
+  const batchDeleteInvoices = useCallback(async (invoiceIds) => {
+    return await ipcCall('db:batchDeleteInvoices', invoiceIds);
+  }, [ipcCall]);
+
   return {
     loading,
     error,
@@ -275,5 +413,44 @@ export const useDatabase = () => {
     archiveEstimate,
     restoreEstimate,
     convertEstimateToInvoice,
+    // Credit Notes
+    generateCreditNoteNumber,
+    createCreditNote,
+    getAllCreditNotes,
+    getCreditNote,
+    getCreditNotesByInvoice,
+    updateCreditNote,
+    deleteCreditNote,
+    archiveCreditNote,
+    // Expenses
+    generateExpenseNumber,
+    createExpense,
+    getAllExpenses,
+    getExpense,
+    updateExpense,
+    deleteExpense,
+    getExpensesByClient,
+    getBillableExpenses,
+    // Expense Categories
+    getAllExpenseCategories,
+    createExpenseCategory,
+    updateExpenseCategory,
+    deleteExpenseCategory,
+    // Reminder Templates
+    getAllReminderTemplates,
+    getReminderTemplate,
+    createReminderTemplate,
+    updateReminderTemplate,
+    deleteReminderTemplate,
+    // Invoice Reminders
+    createInvoiceReminder,
+    getInvoiceReminders,
+    getAllInvoiceReminders,
+    deleteInvoiceReminder,
+    getInvoicesNeedingReminders,
+    // Batch Operations
+    batchUpdateInvoiceStatus,
+    batchArchiveInvoices,
+    batchDeleteInvoices,
   };
 };
