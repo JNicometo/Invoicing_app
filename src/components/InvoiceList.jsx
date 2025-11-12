@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Plus, Search, Eye, Edit, Trash2, Archive, Printer, FileText, User, Filter, CheckCircle2, Clock, AlertTriangle, X } from 'lucide-react';
+import { Plus, Search, Eye, Edit, Trash2, Archive, Printer, FileText, User, Filter, CheckCircle2, Clock, AlertTriangle, X, CheckSquare, Square } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { formatCurrency, formatDate, getStatusBadgeColor } from '../utils/formatting';
 import InvoiceForm from './InvoiceForm';
@@ -21,7 +21,17 @@ function InvoiceList({ selectedClientId, onClearClientFilter }) {
   const [clientName, setClientName] = useState('');
   const [selectedInvoices, setSelectedInvoices] = useState([]);
 
-  const { getAllInvoices, deleteInvoice, archiveInvoice, getClient, getAllClients, updateInvoice } = useDatabase();
+  const {
+    getAllInvoices,
+    deleteInvoice,
+    archiveInvoice,
+    getClient,
+    getAllClients,
+    updateInvoice,
+    batchUpdateInvoiceStatus,
+    batchArchiveInvoices,
+    batchDeleteInvoices
+  } = useDatabase();
 
   useEffect(() => {
     loadInvoices();
@@ -136,6 +146,7 @@ function InvoiceList({ selectedClientId, onClearClientFilter }) {
     }
   };
 
+
   const handleArchive = async (id) => {
     if (window.confirm('Archive this invoice?')) {
       try {
@@ -189,12 +200,7 @@ function InvoiceList({ selectedClientId, onClearClientFilter }) {
 
     if (window.confirm(`Mark ${selectedInvoices.length} invoice(s) as paid?`)) {
       try {
-        for (const id of selectedInvoices) {
-          const invoice = invoices.find(inv => inv.id === id);
-          if (invoice) {
-            await updateInvoice({ ...invoice, status: 'paid' });
-          }
-        }
+        await batchUpdateInvoiceStatus(selectedInvoices, 'paid');
         setSelectedInvoices([]);
         await loadInvoices();
       } catch (error) {
@@ -208,9 +214,7 @@ function InvoiceList({ selectedClientId, onClearClientFilter }) {
 
     if (window.confirm(`Archive ${selectedInvoices.length} invoice(s)?`)) {
       try {
-        for (const id of selectedInvoices) {
-          await archiveInvoice(id);
-        }
+        await batchArchiveInvoices(selectedInvoices);
         setSelectedInvoices([]);
         await loadInvoices();
       } catch (error) {
@@ -224,9 +228,7 @@ function InvoiceList({ selectedClientId, onClearClientFilter }) {
 
     if (window.confirm(`Delete ${selectedInvoices.length} invoice(s) permanently? This cannot be undone.`)) {
       try {
-        for (const id of selectedInvoices) {
-          await deleteInvoice(id);
-        }
+        await batchDeleteInvoices(selectedInvoices);
         setSelectedInvoices([]);
         await loadInvoices();
       } catch (error) {
