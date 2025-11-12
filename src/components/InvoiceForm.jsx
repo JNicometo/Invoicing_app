@@ -34,10 +34,15 @@ function InvoiceForm({ invoice, onClose }) {
     status: 'draft',
     notes: '',
     payment_terms: '',
+    discount_type: 'none',
+    discount_value: 0,
+    shipping: 0,
+    adjustment: 0,
+    adjustment_label: '',
   });
 
   const [items, setItems] = useState([
-    { item_number: '', description: '', quantity: 1, rate: 0, amount: 0 }
+    { item_number: '', description: '', quantity: 1, rate: 0, discount_type: 'none', discount_value: 0, amount: 0 }
   ]);
 
   const [customerNumberSearch, setCustomerNumberSearch] = useState('');
@@ -88,6 +93,11 @@ function InvoiceForm({ invoice, onClose }) {
             status: fullInvoice.status,
             notes: fullInvoice.notes || '',
             payment_terms: fullInvoice.payment_terms || '',
+            discount_type: fullInvoice.discount_type || 'none',
+            discount_value: fullInvoice.discount_value || 0,
+            shipping: fullInvoice.shipping || 0,
+            adjustment: fullInvoice.adjustment || 0,
+            adjustment_label: fullInvoice.adjustment_label || '',
           });
 
           if (fullInvoice.items && fullInvoice.items.length > 0) {
@@ -145,16 +155,59 @@ function InvoiceForm({ invoice, onClose }) {
     }
   };
 
-  const calculateItemAmount = (quantity, rate) => {
-    return parseFloat(quantity || 0) * parseFloat(rate || 0);
+  const calculateItemAmount = (item) => {
+    const quantity = parseFloat(item.quantity || 0);
+    const rate = parseFloat(item.rate || 0);
+    const lineTotal = quantity * rate;
+
+    // Apply line-item discount
+    let discountAmount = 0;
+    if (item.discount_type === 'percentage') {
+      discountAmount = (lineTotal * parseFloat(item.discount_value || 0)) / 100;
+    } else if (item.discount_type === 'fixed') {
+      discountAmount = parseFloat(item.discount_value || 0);
+    }
+
+    return lineTotal - discountAmount;
   };
 
   const calculateTotals = () => {
+    // Calculate subtotal from all line items (already discounted at item level)
     const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+
+    // Apply invoice-level discount
+    let invoiceDiscount = 0;
+    if (formData.discount_type === 'percentage') {
+      invoiceDiscount = (subtotal * parseFloat(formData.discount_value || 0)) / 100;
+    } else if (formData.discount_type === 'fixed') {
+      invoiceDiscount = parseFloat(formData.discount_value || 0);
+    }
+
+    const afterDiscount = subtotal - invoiceDiscount;
+
+    // Add shipping
+    const shipping = parseFloat(formData.shipping || 0);
+
+    // Calculate tax on (subtotal - discount + shipping)
+    const taxableAmount = afterDiscount + shipping;
     const taxRate = parseFloat(settings?.tax_rate || 0) / 100;
-    const tax = subtotal * taxRate;
-    const total = subtotal + tax;
-    return { subtotal, tax, total };
+    const tax = taxableAmount * taxRate;
+
+    // Add adjustment (can be positive or negative)
+    const adjustment = parseFloat(formData.adjustment || 0);
+
+    // Final total
+    const total = taxableAmount + tax + adjustment;
+
+    return {
+      subtotal,
+      invoiceDiscount,
+      afterDiscount,
+      shipping,
+      tax,
+      adjustment,
+      total
+    };
   };
 
   const handleInputChange = (e) => {
@@ -169,18 +222,16 @@ function InvoiceForm({ invoice, onClose }) {
     const newItems = [...items];
     newItems[index][field] = value;
 
-    if (field === 'quantity' || field === 'rate') {
-      newItems[index].amount = calculateItemAmount(
-        newItems[index].quantity,
-        newItems[index].rate
-      );
+    // Recalculate amount when quantity, rate, or discount changes
+    if (field === 'quantity' || field === 'rate' || field === 'discount_type' || field === 'discount_value') {
+      newItems[index].amount = calculateItemAmount(newItems[index]);
     }
 
     setItems(newItems);
   };
 
   const handleAddItem = () => {
-    setItems([...items, { item_number: '', description: '', quantity: 1, rate: 0, amount: 0 }]);
+    setItems([...items, { item_number: '', description: '', quantity: 1, rate: 0, discount_type: 'none', discount_value: 0, amount: 0 }]);
   };
 
   const handleRemoveItem = (index) => {
@@ -194,8 +245,11 @@ function InvoiceForm({ invoice, onClose }) {
 
     const savedItem = savedItems.find(item => item.id === parseInt(savedItemId));
     if (savedItem) {
-      handleItemChange(index, 'description', savedItem.description);
-      handleItemChange(index, 'rate', savedItem.rate);
+      const newItems = [...items];
+      newItems[index].description = savedItem.description;
+      newItems[index].rate = savedItem.rate;
+      newItems[index].amount = calculateItemAmount(newItems[index]);
+      setItems(newItems);
     }
   };
 
@@ -272,7 +326,7 @@ function InvoiceForm({ invoice, onClose }) {
         const newItems = [...items];
         newItems[index].description = savedItem.description;
         newItems[index].rate = savedItem.rate;
-        newItems[index].amount = calculateItemAmount(newItems[index].quantity, savedItem.rate);
+        newItems[index].amount = calculateItemAmount(newItems[index]);
         setItems(newItems);
       } else {
         // Item not found and has description - offer to save as new item
@@ -330,7 +384,7 @@ function InvoiceForm({ invoice, onClose }) {
       newItems[currentItemIndex].item_number = savedItem.item_number || '';
       newItems[currentItemIndex].description = savedItem.description;
       newItems[currentItemIndex].rate = savedItem.rate;
-      newItems[currentItemIndex].amount = calculateItemAmount(newItems[currentItemIndex].quantity, savedItem.rate);
+      newItems[currentItemIndex].amount = calculateItemAmount(newItems[currentItemIndex]);
       setItems(newItems);
     }
     setShowItemSearchModal(false);
@@ -348,18 +402,35 @@ function InvoiceForm({ invoice, onClose }) {
     }
 
     try {
-      const { subtotal, tax, total } = calculateTotals();
+      const totals = calculateTotals();
       const invoiceData = {
         ...formData,
-        subtotal,
-        tax,
-        total,
+        subtotal: totals.subtotal,
+        tax: totals.tax,
+        discount_type: formData.discount_type || 'none',
+        discount_value: parseFloat(formData.discount_value || 0),
+        discount_amount: totals.invoiceDiscount,
+        shipping: parseFloat(formData.shipping || 0),
+        adjustment: parseFloat(formData.adjustment || 0),
+        adjustment_label: formData.adjustment_label || '',
+        total: totals.total,
       };
 
+      // Prepare items with discount fields
+      const itemsData = items.map(item => ({
+        ...item,
+        discount_type: item.discount_type || 'none',
+        discount_value: parseFloat(item.discount_value || 0),
+        discount_amount: item.discount_type !== 'none' ?
+          (item.discount_type === 'percentage' ?
+            (item.quantity * item.rate * item.discount_value / 100) :
+            item.discount_value) : 0,
+      }));
+
       if (isEdit) {
-        await updateInvoice(invoice.id, invoiceData, items);
+        await updateInvoice(invoice.id, invoiceData, itemsData);
       } else {
-        await createInvoice(invoiceData, items);
+        await createInvoice(invoiceData, itemsData);
       }
 
       onClose(true);
@@ -369,7 +440,7 @@ function InvoiceForm({ invoice, onClose }) {
     }
   };
 
-  const { subtotal, tax, total } = calculateTotals();
+  const totals = calculateTotals();
 
   if (loading) {
     return (
@@ -592,18 +663,98 @@ function InvoiceForm({ invoice, onClose }) {
             {/* Totals */}
             <div className="mt-6 border-t pt-4">
               <div className="flex justify-end">
-                <div className="w-64 space-y-2">
+                <div className="w-96 space-y-3">
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Subtotal:</span>
-                    <span className="font-medium">${subtotal.toFixed(2)}</span>
+                    <span className="font-medium">${totals.subtotal.toFixed(2)}</span>
                   </div>
+
+                  {/* Invoice-Level Discount */}
+                  <div className="border-t pt-2">
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="text-sm font-medium text-gray-700">Discount:</label>
+                      <select
+                        value={formData.discount_type}
+                        onChange={(e) => setFormData(prev => ({ ...prev, discount_type: e.target.value, discount_value: e.target.value === 'none' ? 0 : prev.discount_value }))}
+                        className="px-2 py-1 border border-gray-300 rounded text-sm"
+                      >
+                        <option value="none">None</option>
+                        <option value="percentage">Percentage</option>
+                        <option value="fixed">Fixed Amount</option>
+                      </select>
+                      {formData.discount_type !== 'none' && (
+                        <input
+                          type="number"
+                          value={formData.discount_value}
+                          onChange={(e) => setFormData(prev => ({ ...prev, discount_value: e.target.value }))}
+                          className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
+                          min="0"
+                          step="0.01"
+                          placeholder={formData.discount_type === 'percentage' ? '%' : '$'}
+                        />
+                      )}
+                    </div>
+                    {totals.invoiceDiscount > 0 && (
+                      <div className="flex justify-between text-sm text-red-600">
+                        <span>Discount Amount:</span>
+                        <span>-${totals.invoiceDiscount.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Shipping */}
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium text-gray-700">Shipping:</label>
+                      <input
+                        type="number"
+                        value={formData.shipping}
+                        onChange={(e) => setFormData(prev => ({ ...prev, shipping: e.target.value }))}
+                        className="w-32 px-2 py-1 border border-gray-300 rounded text-sm"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+
                   <div className="flex justify-between text-sm">
                     <span className="text-gray-600">Tax ({settings?.tax_rate || 0}%):</span>
-                    <span className="font-medium">${tax.toFixed(2)}</span>
+                    <span className="font-medium">${totals.tax.toFixed(2)}</span>
                   </div>
+
+                  {/* Adjustment */}
+                  <div className="border-t pt-2">
+                    <div className="flex items-center gap-2 mb-2">
+                      <input
+                        type="text"
+                        value={formData.adjustment_label}
+                        onChange={(e) => setFormData(prev => ({ ...prev, adjustment_label: e.target.value }))}
+                        className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
+                        placeholder="Adjustment label"
+                      />
+                      <input
+                        type="number"
+                        value={formData.adjustment}
+                        onChange={(e) => setFormData(prev => ({ ...prev, adjustment: e.target.value }))}
+                        className="w-32 px-2 py-1 border border-gray-300 rounded text-sm"
+                        step="0.01"
+                        placeholder="±0.00"
+                      />
+                    </div>
+                    {formData.adjustment !== 0 && formData.adjustment !== '' && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">{formData.adjustment_label || 'Adjustment'}:</span>
+                        <span className={parseFloat(formData.adjustment) < 0 ? 'text-red-600' : 'text-green-600'}>
+                          {parseFloat(formData.adjustment) >= 0 ? '+' : ''}${parseFloat(formData.adjustment).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="flex justify-between text-lg font-bold border-t pt-2">
                     <span>Total:</span>
-                    <span>${total.toFixed(2)}</span>
+                    <span>${totals.total.toFixed(2)}</span>
                   </div>
                 </div>
               </div>
