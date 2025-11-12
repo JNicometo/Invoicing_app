@@ -4,6 +4,7 @@ const fs = require('fs');
 const isDev = require('electron-is-dev');
 const db = require('./database/db');
 const nodemailer = require('nodemailer');
+const Stripe = require('stripe');
 
 let mainWindow;
 
@@ -929,5 +930,191 @@ ipcMain.handle('db:batchDeleteInvoices', async (event, invoiceIds) => {
   } catch (error) {
     console.error('Error batch deleting invoices:', error);
     throw error;
+  }
+});
+
+// Payment Gateway - Stripe
+ipcMain.handle('payment:createStripePaymentLink', async (event, paymentData) => {
+  try {
+    const { settings, invoice, client } = paymentData;
+
+    // Validate Stripe settings
+    if (!settings.stripe_enabled || !settings.stripe_secret_key) {
+      throw new Error('Stripe is not configured. Please configure Stripe settings first.');
+    }
+
+    // Initialize Stripe with the secret key
+    const stripe = Stripe(settings.stripe_secret_key);
+
+    // Create a payment link
+    const paymentLink = await stripe.paymentLinks.create({
+      line_items: [
+        {
+          price_data: {
+            currency: (settings.currency_code || 'USD').toLowerCase(),
+            product_data: {
+              name: `Invoice ${invoice.invoice_number}`,
+              description: `Payment for ${settings.company_name || 'Invoice'}`,
+            },
+            unit_amount: Math.round(invoice.total * 100), // Stripe uses cents
+          },
+          quantity: 1,
+        },
+      ],
+      metadata: {
+        invoice_id: invoice.id.toString(),
+        invoice_number: invoice.invoice_number,
+        client_id: client.id.toString(),
+        client_name: client.name,
+      },
+      after_completion: {
+        type: 'redirect',
+        redirect: {
+          url: `https://example.com/payment-success?invoice=${invoice.invoice_number}`,
+        },
+      },
+    });
+
+    console.log('Stripe payment link created:', paymentLink.id);
+    return {
+      success: true,
+      paymentLink: paymentLink.url,
+      paymentLinkId: paymentLink.id,
+      message: 'Payment link created successfully!'
+    };
+
+  } catch (error) {
+    console.error('Error creating Stripe payment link:', error);
+
+    let errorMessage = error.message;
+    if (error.type === 'StripeAuthenticationError') {
+      errorMessage = 'Stripe authentication failed. Please check your API key.';
+    } else if (error.type === 'StripeInvalidRequestError') {
+      errorMessage = 'Invalid request to Stripe. Please check your settings.';
+    }
+
+    throw new Error(errorMessage);
+  }
+});
+
+// Send email with payment link
+ipcMain.handle('email:sendInvoiceWithPayment', async (event, emailData) => {
+  try {
+    const { settings, recipient, subject, body, invoiceHtml, invoiceNumber, paymentLink, cc, bcc } = emailData;
+
+    // Validate SMTP settings
+    if (!settings.smtp_host || !settings.smtp_user || !settings.smtp_password) {
+      throw new Error('SMTP settings are not configured. Please configure email settings first.');
+    }
+
+    // Create a transporter
+    const transporter = nodemailer.createTransporter({
+      host: settings.smtp_host,
+      port: parseInt(settings.smtp_port) || 587,
+      secure: settings.smtp_secure === true || settings.smtp_secure === 1,
+      auth: {
+        user: settings.smtp_user,
+        pass: settings.smtp_password,
+      },
+      tls: {
+        rejectUnauthorized: false
+      }
+    });
+
+    // Verify connection configuration
+    await transporter.verify();
+
+    // Generate PDF in memory for attachment
+    const pdfWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    await pdfWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(invoiceHtml)}`);
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const pdfData = await pdfWindow.webContents.printToPDF({
+      printBackground: true,
+      pageSize: 'Letter',
+      margins: {
+        top: 0.5,
+        bottom: 0.5,
+        left: 0.5,
+        right: 0.5
+      }
+    });
+
+    pdfWindow.close();
+
+    // Add payment link to email body
+    const bodyWithPayment = `${body}\n\n--\n\nPay Online: ${paymentLink}\n\nClick the link above to securely pay this invoice with your credit or debit card.`;
+
+    // Prepare email options
+    const mailOptions = {
+      from: settings.smtp_from_email
+        ? `"${settings.smtp_from_name || settings.company_name}" <${settings.smtp_from_email}>`
+        : settings.smtp_user,
+      to: recipient,
+      subject: subject,
+      text: bodyWithPayment,
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
+          <pre style="white-space: pre-wrap;">${body}</pre>
+          <hr style="margin: 20px 0; border: none; border-top: 1px solid #e0e0e0;">
+          <div style="text-align: center; padding: 20px; background-color: #f5f5f5; border-radius: 8px;">
+            <p style="margin: 0 0 15px 0; font-size: 16px; color: #333;">Pay this invoice securely online:</p>
+            <a href="${paymentLink}"
+               style="display: inline-block; padding: 12px 30px; background-color: #635BFF; color: white; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 16px;">
+              Pay Now
+            </a>
+            <p style="margin: 15px 0 0 0; font-size: 12px; color: #666;">
+              Secure payment powered by Stripe
+            </p>
+          </div>
+        </div>
+      `,
+      attachments: [
+        {
+          filename: `Invoice-${invoiceNumber}.pdf`,
+          content: pdfData,
+          contentType: 'application/pdf'
+        }
+      ]
+    };
+
+    // Add CC and BCC if provided
+    if (cc && cc.trim()) {
+      mailOptions.cc = cc;
+    }
+    if (bcc && bcc.trim()) {
+      mailOptions.bcc = bcc;
+    }
+
+    // Send the email
+    const info = await transporter.sendMail(mailOptions);
+
+    console.log('Email with payment link sent successfully:', info.messageId);
+    return {
+      success: true,
+      messageId: info.messageId,
+      message: 'Invoice with payment link sent successfully!'
+    };
+
+  } catch (error) {
+    console.error('Error sending email with payment:', error);
+
+    let errorMessage = error.message;
+    if (error.code === 'EAUTH') {
+      errorMessage = 'Authentication failed. Please check your SMTP username and password.';
+    } else if (error.code === 'ESOCKET') {
+      errorMessage = 'Could not connect to email server. Please check your SMTP host and port.';
+    } else if (error.code === 'ECONNECTION') {
+      errorMessage = 'Connection failed. Please check your internet connection and SMTP settings.';
+    }
+
+    throw new Error(errorMessage);
   }
 });

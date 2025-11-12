@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, Building, FileText, Palette, Check, Settings as SettingsIcon, Globe, Mail, Hash, Upload, X as XIcon, Type, Layout, Paintbrush, Eye } from 'lucide-react';
+import { Save, Building, FileText, Palette, Check, Settings as SettingsIcon, Globe, Mail, Hash, Upload, X as XIcon, Type, Layout, Paintbrush, Eye, CreditCard } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { validateSettings } from '../utils/validation';
 
@@ -68,6 +68,14 @@ function Settings() {
     smtp_password: '',
     smtp_from_name: '',
     smtp_from_email: '',
+
+    // Payment Gateway
+    stripe_secret_key: '',
+    stripe_publishable_key: '',
+    stripe_enabled: false,
+    paypal_client_id: '',
+    paypal_client_secret: '',
+    paypal_enabled: false,
 
     // Display Options
     show_item_numbers: true,
@@ -175,6 +183,14 @@ function Settings() {
           smtp_password: data.smtp_password || '',
           smtp_from_name: data.smtp_from_name || '',
           smtp_from_email: data.smtp_from_email || '',
+
+          // Payment Gateway
+          stripe_secret_key: data.stripe_secret_key || '',
+          stripe_publishable_key: data.stripe_publishable_key || '',
+          stripe_enabled: data.stripe_enabled !== undefined ? data.stripe_enabled : false,
+          paypal_client_id: data.paypal_client_id || '',
+          paypal_client_secret: data.paypal_client_secret || '',
+          paypal_enabled: data.paypal_enabled !== undefined ? data.paypal_enabled : false,
 
           // Display Options
           show_item_numbers: data.show_item_numbers !== undefined ? data.show_item_numbers : true,
@@ -319,6 +335,7 @@ function Settings() {
     { id: 'formatting', name: 'Formatting', icon: Globe },
     { id: 'numbering', name: 'Numbering', icon: Hash },
     { id: 'email', name: 'Email Templates', icon: Mail },
+    { id: 'payments', name: 'Payment Gateways', icon: CreditCard },
     { id: 'display', name: 'Display Options', icon: SettingsIcon },
     { id: 'theme', name: 'Theme', icon: Palette },
   ];
@@ -1217,6 +1234,189 @@ function Settings() {
                     <p className="text-sm text-green-800">
                       <strong>✓ Email Sending Enabled:</strong> Configure your SMTP settings above and save to start sending invoices via email with PDF attachments.
                     </p>
+                  </div>
+                </div>
+              )}
+
+              {/* Payment Gateways Tab */}
+              {activeTab === 'payments' && (
+                <div className="space-y-8">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Payment Gateway Integration</h2>
+                    <p className="text-sm text-gray-600 mb-6">
+                      Connect payment gateways to accept online payments and generate payment links for invoices
+                    </p>
+                  </div>
+
+                  {/* Stripe Configuration */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-2">
+                        <CreditCard className="w-5 h-5 text-gray-700" />
+                        <h3 className="text-lg font-semibold text-gray-900">Stripe</h3>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          name="stripe_enabled"
+                          checked={formData.stripe_enabled}
+                          onChange={(e) => setFormData(prev => ({ ...prev, stripe_enabled: e.target.checked }))}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-800 mb-2">
+                        <strong>How to get your Stripe API keys:</strong>
+                      </p>
+                      <ol className="text-xs text-blue-700 space-y-1 ml-4 list-decimal">
+                        <li>Sign up for a free account at <a href="https://stripe.com" target="_blank" rel="noopener noreferrer" className="underline">stripe.com</a></li>
+                        <li>Go to Developers → API keys in your Stripe Dashboard</li>
+                        <li>Copy your "Publishable key" and "Secret key"</li>
+                        <li>Use Test mode keys for testing, Live mode for production</li>
+                      </ol>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Stripe Secret Key <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="password"
+                          name="stripe_secret_key"
+                          value={formData.stripe_secret_key}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                          placeholder="sk_test_..."
+                          autoComplete="off"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Starts with sk_test_ (test) or sk_live_ (production)
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          Stripe Publishable Key <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="stripe_publishable_key"
+                          value={formData.stripe_publishable_key}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                          placeholder="pk_test_..."
+                          autoComplete="off"
+                        />
+                        <p className="text-xs text-gray-500 mt-1">
+                          Starts with pk_test_ (test) or pk_live_ (production)
+                        </p>
+                      </div>
+                    </div>
+
+                    {formData.stripe_enabled && formData.stripe_secret_key && (
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-sm text-green-800">
+                          <strong>✓ Stripe Enabled:</strong> Payment links will be generated for invoices. Clients can pay online with credit/debit cards.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-8"></div>
+
+                  {/* PayPal Configuration */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-2">
+                        <CreditCard className="w-5 h-5 text-gray-700" />
+                        <h3 className="text-lg font-semibold text-gray-900">PayPal</h3>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          name="paypal_enabled"
+                          checked={formData.paypal_enabled}
+                          onChange={(e) => setFormData(prev => ({ ...prev, paypal_enabled: e.target.checked }))}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-800 mb-2">
+                        <strong>How to get your PayPal API credentials:</strong>
+                      </p>
+                      <ol className="text-xs text-blue-700 space-y-1 ml-4 list-decimal">
+                        <li>Sign up for a PayPal Business account at <a href="https://paypal.com" target="_blank" rel="noopener noreferrer" className="underline">paypal.com</a></li>
+                        <li>Go to Dashboard → My Apps & Credentials</li>
+                        <li>Create a new app or use an existing one</li>
+                        <li>Copy your Client ID and Secret</li>
+                      </ol>
+                    </div>
+
+                    <div className="grid grid-cols-1 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          PayPal Client ID <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="text"
+                          name="paypal_client_id"
+                          value={formData.paypal_client_id}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                          placeholder="AY..."
+                          autoComplete="off"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          PayPal Client Secret <span className="text-red-500">*</span>
+                        </label>
+                        <input
+                          type="password"
+                          name="paypal_client_secret"
+                          value={formData.paypal_client_secret}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
+                          placeholder="E..."
+                          autoComplete="off"
+                        />
+                      </div>
+                    </div>
+
+                    {formData.paypal_enabled && formData.paypal_client_id && (
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-sm text-green-800">
+                          <strong>✓ PayPal Enabled:</strong> Payment buttons will be added to invoices. Clients can pay via PayPal.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Features Explanation */}
+                  <div className="mt-8 p-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+                    <div className="flex items-start space-x-3">
+                      <CreditCard className="w-5 h-5 text-purple-600 mt-0.5" />
+                      <div>
+                        <p className="text-sm font-semibold text-purple-900 mb-2">
+                          Payment Integration Features
+                        </p>
+                        <ul className="text-sm text-purple-800 space-y-1 ml-4 list-disc">
+                          <li>Generate secure payment links for each invoice</li>
+                          <li>Automatic payment tracking and reconciliation</li>
+                          <li>Email invoices with embedded "Pay Now" buttons</li>
+                          <li>Support for credit cards, debit cards, and digital wallets</li>
+                          <li>Real-time payment notifications</li>
+                        </ul>
+                      </div>
+                    </div>
                   </div>
                 </div>
               )}

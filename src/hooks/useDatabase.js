@@ -354,6 +354,15 @@ export const useDatabase = () => {
     return await ipcCall('db:batchDeleteInvoices', invoiceIds);
   }, [ipcCall]);
 
+  // Payment Gateway
+  const createStripePaymentLink = useCallback(async (paymentData) => {
+    return await ipcCall('payment:createStripePaymentLink', paymentData);
+  }, [ipcCall]);
+
+  const sendInvoiceWithPayment = useCallback(async (emailData) => {
+    return await ipcCall('email:sendInvoiceWithPayment', emailData);
+  }, [ipcCall]);
+
   return {
     loading,
     error,
@@ -452,5 +461,8 @@ export const useDatabase = () => {
     batchUpdateInvoiceStatus,
     batchArchiveInvoices,
     batchDeleteInvoices,
+    // Payment Gateway
+    createStripePaymentLink,
+    sendInvoiceWithPayment,
   };
 };
