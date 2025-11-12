@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Home, FileText, Users, Archive as ArchiveIcon, Settings as SettingsIcon, Save, HelpCircle, X, Keyboard, Search, Repeat, ClipboardList, TrendingUp, Receipt } from 'lucide-react';
+import { Home, FileText, Users, Archive as ArchiveIcon, Settings as SettingsIcon, Save, HelpCircle, X, Keyboard, Search, Repeat, ClipboardList, TrendingUp, Receipt, FileX, Bell } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import InvoiceList from './components/InvoiceList';
 import ClientManagement from './components/ClientManagement';
@@ -10,6 +10,8 @@ import RecurringInvoices from './components/RecurringInvoices';
 import EstimateList from './components/EstimateList';
 import Reports from './components/Reports';
 import Expenses from './components/Expenses';
+import CreditNotes from './components/CreditNotes';
+import Reminders from './components/Reminders';
 import { useDatabase } from './hooks/useDatabase';
 
 function App() {
@@ -170,9 +172,11 @@ function App() {
     { id: 'dashboard', name: 'Dashboard', icon: Home },
     { id: 'invoices', name: 'Invoices', icon: FileText },
     { id: 'estimates', name: 'Estimates', icon: ClipboardList },
+    { id: 'credit-notes', name: 'Credit Notes', icon: FileX },
     { id: 'recurring', name: 'Recurring', icon: Repeat },
     { id: 'clients', name: 'Clients', icon: Users },
     { id: 'expenses', name: 'Expenses', icon: Receipt },
+    { id: 'reminders', name: 'Reminders', icon: Bell },
     { id: 'reports', name: 'Reports', icon: TrendingUp },
     { id: 'saved-items', name: 'Saved Items', icon: Save },
     { id: 'archive', name: 'Archive', icon: ArchiveIcon },
@@ -196,12 +200,16 @@ function App() {
         return <InvoiceList selectedClientId={selectedClientId} onClearClientFilter={handleClearClientFilter} />;
       case 'estimates':
         return <EstimateList />;
+      case 'credit-notes':
+        return <CreditNotes />;
       case 'recurring':
         return <RecurringInvoices />;
       case 'clients':
         return <ClientManagement onNavigateToInvoices={handleNavigateToInvoices} />;
       case 'expenses':
         return <Expenses />;
+      case 'reminders':
+        return <Reminders />;
       case 'reports':
         return <Reports />;
       case 'saved-items':
