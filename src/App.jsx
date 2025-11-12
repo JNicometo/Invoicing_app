@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect } from 'react';
-import { Home, FileText, Users, Archive as ArchiveIcon, Settings as SettingsIcon, Save, HelpCircle, X, Keyboard, Search, Repeat, ClipboardList, TrendingUp } from 'lucide-react';
+import { Home, FileText, Users, Archive as ArchiveIcon, Settings as SettingsIcon, Save, HelpCircle, X, Keyboard, Search, Repeat, ClipboardList, TrendingUp, Receipt } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import InvoiceList from './components/InvoiceList';
 import ClientManagement from './components/ClientManagement';
@@ -9,6 +9,7 @@ import Settings from './components/Settings';
 import RecurringInvoices from './components/RecurringInvoices';
 import EstimateList from './components/EstimateList';
 import Reports from './components/Reports';
+import Expenses from './components/Expenses';
 import { useDatabase } from './hooks/useDatabase';
 
 function App() {
@@ -171,6 +172,7 @@ function App() {
     { id: 'estimates', name: 'Estimates', icon: ClipboardList },
     { id: 'recurring', name: 'Recurring', icon: Repeat },
     { id: 'clients', name: 'Clients', icon: Users },
+    { id: 'expenses', name: 'Expenses', icon: Receipt },
     { id: 'reports', name: 'Reports', icon: TrendingUp },
     { id: 'saved-items', name: 'Saved Items', icon: Save },
     { id: 'archive', name: 'Archive', icon: ArchiveIcon },
@@ -198,6 +200,8 @@ function App() {
         return <RecurringInvoices />;
       case 'clients':
         return <ClientManagement onNavigateToInvoices={handleNavigateToInvoices} />;
+      case 'expenses':
+        return <Expenses />;
       case 'reports':
         return <Reports />;
       case 'saved-items':
