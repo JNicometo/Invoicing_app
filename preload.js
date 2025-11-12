@@ -5,7 +5,7 @@ const { contextBridge, ipcRenderer } = require('electron');
 contextBridge.exposeInMainWorld('electron', {
   ipcRenderer: {
     invoke: (channel, ...args) => {
-      // Whitelist of allowed channels
+      // Whitelist of allowed channels for invoke
       const validChannels = [
         // Settings
         'db:getSettings',
@@ -94,6 +94,7 @@ contextBridge.exposeInMainWorld('electron', {
         'db:getAllInvoiceReminders',
         'db:deleteInvoiceReminder',
         'db:getInvoicesNeedingReminders',
+        'reminders:checkAndSend',
         // Batch Operations
         'db:batchUpdateInvoiceStatus',
         'db:batchArchiveInvoices',
@@ -111,6 +112,27 @@ contextBridge.exposeInMainWorld('electron', {
       }
 
       throw new Error(`Invalid IPC channel: ${channel}`);
+    },
+    on: (channel, callback) => {
+      // Whitelist of allowed channels for events
+      const validEventChannels = [
+        'invoice-payment-received',
+      ];
+
+      if (validEventChannels.includes(channel)) {
+        ipcRenderer.on(channel, (event, ...args) => callback(...args));
+      } else {
+        throw new Error(`Invalid event channel: ${channel}`);
+      }
+    },
+    removeAllListeners: (channel) => {
+      const validEventChannels = [
+        'invoice-payment-received',
+      ];
+
+      if (validEventChannels.includes(channel)) {
+        ipcRenderer.removeAllListeners(channel);
+      }
     },
   },
 });

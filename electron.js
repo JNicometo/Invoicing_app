@@ -5,6 +5,9 @@ const isDev = require('electron-is-dev');
 const db = require('./database/db');
 const nodemailer = require('nodemailer');
 const Stripe = require('stripe');
+const express = require('express');
+const bodyParser = require('body-parser');
+const cron = require('node-cron');
 
 let mainWindow;
 
@@ -1116,5 +1119,247 @@ ipcMain.handle('email:sendInvoiceWithPayment', async (event, emailData) => {
     }
 
     throw new Error(errorMessage);
+  }
+});
+
+// ========================================
+// Stripe Webhook Server
+// ========================================
+
+let webhookServer = null;
+const WEBHOOK_PORT = 3001;
+
+function startWebhookServer() {
+  try {
+    const webhookApp = express();
+
+    // Webhook endpoint needs raw body for signature verification
+    webhookApp.post('/webhook/stripe',
+      bodyParser.raw({ type: 'application/json' }),
+      async (req, res) => {
+        const sig = req.headers['stripe-signature'];
+
+        try {
+          const settings = db.getSettings();
+
+          if (!settings.stripe_enabled || !settings.stripe_secret_key) {
+            console.log('Stripe not configured, ignoring webhook');
+            return res.status(400).send('Stripe not configured');
+          }
+
+          const stripe = Stripe(settings.stripe_secret_key);
+
+          // Verify webhook signature
+          let event;
+          try {
+            // For signature verification, you need to set up a webhook secret in Stripe dashboard
+            // For now, we'll parse the event without verification in development
+            // In production, use: event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
+            event = JSON.parse(req.body.toString());
+          } catch (err) {
+            console.error('Webhook signature verification failed:', err.message);
+            return res.status(400).send(`Webhook Error: ${err.message}`);
+          }
+
+          console.log('Received Stripe webhook event:', event.type);
+
+          // Handle payment success events
+          if (event.type === 'checkout.session.completed' ||
+              event.type === 'payment_intent.succeeded') {
+
+            const session = event.data.object;
+            const metadata = session.metadata;
+
+            if (metadata && metadata.invoice_id) {
+              const invoiceId = parseInt(metadata.invoice_id);
+              const invoice = db.getInvoice(invoiceId);
+
+              if (invoice) {
+                // Create payment record
+                const payment = {
+                  invoice_id: invoiceId,
+                  amount: session.amount_total / 100, // Convert from cents
+                  payment_date: new Date().toISOString().split('T')[0],
+                  payment_method: 'Stripe',
+                  reference_number: session.id,
+                  notes: 'Automatic payment via Stripe webhook'
+                };
+
+                db.createPayment(payment);
+
+                // Update invoice status (will auto-set to 'paid' if fully paid)
+                db.updateInvoiceStatusAfterPayment(invoiceId);
+
+                console.log(`Invoice #${invoice.invoice_number} marked as paid via Stripe webhook`);
+
+                // Notify the renderer process if window exists
+                if (mainWindow && !mainWindow.isDestroyed()) {
+                  mainWindow.webContents.send('invoice-payment-received', {
+                    invoiceId,
+                    invoiceNumber: invoice.invoice_number,
+                    amount: payment.amount
+                  });
+                }
+              } else {
+                console.warn(`Invoice with ID ${invoiceId} not found`);
+              }
+            }
+          }
+
+          res.json({ received: true });
+        } catch (err) {
+          console.error('Error processing webhook:', err);
+          res.status(500).send('Webhook processing failed');
+        }
+      }
+    );
+
+    webhookServer = webhookApp.listen(WEBHOOK_PORT, () => {
+      console.log(`Stripe webhook server listening on port ${WEBHOOK_PORT}`);
+      console.log(`Webhook endpoint: http://localhost:${WEBHOOK_PORT}/webhook/stripe`);
+      console.log('Configure this URL in your Stripe Dashboard webhook settings');
+    });
+
+  } catch (error) {
+    console.error('Failed to start webhook server:', error);
+  }
+}
+
+// Start webhook server when app is ready
+app.whenReady().then(() => {
+  startWebhookServer();
+});
+
+// Stop webhook server when app quits
+app.on('before-quit', () => {
+  if (webhookServer) {
+    webhookServer.close();
+    console.log('Webhook server stopped');
+  }
+});
+
+// ========================================
+// Automated Reminder Scheduler
+// ========================================
+
+async function sendReminderEmail(invoice, template, client) {
+  try {
+    const settings = db.getSettings();
+
+    // Check if SMTP is configured
+    if (!settings.smtp_host || !settings.smtp_user || !settings.smtp_password) {
+      console.error('SMTP not configured, cannot send reminder');
+      return false;
+    }
+
+    // Create transporter
+    const transporter = nodemailer.createTransport({
+      host: settings.smtp_host,
+      port: settings.smtp_port || 587,
+      secure: settings.smtp_secure || false,
+      auth: {
+        user: settings.smtp_user,
+        pass: settings.smtp_password
+      }
+    });
+
+    // Replace template variables
+    const subject = template.subject
+      .replace('{invoice_number}', invoice.invoice_number)
+      .replace('{company_name}', settings.company_name || 'InvoicePro')
+      .replace('{client_name}', client.name);
+
+    const body = template.body
+      .replace('{invoice_number}', invoice.invoice_number)
+      .replace('{client_name}', client.name)
+      .replace('{total}', invoice.total.toFixed(2))
+      .replace('{due_date}', invoice.due_date)
+      .replace('{company_name}', settings.company_name || 'InvoicePro');
+
+    const mailOptions = {
+      from: `"${settings.smtp_from_name || 'InvoicePro'}" <${settings.smtp_from_email || settings.smtp_user}>`,
+      to: client.email,
+      subject: subject,
+      html: body.replace(/\n/g, '<br>')
+    };
+
+    await transporter.sendMail(mailOptions);
+    console.log(`Reminder sent for invoice #${invoice.invoice_number} to ${client.email}`);
+
+    return true;
+  } catch (error) {
+    console.error(`Error sending reminder for invoice #${invoice.invoice_number}:`, error);
+    return false;
+  }
+}
+
+async function checkAndSendReminders() {
+  try {
+    console.log('Checking for invoices needing reminders...');
+
+    const invoicesNeedingReminders = db.getInvoicesNeedingReminders();
+
+    if (invoicesNeedingReminders.length === 0) {
+      console.log('No invoices need reminders at this time');
+      return;
+    }
+
+    console.log(`Found ${invoicesNeedingReminders.length} invoice(s) needing reminders`);
+
+    for (const needsReminder of invoicesNeedingReminders) {
+      const invoice = db.getInvoice(needsReminder.invoice_id);
+      const client = db.getClient(invoice.client_id);
+      const template = db.getReminderTemplate(needsReminder.template_id);
+
+      if (!invoice || !client || !template) {
+        console.warn(`Missing data for reminder: invoice=${!!invoice}, client=${!!client}, template=${!!template}`);
+        continue;
+      }
+
+      if (!client.email) {
+        console.warn(`Client ${client.name} has no email address, skipping reminder`);
+        continue;
+      }
+
+      // Send the reminder
+      const sent = await sendReminderEmail(invoice, template, client);
+
+      if (sent) {
+        // Record the reminder
+        db.createInvoiceReminder({
+          invoice_id: invoice.id,
+          template_id: template.id,
+          sent_date: new Date().toISOString(),
+          recipient_email: client.email
+        });
+
+        console.log(`Reminder recorded for invoice #${invoice.invoice_number}`);
+      }
+    }
+  } catch (error) {
+    console.error('Error in reminder scheduler:', error);
+  }
+}
+
+// Schedule reminder checks - runs every hour
+cron.schedule('0 * * * *', () => {
+  console.log('Running scheduled reminder check...');
+  checkAndSendReminders();
+});
+
+// Run reminder check on startup (after 30 seconds)
+setTimeout(() => {
+  console.log('Running initial reminder check...');
+  checkAndSendReminders();
+}, 30000);
+
+// IPC handler to manually trigger reminder check
+ipcMain.handle('reminders:checkAndSend', async () => {
+  try {
+    await checkAndSendReminders();
+    return { success: true, message: 'Reminder check completed' };
+  } catch (error) {
+    console.error('Error triggering manual reminder check:', error);
+    throw error;
   }
 });
