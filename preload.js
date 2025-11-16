@@ -105,6 +105,8 @@ contextBridge.exposeInMainWorld('electron', {
         'email:sendInvoiceWithPayment',
         // Payment Gateway
         'payment:createStripePaymentLink',
+        'payment:createPaymentIntent',
+        'payment:processCardPayment',
       ];
 
       if (validChannels.includes(channel)) {
