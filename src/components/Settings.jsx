@@ -326,6 +326,10 @@ function Settings() {
         tax_rate: parseFloat(formData.tax_rate)
       });
       setSuccessMessage('Settings saved successfully!');
+
+      // Dispatch event to reload navigation without restarting
+      window.dispatchEvent(new CustomEvent('navigation-updated'));
+
       setTimeout(() => setSuccessMessage(''), 3000);
     } catch (error) {
       console.error('Error saving settings:', error);
