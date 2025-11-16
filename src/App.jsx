@@ -90,70 +90,82 @@ function App() {
   }, [showSearch]);
 
   // Load tab configuration from settings
-  useEffect(() => {
-    const loadNavigation = async () => {
-      try {
-        const settings = await getSettings();
+  const loadNavigation = async () => {
+    try {
+      const settings = await getSettings();
 
-        // Default navigation with icons
-        const defaultNavigation = [
-          { id: 'dashboard', name: 'Dashboard', icon: Home },
-          { id: 'invoices', name: 'Invoices', icon: FileText },
-          { id: 'estimates', name: 'Estimates', icon: ClipboardList },
-          { id: 'credit-notes', name: 'Credit Notes', icon: FileX },
-          { id: 'recurring', name: 'Recurring', icon: Repeat },
-          { id: 'clients', name: 'Clients', icon: Users },
-          { id: 'reminders', name: 'Reminders', icon: Bell },
-          { id: 'reports', name: 'Reports', icon: TrendingUp },
-          { id: 'saved-items', name: 'Saved Items', icon: Save },
-          { id: 'archive', name: 'Archive', icon: ArchiveIcon },
-          { id: 'settings', name: 'Settings', icon: SettingsIcon },
-        ];
+      // Default navigation with icons
+      const defaultNavigation = [
+        { id: 'dashboard', name: 'Dashboard', icon: Home },
+        { id: 'invoices', name: 'Invoices', icon: FileText },
+        { id: 'estimates', name: 'Estimates', icon: ClipboardList },
+        { id: 'credit-notes', name: 'Credit Notes', icon: FileX },
+        { id: 'recurring', name: 'Recurring', icon: Repeat },
+        { id: 'clients', name: 'Clients', icon: Users },
+        { id: 'reminders', name: 'Reminders', icon: Bell },
+        { id: 'reports', name: 'Reports', icon: TrendingUp },
+        { id: 'saved-items', name: 'Saved Items', icon: Save },
+        { id: 'archive', name: 'Archive', icon: ArchiveIcon },
+        { id: 'settings', name: 'Settings', icon: SettingsIcon },
+      ];
 
-        if (settings && settings.tab_configuration) {
-          try {
-            const tabConfig = JSON.parse(settings.tab_configuration);
+      if (settings && settings.tab_configuration) {
+        try {
+          const tabConfig = JSON.parse(settings.tab_configuration);
 
-            // Merge with default navigation to get icons
-            const configuredTabs = tabConfig
-              .filter(tab => tab.enabled)
-              .sort((a, b) => a.order - b.order)
-              .map(tab => {
-                const defaultTab = defaultNavigation.find(d => d.id === tab.id);
-                return {
-                  ...tab,
-                  icon: defaultTab?.icon || Home
-                };
-              });
+          // Merge with default navigation to get icons
+          const configuredTabs = tabConfig
+            .filter(tab => tab.enabled)
+            .sort((a, b) => a.order - b.order)
+            .map(tab => {
+              const defaultTab = defaultNavigation.find(d => d.id === tab.id);
+              return {
+                ...tab,
+                icon: defaultTab?.icon || Home
+              };
+            });
 
-            setNavigation(configuredTabs);
-          } catch (e) {
-            console.error('Error parsing tab configuration:', e);
-            setNavigation(defaultNavigation);
-          }
-        } else {
+          setNavigation(configuredTabs);
+        } catch (e) {
+          console.error('Error parsing tab configuration:', e);
           setNavigation(defaultNavigation);
         }
-      } catch (error) {
-        console.error('Error loading navigation:', error);
-        // Fallback to default navigation
-        setNavigation([
-          { id: 'dashboard', name: 'Dashboard', icon: Home },
-          { id: 'invoices', name: 'Invoices', icon: FileText },
-          { id: 'estimates', name: 'Estimates', icon: ClipboardList },
-          { id: 'credit-notes', name: 'Credit Notes', icon: FileX },
-          { id: 'recurring', name: 'Recurring', icon: Repeat },
-          { id: 'clients', name: 'Clients', icon: Users },
-          { id: 'reminders', name: 'Reminders', icon: Bell },
-          { id: 'reports', name: 'Reports', icon: TrendingUp },
-          { id: 'saved-items', name: 'Saved Items', icon: Save },
-          { id: 'archive', name: 'Archive', icon: ArchiveIcon },
-          { id: 'settings', name: 'Settings', icon: SettingsIcon },
-        ]);
+      } else {
+        setNavigation(defaultNavigation);
       }
+    } catch (error) {
+      console.error('Error loading navigation:', error);
+      // Fallback to default navigation
+      setNavigation([
+        { id: 'dashboard', name: 'Dashboard', icon: Home },
+        { id: 'invoices', name: 'Invoices', icon: FileText },
+        { id: 'estimates', name: 'Estimates', icon: ClipboardList },
+        { id: 'credit-notes', name: 'Credit Notes', icon: FileX },
+        { id: 'recurring', name: 'Recurring', icon: Repeat },
+        { id: 'clients', name: 'Clients', icon: Users },
+        { id: 'reminders', name: 'Reminders', icon: Bell },
+        { id: 'reports', name: 'Reports', icon: TrendingUp },
+        { id: 'saved-items', name: 'Saved Items', icon: Save },
+        { id: 'archive', name: 'Archive', icon: ArchiveIcon },
+        { id: 'settings', name: 'Settings', icon: SettingsIcon },
+      ]);
+    }
+  };
+
+  useEffect(() => {
+    loadNavigation();
+
+    // Listen for navigation updates from Settings
+    const handleNavigationUpdate = () => {
+      console.log('Navigation configuration updated, reloading...');
+      loadNavigation();
     };
 
-    loadNavigation();
+    window.addEventListener('navigation-updated', handleNavigationUpdate);
+
+    return () => {
+      window.removeEventListener('navigation-updated', handleNavigationUpdate);
+    };
   }, []);
 
   // Keyboard shortcuts
