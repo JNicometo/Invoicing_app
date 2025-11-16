@@ -164,6 +164,12 @@ const runMigrations = () => {
       { name: 'stripe_secret_key', type: 'TEXT', default: "''" },
       { name: 'stripe_publishable_key', type: 'TEXT', default: "''" },
       { name: 'stripe_enabled', type: 'INTEGER', default: '0' },
+
+      // Network Mode Settings
+      { name: 'network_mode_enabled', type: 'INTEGER', default: '0' },
+      { name: 'network_api_port', type: 'TEXT', default: "'3100'" },
+      { name: 'network_require_auth', type: 'INTEGER', default: '1' },
+      { name: 'network_session_timeout', type: 'TEXT', default: "'24'" }, // hours
     ];
 
     let addedCount = 0;
@@ -1338,6 +1344,153 @@ const batchDeleteInvoices = (invoiceIds) => {
   return stmt.run(...invoiceIds);
 };
 
+// ==================== User Management ====================
+
+const getAllUsers = () => {
+  const db = getDatabase();
+  return db.prepare('SELECT id, username, email, full_name, role, active, created_at, last_login FROM users ORDER BY created_at DESC').all();
+};
+
+const getUser = (id) => {
+  const db = getDatabase();
+  return db.prepare('SELECT id, username, email, full_name, role, active, created_at, last_login FROM users WHERE id = ?').get(id);
+};
+
+const getUserByUsername = (username) => {
+  const db = getDatabase();
+  return db.prepare('SELECT * FROM users WHERE username = ?').get(username);
+};
+
+const getUserByEmail = (email) => {
+  const db = getDatabase();
+  return db.prepare('SELECT * FROM users WHERE email = ?').get(email);
+};
+
+const createUser = ({ username, email, password_hash, full_name, role, created_by }) => {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    INSERT INTO users (username, email, password_hash, full_name, role, created_by)
+    VALUES (@username, @email, @password_hash, @full_name, @role, @created_by)
+  `);
+  const result = stmt.run({ username, email, password_hash, full_name, role, created_by });
+  return result.lastInsertRowid;
+};
+
+const updateUser = (id, { email, full_name, role, active }) => {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    UPDATE users
+    SET email = @email,
+        full_name = @full_name,
+        role = @role,
+        active = @active
+    WHERE id = @id
+  `);
+  return stmt.run({ id, email, full_name, role, active });
+};
+
+const updateUserPassword = (id, password_hash) => {
+  const db = getDatabase();
+  const stmt = db.prepare('UPDATE users SET password_hash = ? WHERE id = ?');
+  return stmt.run(password_hash, id);
+};
+
+const updateUserLastLogin = (id) => {
+  const db = getDatabase();
+  const stmt = db.prepare('UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?');
+  return stmt.run(id);
+};
+
+const deleteUser = (id) => {
+  const db = getDatabase();
+  // Don't allow deleting user ID 1 (admin)
+  if (id === 1) {
+    throw new Error('Cannot delete the default admin user');
+  }
+  const stmt = db.prepare('DELETE FROM users WHERE id = ?');
+  return stmt.run(id);
+};
+
+// ==================== Session Management ====================
+
+const createSession = ({ user_id, token, expires_at, ip_address, user_agent }) => {
+  const db = getDatabase();
+  const id = require('crypto').randomBytes(16).toString('hex');
+  const stmt = db.prepare(`
+    INSERT INTO sessions (id, user_id, token, expires_at, ip_address, user_agent)
+    VALUES (@id, @user_id, @token, @expires_at, @ip_address, @user_agent)
+  `);
+  stmt.run({ id, user_id, token, expires_at, ip_address, user_agent });
+  return id;
+};
+
+const getSessionByToken = (token) => {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT s.*, u.username, u.email, u.full_name, u.role, u.active
+    FROM sessions s
+    JOIN users u ON s.user_id = u.id
+    WHERE s.token = ? AND s.expires_at > datetime('now')
+  `).get(token);
+};
+
+const deleteSession = (token) => {
+  const db = getDatabase();
+  const stmt = db.prepare('DELETE FROM sessions WHERE token = ?');
+  return stmt.run(token);
+};
+
+const deleteExpiredSessions = () => {
+  const db = getDatabase();
+  const stmt = db.prepare("DELETE FROM sessions WHERE expires_at < datetime('now')");
+  return stmt.run();
+};
+
+const deleteUserSessions = (user_id) => {
+  const db = getDatabase();
+  const stmt = db.prepare('DELETE FROM sessions WHERE user_id = ?');
+  return stmt.run(user_id);
+};
+
+// ==================== Audit Log ====================
+
+const createAuditLog = ({ user_id, username, action, resource_type, resource_id, details, ip_address }) => {
+  const db = getDatabase();
+  const stmt = db.prepare(`
+    INSERT INTO audit_log (user_id, username, action, resource_type, resource_id, details, ip_address)
+    VALUES (@user_id, @username, @action, @resource_type, @resource_id, @details, @ip_address)
+  `);
+  return stmt.run({ user_id, username, action, resource_type, resource_id, details, ip_address });
+};
+
+const getAuditLogs = (limit = 100, offset = 0) => {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT * FROM audit_log
+    ORDER BY created_at DESC
+    LIMIT ? OFFSET ?
+  `).all(limit, offset);
+};
+
+const getAuditLogsByUser = (user_id, limit = 100) => {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT * FROM audit_log
+    WHERE user_id = ?
+    ORDER BY created_at DESC
+    LIMIT ?
+  `).all(user_id, limit);
+};
+
+const getAuditLogsByResource = (resource_type, resource_id) => {
+  const db = getDatabase();
+  return db.prepare(`
+    SELECT * FROM audit_log
+    WHERE resource_type = ? AND resource_id = ?
+    ORDER BY created_at DESC
+  `).all(resource_type, resource_id);
+};
+
 module.exports = {
   initDatabase,
   getDatabase,
@@ -1414,5 +1567,26 @@ module.exports = {
   // Batch Operations
   batchUpdateInvoiceStatus,
   batchArchiveInvoices,
-  batchDeleteInvoices
+  batchDeleteInvoices,
+  // User Management
+  getAllUsers,
+  getUser,
+  getUserByUsername,
+  getUserByEmail,
+  createUser,
+  updateUser,
+  updateUserPassword,
+  updateUserLastLogin,
+  deleteUser,
+  // Session Management
+  createSession,
+  getSessionByToken,
+  deleteSession,
+  deleteExpiredSessions,
+  deleteUserSessions,
+  // Audit Log
+  createAuditLog,
+  getAuditLogs,
+  getAuditLogsByUser,
+  getAuditLogsByResource
 };
