@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, Building, FileText, Palette, Check, Settings as SettingsIcon, Globe, Mail, Hash, Upload, X as XIcon, Type, Layout, Paintbrush, Eye, CreditCard } from 'lucide-react';
+import { Save, Building, FileText, Palette, Check, Settings as SettingsIcon, Globe, Mail, Hash, Upload, X as XIcon, Type, Layout, Paintbrush, Eye, CreditCard, HardDrive, Download, UploadCloud, Database, Server } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { validateSettings } from '../utils/validation';
 
@@ -120,7 +120,17 @@ function Settings() {
     pdf_header_height: 'normal',
 
     // Navigation Tabs
-    tab_configuration: null
+    tab_configuration: null,
+
+    // SQL Server Settings
+    use_sql_server: false,
+    sql_server_type: 'mysql',
+    sql_server_host: 'localhost',
+    sql_server_port: '3306',
+    sql_server_database: 'invoicepro',
+    sql_server_username: '',
+    sql_server_password: '',
+    sql_server_ssl: false
   });
 
   useEffect(() => {
@@ -238,7 +248,17 @@ function Settings() {
           pdf_header_height: data.pdf_header_height || 'normal',
 
           // Navigation Tabs
-          tab_configuration: data.tab_configuration || null
+          tab_configuration: data.tab_configuration || null,
+
+          // SQL Server Settings
+          use_sql_server: data.use_sql_server !== undefined ? data.use_sql_server : false,
+          sql_server_type: data.sql_server_type || 'mysql',
+          sql_server_host: data.sql_server_host || 'localhost',
+          sql_server_port: data.sql_server_port || '3306',
+          sql_server_database: data.sql_server_database || 'invoicepro',
+          sql_server_username: data.sql_server_username || '',
+          sql_server_password: data.sql_server_password || '',
+          sql_server_ssl: data.sql_server_ssl !== undefined ? data.sql_server_ssl : false
         });
 
         // Set logo preview if exists
@@ -348,6 +368,8 @@ function Settings() {
     { id: 'payments', name: 'Payment Gateways', icon: CreditCard },
     { id: 'display', name: 'Display Options', icon: SettingsIcon },
     { id: 'navigation', name: 'Navigation', icon: Layout },
+    { id: 'backup', name: 'Backup & Restore', icon: HardDrive },
+    { id: 'sqlserver', name: 'SQL Server', icon: Database },
     { id: 'theme', name: 'Theme', icon: Palette },
   ];
 
@@ -2238,6 +2260,518 @@ function Settings() {
                           Your theme settings will be applied when you view or generate invoice PDFs. Create or view an invoice to see your customizations in action!
                         </p>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Backup & Restore Tab */}
+              {activeTab === 'backup' && (
+                <div className="space-y-8">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Backup & Restore</h2>
+                    <p className="text-sm text-gray-600 mb-6">
+                      Protect your business data with regular backups. Create manual backups or restore from previous backup files.
+                    </p>
+                  </div>
+
+                  {/* Manual Backup */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <Download className="w-5 h-5 text-gray-700" />
+                      <h3 className="text-lg font-semibold text-gray-900">Create Backup</h3>
+                    </div>
+
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <p className="text-sm text-gray-600 mb-4">
+                        Download a complete backup of all your data including invoices, clients, payments, and settings.
+                        The backup will be saved as a ZIP file containing CSV exports of all your data.
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            setSaving(true);
+
+                            // Select where to save the backup
+                            const fileResult = await window.electron.invoke('backup:selectFile', 'save');
+
+                            if (fileResult.canceled) {
+                              setSaving(false);
+                              return;
+                            }
+
+                            // Create the backup
+                            const result = await window.electron.invoke('backup:create', fileResult.path);
+
+                            if (result.success) {
+                              alert(`Backup created successfully!\n\nSaved to: ${result.path}`);
+                            }
+                          } catch (error) {
+                            console.error('Error creating backup:', error);
+                            alert('Error creating backup: ' + error.message);
+                          } finally {
+                            setSaving(false);
+                          }
+                        }}
+                        disabled={saving}
+                        className={`flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${
+                          saving ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        <Download className="w-5 h-5 mr-2" />
+                        {saving ? 'Creating Backup...' : 'Download Backup Now'}
+                      </button>
+
+                      <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="text-xs text-blue-800">
+                          <strong>Tip:</strong> Save your backup file to a secure location like cloud storage or an external drive.
+                          Regular backups protect against data loss from hardware failures or accidental deletions.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-8"></div>
+
+                  {/* Restore from Backup */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <UploadCloud className="w-5 h-5 text-gray-700" />
+                      <h3 className="text-lg font-semibold text-gray-900">Restore from Backup</h3>
+                    </div>
+
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <div className="mb-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <p className="text-sm font-semibold text-yellow-900 mb-2">
+                          ⚠️ Warning: This will replace all current data
+                        </p>
+                        <p className="text-xs text-yellow-800">
+                          Restoring from a backup will <strong>permanently delete all current data</strong> and replace it with the backup data.
+                          Make sure to create a backup of your current data before proceeding if needed.
+                        </p>
+                      </div>
+
+                      <p className="text-sm text-gray-600 mb-4">
+                        Select a backup ZIP file to restore your data. The app will restart after the restore is complete.
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          // Confirm before proceeding
+                          const confirmed = window.confirm(
+                            'WARNING: This will permanently delete ALL current data and replace it with the backup data.\n\n' +
+                            'Are you absolutely sure you want to continue?\n\n' +
+                            'Click OK to proceed or Cancel to abort.'
+                          );
+
+                          if (!confirmed) {
+                            return;
+                          }
+
+                          try {
+                            setSaving(true);
+
+                            // Select backup file to restore
+                            const fileResult = await window.electron.invoke('backup:selectFile', 'open');
+
+                            if (fileResult.canceled) {
+                              setSaving(false);
+                              return;
+                            }
+
+                            // Restore the backup
+                            const result = await window.electron.invoke('backup:restore', fileResult.path);
+
+                            if (result.success) {
+                              alert(
+                                `Backup restored successfully!\n\n` +
+                                `Tables restored: ${result.stats.tables_restored}\n` +
+                                `Total rows: ${result.stats.total_rows}\n\n` +
+                                `The app will reload to apply the changes.`
+                              );
+
+                              // Reload the app to reflect changes
+                              window.location.reload();
+                            }
+                          } catch (error) {
+                            console.error('Error restoring backup:', error);
+                            alert('Error restoring backup: ' + error.message);
+                          } finally {
+                            setSaving(false);
+                          }
+                        }}
+                        disabled={saving}
+                        className={`flex items-center px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors ${
+                          saving ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        <UploadCloud className="w-5 h-5 mr-2" />
+                        {saving ? 'Restoring...' : 'Choose Backup File to Restore'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-8"></div>
+
+                  {/* Automatic Backups Info */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <HardDrive className="w-5 h-5 text-gray-700" />
+                      <h3 className="text-lg font-semibold text-gray-900">Automatic Backups</h3>
+                    </div>
+
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 p-6">
+                      <div className="flex items-start space-x-3">
+                        <Check className="w-5 h-5 text-green-600 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-green-900 mb-2">
+                            Automatic Daily Backups Enabled
+                          </p>
+                          <p className="text-sm text-green-800 mb-3">
+                            Your data is automatically backed up every day at 2:00 AM. Backups are stored in your application data folder and the last 30 backups are kept.
+                          </p>
+                          <p className="text-xs text-green-700">
+                            <strong>Backup Location:</strong> Your automatic backups are saved in the app's data directory under the "backups" folder.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* What's Included */}
+                  <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3">What's included in backups?</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {[
+                        'Company Settings',
+                        'Client Information',
+                        'Invoices & Items',
+                        'Saved Items Library',
+                        'Payment Records',
+                        'Recurring Invoices',
+                        'Estimates & Quotes',
+                        'Credit Notes',
+                        'Reminder Templates',
+                        'Invoice Reminders',
+                      ].map((item) => (
+                        <div key={item} className="flex items-center text-sm text-gray-700">
+                          <Check className="w-4 h-4 text-green-600 mr-2 flex-shrink-0" />
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* SQL Server Tab */}
+              {activeTab === 'sqlserver' && (
+                <div className="space-y-8">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">SQL Server Configuration</h2>
+                    <p className="text-sm text-gray-600 mb-6">
+                      Connect to a remote SQL server database for multi-user access. Multiple users can access the same data simultaneously.
+                    </p>
+                  </div>
+
+                  {/* Enable SQL Server */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">Use SQL Server Database</h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Switch from local SQLite to a remote SQL server database
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          name="use_sql_server"
+                          checked={formData.use_sql_server}
+                          onChange={(e) => setFormData(prev => ({ ...prev, use_sql_server: e.target.checked }))}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    {formData.use_sql_server && (
+                      <div className="pt-4 border-t border-gray-200">
+                        <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                          <p className="text-xs text-blue-800">
+                            <strong>Note:</strong> Switching to SQL Server will require restarting the application. Make sure you have a working SQL server and the correct credentials before enabling this feature.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Connection Settings */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <Server className="w-5 h-5 text-gray-700" />
+                      <h3 className="text-lg font-semibold text-gray-900">Connection Settings</h3>
+                    </div>
+
+                    <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+                      {/* Server Type */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Database Type
+                        </label>
+                        <select
+                          name="sql_server_type"
+                          value={formData.sql_server_type}
+                          onChange={(e) => {
+                            const type = e.target.value;
+                            let port = '3306';
+                            if (type === 'postgres') port = '5432';
+                            if (type === 'mssql') port = '1433';
+                            setFormData(prev => ({ ...prev, sql_server_type: type, sql_server_port: port }));
+                          }}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="mysql">MySQL / MariaDB</option>
+                          <option value="postgres">PostgreSQL</option>
+                          <option value="mssql">Microsoft SQL Server</option>
+                        </select>
+                      </div>
+
+                      {/* Host and Port */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Host / IP Address
+                          </label>
+                          <input
+                            type="text"
+                            name="sql_server_host"
+                            value={formData.sql_server_host}
+                            onChange={handleInputChange}
+                            placeholder="localhost or 192.168.1.100"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Port
+                          </label>
+                          <input
+                            type="text"
+                            name="sql_server_port"
+                            value={formData.sql_server_port}
+                            onChange={handleInputChange}
+                            placeholder="3306"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Database Name */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Database Name
+                        </label>
+                        <input
+                          type="text"
+                          name="sql_server_database"
+                          value={formData.sql_server_database}
+                          onChange={handleInputChange}
+                          placeholder="invoicepro"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      {/* Username and Password */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Username
+                          </label>
+                          <input
+                            type="text"
+                            name="sql_server_username"
+                            value={formData.sql_server_username}
+                            onChange={handleInputChange}
+                            placeholder="root"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Password
+                          </label>
+                          <input
+                            type="password"
+                            name="sql_server_password"
+                            value={formData.sql_server_password}
+                            onChange={handleInputChange}
+                            placeholder="••••••••"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+
+                      {/* SSL */}
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">Enable SSL/TLS</p>
+                          <p className="text-sm text-gray-500">Use encrypted connection to server</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="sql_server_ssl"
+                            checked={formData.sql_server_ssl}
+                            onChange={(e) => setFormData(prev => ({ ...prev, sql_server_ssl: e.target.checked }))}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center space-x-3 pt-4">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              setSaving(true);
+                              const result = await window.electron.invoke('sqlserver:testConnection', {
+                                type: formData.sql_server_type,
+                                host: formData.sql_server_host,
+                                port: formData.sql_server_port,
+                                database: formData.sql_server_database,
+                                username: formData.sql_server_username,
+                                password: formData.sql_server_password,
+                                ssl: formData.sql_server_ssl
+                              });
+
+                              if (result.success) {
+                                alert('✓ Connection successful!\n\nThe server is reachable and credentials are valid.');
+                              } else {
+                                alert('✗ Connection failed:\n\n' + result.message);
+                              }
+                            } catch (error) {
+                              alert('✗ Connection failed:\n\n' + error.message);
+                            } finally {
+                              setSaving(false);
+                            }
+                          }}
+                          disabled={saving}
+                          className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                        >
+                          <Check className="w-4 h-4 mr-2" />
+                          Test Connection
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              setSaving(true);
+
+                              // Check if database exists
+                              const checkResult = await window.electron.invoke('sqlserver:checkDatabase', {
+                                type: formData.sql_server_type,
+                                host: formData.sql_server_host,
+                                port: formData.sql_server_port,
+                                database: formData.sql_server_database,
+                                username: formData.sql_server_username,
+                                password: formData.sql_server_password,
+                                ssl: formData.sql_server_ssl
+                              });
+
+                              if (checkResult.exists) {
+                                alert('Database already exists!\n\nThe database "' + formData.sql_server_database + '" is already on the server.');
+                                setSaving(false);
+                                return;
+                              }
+
+                              // Create database
+                              const createResult = await window.electron.invoke('sqlserver:createDatabase', {
+                                type: formData.sql_server_type,
+                                host: formData.sql_server_host,
+                                port: formData.sql_server_port,
+                                database: formData.sql_server_database,
+                                username: formData.sql_server_username,
+                                password: formData.sql_server_password,
+                                ssl: formData.sql_server_ssl
+                              });
+
+                              if (createResult.success) {
+                                // Create schema
+                                const schemaResult = await window.electron.invoke('sqlserver:createSchema', {
+                                  type: formData.sql_server_type,
+                                  host: formData.sql_server_host,
+                                  port: formData.sql_server_port,
+                                  database: formData.sql_server_database,
+                                  username: formData.sql_server_username,
+                                  password: formData.sql_server_password,
+                                  ssl: formData.sql_server_ssl
+                                });
+
+                                if (schemaResult.success) {
+                                  alert('✓ Database created successfully!\n\nDatabase and all tables have been created on the server.\n\nYou can now enable "Use SQL Server Database" and save settings.');
+                                } else {
+                                  alert('✗ Error creating tables:\n\n' + schemaResult.message);
+                                }
+                              } else {
+                                alert('✗ Error creating database:\n\n' + createResult.message);
+                              }
+                            } catch (error) {
+                              alert('✗ Error:\n\n' + error.message);
+                            } finally {
+                              setSaving(false);
+                            }
+                          }}
+                          disabled={saving}
+                          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                        >
+                          <Database className="w-4 h-4 mr-2" />
+                          {saving ? 'Setting Up...' : 'Create Database & Tables'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Setup Instructions */}
+                  <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200 p-6">
+                    <h4 className="text-sm font-semibold text-purple-900 mb-3">Setup Instructions</h4>
+                    <ol className="text-sm text-purple-800 space-y-2 list-decimal list-inside">
+                      <li>Install MySQL, PostgreSQL, or MS SQL Server on a computer</li>
+                      <li>Create a user with database creation permissions</li>
+                      <li>Enter the connection details above</li>
+                      <li>Click "Test Connection" to verify credentials</li>
+                      <li>Click "Create Database & Tables" to set up the database</li>
+                      <li>Enable "Use SQL Server Database" toggle</li>
+                      <li>Save settings and restart the application</li>
+                      <li>Other users can connect using the same database credentials</li>
+                    </ol>
+                  </div>
+
+                  {/* Benefits */}
+                  <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3">Why use SQL Server?</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {[
+                        'Multiple users access same data simultaneously',
+                        'No file sharing or network drive needed',
+                        'Better performance for large datasets',
+                        'Professional database management',
+                        'Automatic backups (server-side)',
+                        'Centralized data storage',
+                        'Enterprise-grade security',
+                        'Compatible with MySQL, PostgreSQL, MS SQL',
+                      ].map((item) => (
+                        <div key={item} className="flex items-center text-sm text-gray-700">
+                          <Check className="w-4 h-4 text-green-600 mr-2 flex-shrink-0" />
+                          {item}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>

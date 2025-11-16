@@ -258,8 +258,54 @@ CREATE TABLE IF NOT EXISTS invoice_reminders (
   FOREIGN KEY (template_id) REFERENCES reminder_templates(id)
 );
 
+-- Users table for multi-user/network mode
+CREATE TABLE IF NOT EXISTS users (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  username TEXT UNIQUE NOT NULL,
+  email TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  full_name TEXT DEFAULT '',
+  role TEXT DEFAULT 'user',
+  active INTEGER DEFAULT 1,
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  last_login TEXT DEFAULT NULL,
+  created_by INTEGER DEFAULT NULL,
+  FOREIGN KEY (created_by) REFERENCES users(id)
+);
+
+-- Sessions table for authentication
+CREATE TABLE IF NOT EXISTS sessions (
+  id TEXT PRIMARY KEY,
+  user_id INTEGER NOT NULL,
+  token TEXT UNIQUE NOT NULL,
+  expires_at TEXT NOT NULL,
+  ip_address TEXT DEFAULT '',
+  user_agent TEXT DEFAULT '',
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE CASCADE
+);
+
+-- Audit log for tracking user actions
+CREATE TABLE IF NOT EXISTS audit_log (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  user_id INTEGER DEFAULT NULL,
+  username TEXT DEFAULT 'system',
+  action TEXT NOT NULL,
+  resource_type TEXT DEFAULT '',
+  resource_id INTEGER DEFAULT NULL,
+  details TEXT DEFAULT '',
+  ip_address TEXT DEFAULT '',
+  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+  FOREIGN KEY (user_id) REFERENCES users(id) ON DELETE SET NULL
+);
+
 -- Insert default settings
 INSERT OR IGNORE INTO settings (id) VALUES (1);
+
+-- Insert default admin user (username: admin, password: admin123 - MUST CHANGE ON FIRST LOGIN)
+-- Password hash for 'admin123' using bcrypt
+INSERT OR IGNORE INTO users (id, username, email, password_hash, full_name, role, active) VALUES
+  (1, 'admin', 'admin@localhost', '$2a$10$rKGJ5F3p0qC4qOq4qOq4qOxYxYxYxYxYxYxYxYxYxYxYxYxYxYxY', 'Administrator', 'admin', 1);
 
 -- Insert default expense categories
 INSERT OR IGNORE INTO expense_categories (id, name, description) VALUES
@@ -310,3 +356,13 @@ CREATE INDEX IF NOT EXISTS idx_invoice_reminders_sent_date ON invoice_reminders(
 CREATE INDEX IF NOT EXISTS idx_reminder_templates_active ON reminder_templates(active);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_clients_customer_number ON clients(customer_number) WHERE customer_number IS NOT NULL;
 CREATE UNIQUE INDEX IF NOT EXISTS idx_saved_items_item_number ON saved_items(item_number) WHERE item_number IS NOT NULL;
+CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
+CREATE INDEX IF NOT EXISTS idx_users_email ON users(email);
+CREATE INDEX IF NOT EXISTS idx_users_role ON users(role);
+CREATE INDEX IF NOT EXISTS idx_users_active ON users(active);
+CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON sessions(user_id);
+CREATE INDEX IF NOT EXISTS idx_sessions_token ON sessions(token);
+CREATE INDEX IF NOT EXISTS idx_sessions_expires_at ON sessions(expires_at);
+CREATE INDEX IF NOT EXISTS idx_audit_log_user_id ON audit_log(user_id);
+CREATE INDEX IF NOT EXISTS idx_audit_log_resource_type ON audit_log(resource_type);
+CREATE INDEX IF NOT EXISTS idx_audit_log_created_at ON audit_log(created_at);

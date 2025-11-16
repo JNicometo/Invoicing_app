@@ -198,6 +198,47 @@ function Reports() {
     return months;
   };
 
+  // Accounts Receivable Aging Report
+  const getARAgingReport = () => {
+    const today = new Date();
+    const aging = {};
+
+    invoices.forEach(inv => {
+      if (inv.status !== 'paid') {
+        const dueDate = new Date(inv.due_date);
+        const daysOverdue = Math.floor((today - dueDate) / (1000 * 60 * 60 * 24));
+
+        if (!aging[inv.client_id]) {
+          aging[inv.client_id] = {
+            client_name: inv.client_name,
+            current: 0,
+            days_1_30: 0,
+            days_31_60: 0,
+            days_61_90: 0,
+            days_over_90: 0,
+            total: 0
+          };
+        }
+
+        if (daysOverdue < 0) {
+          aging[inv.client_id].current += inv.total;
+        } else if (daysOverdue <= 30) {
+          aging[inv.client_id].days_1_30 += inv.total;
+        } else if (daysOverdue <= 60) {
+          aging[inv.client_id].days_31_60 += inv.total;
+        } else if (daysOverdue <= 90) {
+          aging[inv.client_id].days_61_90 += inv.total;
+        } else {
+          aging[inv.client_id].days_over_90 += inv.total;
+        }
+
+        aging[inv.client_id].total += inv.total;
+      }
+    });
+
+    return Object.values(aging).sort((a, b) => b.total - a.total);
+  };
+
   // Export functions
   const exportToCSV = (data, filename) => {
     const csv = Papa.unparse(data);
@@ -242,6 +283,19 @@ function Reports() {
     exportToCSV(data, 'tax_summary');
   };
 
+  const exportARAgingReport = () => {
+    const data = getARAgingReport().map(client => ({
+      'Client Name': client.client_name,
+      'Current (Not Due)': client.current,
+      '1-30 Days': client.days_1_30,
+      '31-60 Days': client.days_31_60,
+      '61-90 Days': client.days_61_90,
+      'Over 90 Days': client.days_over_90,
+      'Total Outstanding': client.total
+    }));
+    exportToCSV(data, 'ar_aging_report');
+  };
+
   const COLORS = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444', '#8B5CF6', '#EC4899'];
 
   const metrics = calculateMetrics();
@@ -250,6 +304,7 @@ function Reports() {
   const revenueByClient = getRevenueByClient();
   const outstandingInvoices = getOutstandingInvoices();
   const taxSummary = getTaxSummary();
+  const arAgingData = getARAgingReport();
 
   if (loading) {
     return (
@@ -450,6 +505,93 @@ function Reports() {
           {outstandingInvoices.length > 10 && (
             <div className="text-center py-4 text-sm text-gray-500">
               Showing 10 of {outstandingInvoices.length} outstanding invoices
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Accounts Receivable Aging Report */}
+      <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-8">
+        <div className="flex justify-between items-center mb-4">
+          <div>
+            <h2 className="text-xl font-semibold text-gray-900">Accounts Receivable Aging</h2>
+            <p className="text-sm text-gray-500 mt-1">Outstanding amounts by client and age</p>
+          </div>
+          <button
+            onClick={exportARAgingReport}
+            className="flex items-center px-4 py-2 bg-red-600 text-white rounded-lg hover:bg-red-700"
+          >
+            <Download className="w-4 h-4 mr-2" />
+            Export CSV
+          </button>
+        </div>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead className="bg-gray-50 border-b border-gray-200">
+              <tr>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Client</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Current</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">1-30 Days</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">31-60 Days</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">61-90 Days</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Over 90</th>
+                <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase font-bold">Total</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-gray-200">
+              {arAgingData.map((client, index) => (
+                <tr key={index} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
+                    {client.client_name}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-green-600">
+                    {formatCurrency(client.current)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-yellow-600">
+                    {formatCurrency(client.days_1_30)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-orange-600">
+                    {formatCurrency(client.days_31_60)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-red-600">
+                    {formatCurrency(client.days_61_90)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right text-red-700 font-semibold">
+                    {formatCurrency(client.days_over_90)}
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-gray-900">
+                    {formatCurrency(client.total)}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+            <tfoot className="bg-gray-100 border-t-2 border-gray-300">
+              <tr>
+                <td className="px-6 py-4 text-sm font-bold text-gray-900">TOTAL</td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-green-600">
+                  {formatCurrency(arAgingData.reduce((sum, c) => sum + c.current, 0))}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-yellow-600">
+                  {formatCurrency(arAgingData.reduce((sum, c) => sum + c.days_1_30, 0))}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-orange-600">
+                  {formatCurrency(arAgingData.reduce((sum, c) => sum + c.days_31_60, 0))}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-red-600">
+                  {formatCurrency(arAgingData.reduce((sum, c) => sum + c.days_61_90, 0))}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-red-700">
+                  {formatCurrency(arAgingData.reduce((sum, c) => sum + c.days_over_90, 0))}
+                </td>
+                <td className="px-6 py-4 whitespace-nowrap text-sm text-right font-bold text-gray-900 text-lg">
+                  {formatCurrency(arAgingData.reduce((sum, c) => sum + c.total, 0))}
+                </td>
+              </tr>
+            </tfoot>
+          </table>
+          {arAgingData.length === 0 && (
+            <div className="text-center py-8 text-gray-500">
+              <p>No outstanding invoices</p>
             </div>
           )}
         </div>
