@@ -235,7 +235,10 @@ function Settings() {
           // Theme - PDF Options
           pdf_page_size: data.pdf_page_size || 'letter',
           pdf_margin_size: data.pdf_margin_size || 'normal',
-          pdf_header_height: data.pdf_header_height || 'normal'
+          pdf_header_height: data.pdf_header_height || 'normal',
+
+          // Navigation Tabs
+          tab_configuration: data.tab_configuration || null
         });
 
         // Set logo preview if exists
