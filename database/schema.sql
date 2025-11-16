@@ -199,36 +199,37 @@ CREATE TABLE IF NOT EXISTS credit_note_items (
   FOREIGN KEY (credit_note_id) REFERENCES credit_notes(id) ON DELETE CASCADE
 );
 
--- Expense categories table
-CREATE TABLE IF NOT EXISTS expense_categories (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  name TEXT NOT NULL UNIQUE,
-  description TEXT DEFAULT '',
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP
-);
+-- Expense tracking has been removed from this application
+-- Expense categories table (REMOVED)
+-- CREATE TABLE IF NOT EXISTS expense_categories (
+--   id INTEGER PRIMARY KEY AUTOINCREMENT,
+--   name TEXT NOT NULL UNIQUE,
+--   description TEXT DEFAULT '',
+--   created_at TEXT DEFAULT CURRENT_TIMESTAMP
+-- );
 
--- Expenses table for tracking business expenses
-CREATE TABLE IF NOT EXISTS expenses (
-  id INTEGER PRIMARY KEY AUTOINCREMENT,
-  expense_number TEXT NOT NULL UNIQUE,
-  category_id INTEGER NOT NULL,
-  vendor TEXT NOT NULL,
-  amount REAL NOT NULL,
-  date TEXT NOT NULL,
-  payment_method TEXT DEFAULT 'Cash',
-  reference_number TEXT DEFAULT '',
-  description TEXT DEFAULT '',
-  receipt_url TEXT DEFAULT '',
-  billable INTEGER DEFAULT 0,
-  client_id INTEGER DEFAULT NULL,
-  invoice_id INTEGER DEFAULT NULL,
-  notes TEXT DEFAULT '',
-  created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-  updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (category_id) REFERENCES expense_categories(id),
-  FOREIGN KEY (client_id) REFERENCES clients(id),
-  FOREIGN KEY (invoice_id) REFERENCES invoices(id)
-);
+-- Expenses table for tracking business expenses (REMOVED)
+-- CREATE TABLE IF NOT EXISTS expenses (
+--   id INTEGER PRIMARY KEY AUTOINCREMENT,
+--   expense_number TEXT NOT NULL UNIQUE,
+--   category_id INTEGER NOT NULL,
+--   vendor TEXT NOT NULL,
+--   amount REAL NOT NULL,
+--   date TEXT NOT NULL,
+--   payment_method TEXT DEFAULT 'Cash',
+--   reference_number TEXT DEFAULT '',
+--   description TEXT DEFAULT '',
+--   receipt_url TEXT DEFAULT '',
+--   billable INTEGER DEFAULT 0,
+--   client_id INTEGER DEFAULT NULL,
+--   invoice_id INTEGER DEFAULT NULL,
+--   notes TEXT DEFAULT '',
+--   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+--   updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+--   FOREIGN KEY (category_id) REFERENCES expense_categories(id),
+--   FOREIGN KEY (client_id) REFERENCES clients(id),
+--   FOREIGN KEY (invoice_id) REFERENCES invoices(id)
+-- );
 
 -- Reminder templates table for email templates
 CREATE TABLE IF NOT EXISTS reminder_templates (
