@@ -931,6 +931,87 @@ ipcMain.handle('db:batchDeleteInvoices', async (event, invoiceIds) => {
   }
 });
 
+// Backup and Restore
+const backup = require('./database/backup');
+
+ipcMain.handle('backup:create', async (event, customPath) => {
+  try {
+    const backupDir = backup.getDefaultBackupDir();
+    const filename = backup.generateBackupFilename();
+    const backupPath = customPath || path.join(backupDir, filename);
+
+    await backup.createBackup(backupPath);
+
+    return {
+      success: true,
+      path: backupPath,
+      filename: path.basename(backupPath)
+    };
+  } catch (error) {
+    console.error('Error creating backup:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('backup:restore', async (event, backupPath) => {
+  try {
+    const stats = await backup.restoreBackup(backupPath);
+
+    return {
+      success: true,
+      stats
+    };
+  } catch (error) {
+    console.error('Error restoring backup:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('backup:list', async () => {
+  try {
+    return backup.listBackups();
+  } catch (error) {
+    console.error('Error listing backups:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('backup:selectFile', async (event, mode) => {
+  try {
+    const options = mode === 'save' ? {
+      title: 'Save Backup',
+      defaultPath: path.join(app.getPath('documents'), backup.generateBackupFilename()),
+      filters: [
+        { name: 'Backup Files', extensions: ['zip'] },
+        { name: 'All Files', extensions: ['*'] }
+      ]
+    } : {
+      title: 'Select Backup File',
+      filters: [
+        { name: 'Backup Files', extensions: ['zip'] },
+        { name: 'All Files', extensions: ['*'] }
+      ],
+      properties: ['openFile']
+    };
+
+    const result = mode === 'save'
+      ? await dialog.showSaveDialog(mainWindow, options)
+      : await dialog.showOpenDialog(mainWindow, options);
+
+    if (result.canceled) {
+      return { canceled: true };
+    }
+
+    return {
+      canceled: false,
+      path: mode === 'save' ? result.filePath : result.filePaths[0]
+    };
+  } catch (error) {
+    console.error('Error selecting file:', error);
+    throw error;
+  }
+});
+
 // Payment Gateway - Stripe
 ipcMain.handle('payment:createStripePaymentLink', async (event, paymentData) => {
   try {
@@ -1474,6 +1555,17 @@ setTimeout(() => {
   console.log('Running initial reminder check...');
   checkAndSendReminders();
 }, 30000);
+
+// Automatic backup scheduler - runs daily at 2:00 AM
+cron.schedule('0 2 * * *', async () => {
+  console.log('Running scheduled automatic backup...');
+  try {
+    const backupPath = await backup.createAutoBackup();
+    console.log(`Automatic backup created successfully: ${backupPath}`);
+  } catch (error) {
+    console.error('Error creating automatic backup:', error);
+  }
+});
 
 // IPC handler to manually trigger reminder check
 ipcMain.handle('reminders:checkAndSend', async () => {

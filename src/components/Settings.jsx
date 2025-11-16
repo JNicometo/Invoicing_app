@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, Building, FileText, Palette, Check, Settings as SettingsIcon, Globe, Mail, Hash, Upload, X as XIcon, Type, Layout, Paintbrush, Eye, CreditCard } from 'lucide-react';
+import { Save, Building, FileText, Palette, Check, Settings as SettingsIcon, Globe, Mail, Hash, Upload, X as XIcon, Type, Layout, Paintbrush, Eye, CreditCard, HardDrive, Download, UploadCloud } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { validateSettings } from '../utils/validation';
 
@@ -348,6 +348,7 @@ function Settings() {
     { id: 'payments', name: 'Payment Gateways', icon: CreditCard },
     { id: 'display', name: 'Display Options', icon: SettingsIcon },
     { id: 'navigation', name: 'Navigation', icon: Layout },
+    { id: 'backup', name: 'Backup & Restore', icon: HardDrive },
     { id: 'theme', name: 'Theme', icon: Palette },
   ];
 
@@ -2238,6 +2239,208 @@ function Settings() {
                           Your theme settings will be applied when you view or generate invoice PDFs. Create or view an invoice to see your customizations in action!
                         </p>
                       </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Backup & Restore Tab */}
+              {activeTab === 'backup' && (
+                <div className="space-y-8">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Backup & Restore</h2>
+                    <p className="text-sm text-gray-600 mb-6">
+                      Protect your business data with regular backups. Create manual backups or restore from previous backup files.
+                    </p>
+                  </div>
+
+                  {/* Manual Backup */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <Download className="w-5 h-5 text-gray-700" />
+                      <h3 className="text-lg font-semibold text-gray-900">Create Backup</h3>
+                    </div>
+
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <p className="text-sm text-gray-600 mb-4">
+                        Download a complete backup of all your data including invoices, clients, payments, and settings.
+                        The backup will be saved as a ZIP file containing CSV exports of all your data.
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            setSaving(true);
+
+                            // Select where to save the backup
+                            const fileResult = await window.electron.invoke('backup:selectFile', 'save');
+
+                            if (fileResult.canceled) {
+                              setSaving(false);
+                              return;
+                            }
+
+                            // Create the backup
+                            const result = await window.electron.invoke('backup:create', fileResult.path);
+
+                            if (result.success) {
+                              alert(`Backup created successfully!\n\nSaved to: ${result.path}`);
+                            }
+                          } catch (error) {
+                            console.error('Error creating backup:', error);
+                            alert('Error creating backup: ' + error.message);
+                          } finally {
+                            setSaving(false);
+                          }
+                        }}
+                        disabled={saving}
+                        className={`flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors ${
+                          saving ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        <Download className="w-5 h-5 mr-2" />
+                        {saving ? 'Creating Backup...' : 'Download Backup Now'}
+                      </button>
+
+                      <div className="mt-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="text-xs text-blue-800">
+                          <strong>Tip:</strong> Save your backup file to a secure location like cloud storage or an external drive.
+                          Regular backups protect against data loss from hardware failures or accidental deletions.
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-8"></div>
+
+                  {/* Restore from Backup */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <UploadCloud className="w-5 h-5 text-gray-700" />
+                      <h3 className="text-lg font-semibold text-gray-900">Restore from Backup</h3>
+                    </div>
+
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <div className="mb-4 p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                        <p className="text-sm font-semibold text-yellow-900 mb-2">
+                          ⚠️ Warning: This will replace all current data
+                        </p>
+                        <p className="text-xs text-yellow-800">
+                          Restoring from a backup will <strong>permanently delete all current data</strong> and replace it with the backup data.
+                          Make sure to create a backup of your current data before proceeding if needed.
+                        </p>
+                      </div>
+
+                      <p className="text-sm text-gray-600 mb-4">
+                        Select a backup ZIP file to restore your data. The app will restart after the restore is complete.
+                      </p>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          // Confirm before proceeding
+                          const confirmed = window.confirm(
+                            'WARNING: This will permanently delete ALL current data and replace it with the backup data.\n\n' +
+                            'Are you absolutely sure you want to continue?\n\n' +
+                            'Click OK to proceed or Cancel to abort.'
+                          );
+
+                          if (!confirmed) {
+                            return;
+                          }
+
+                          try {
+                            setSaving(true);
+
+                            // Select backup file to restore
+                            const fileResult = await window.electron.invoke('backup:selectFile', 'open');
+
+                            if (fileResult.canceled) {
+                              setSaving(false);
+                              return;
+                            }
+
+                            // Restore the backup
+                            const result = await window.electron.invoke('backup:restore', fileResult.path);
+
+                            if (result.success) {
+                              alert(
+                                `Backup restored successfully!\n\n` +
+                                `Tables restored: ${result.stats.tables_restored}\n` +
+                                `Total rows: ${result.stats.total_rows}\n\n` +
+                                `The app will reload to apply the changes.`
+                              );
+
+                              // Reload the app to reflect changes
+                              window.location.reload();
+                            }
+                          } catch (error) {
+                            console.error('Error restoring backup:', error);
+                            alert('Error restoring backup: ' + error.message);
+                          } finally {
+                            setSaving(false);
+                          }
+                        }}
+                        disabled={saving}
+                        className={`flex items-center px-6 py-3 bg-yellow-600 text-white rounded-lg hover:bg-yellow-700 transition-colors ${
+                          saving ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        <UploadCloud className="w-5 h-5 mr-2" />
+                        {saving ? 'Restoring...' : 'Choose Backup File to Restore'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-8"></div>
+
+                  {/* Automatic Backups Info */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <HardDrive className="w-5 h-5 text-gray-700" />
+                      <h3 className="text-lg font-semibold text-gray-900">Automatic Backups</h3>
+                    </div>
+
+                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 p-6">
+                      <div className="flex items-start space-x-3">
+                        <Check className="w-5 h-5 text-green-600 mt-0.5" />
+                        <div>
+                          <p className="text-sm font-semibold text-green-900 mb-2">
+                            Automatic Daily Backups Enabled
+                          </p>
+                          <p className="text-sm text-green-800 mb-3">
+                            Your data is automatically backed up every day at 2:00 AM. Backups are stored in your application data folder and the last 30 backups are kept.
+                          </p>
+                          <p className="text-xs text-green-700">
+                            <strong>Backup Location:</strong> Your automatic backups are saved in the app's data directory under the "backups" folder.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* What's Included */}
+                  <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3">What's included in backups?</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {[
+                        'Company Settings',
+                        'Client Information',
+                        'Invoices & Items',
+                        'Saved Items Library',
+                        'Payment Records',
+                        'Recurring Invoices',
+                        'Estimates & Quotes',
+                        'Credit Notes',
+                        'Reminder Templates',
+                        'Invoice Reminders',
+                      ].map((item) => (
+                        <div key={item} className="flex items-center text-sm text-gray-700">
+                          <Check className="w-4 h-4 text-green-600 mr-2 flex-shrink-0" />
+                          {item}
+                        </div>
+                      ))}
                     </div>
                   </div>
                 </div>

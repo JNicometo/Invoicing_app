@@ -107,6 +107,11 @@ contextBridge.exposeInMainWorld('electron', {
         'payment:createStripePaymentLink',
         'payment:createPaymentIntent',
         'payment:processCardPayment',
+        // Backup & Restore
+        'backup:create',
+        'backup:restore',
+        'backup:list',
+        'backup:selectFile',
       ];
 
       if (validChannels.includes(channel)) {
