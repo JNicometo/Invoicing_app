@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, Building, FileText, Palette, Check, Settings as SettingsIcon, Globe, Mail, Hash, Upload, X as XIcon, Type, Layout, Paintbrush, Eye, CreditCard, HardDrive, Download, UploadCloud } from 'lucide-react';
+import { Save, Building, FileText, Palette, Check, Settings as SettingsIcon, Globe, Mail, Hash, Upload, X as XIcon, Type, Layout, Paintbrush, Eye, CreditCard, HardDrive, Download, UploadCloud, Database, Server } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { validateSettings } from '../utils/validation';
 
@@ -120,7 +120,17 @@ function Settings() {
     pdf_header_height: 'normal',
 
     // Navigation Tabs
-    tab_configuration: null
+    tab_configuration: null,
+
+    // SQL Server Settings
+    use_sql_server: false,
+    sql_server_type: 'mysql',
+    sql_server_host: 'localhost',
+    sql_server_port: '3306',
+    sql_server_database: 'invoicepro',
+    sql_server_username: '',
+    sql_server_password: '',
+    sql_server_ssl: false
   });
 
   useEffect(() => {
@@ -238,7 +248,17 @@ function Settings() {
           pdf_header_height: data.pdf_header_height || 'normal',
 
           // Navigation Tabs
-          tab_configuration: data.tab_configuration || null
+          tab_configuration: data.tab_configuration || null,
+
+          // SQL Server Settings
+          use_sql_server: data.use_sql_server !== undefined ? data.use_sql_server : false,
+          sql_server_type: data.sql_server_type || 'mysql',
+          sql_server_host: data.sql_server_host || 'localhost',
+          sql_server_port: data.sql_server_port || '3306',
+          sql_server_database: data.sql_server_database || 'invoicepro',
+          sql_server_username: data.sql_server_username || '',
+          sql_server_password: data.sql_server_password || '',
+          sql_server_ssl: data.sql_server_ssl !== undefined ? data.sql_server_ssl : false
         });
 
         // Set logo preview if exists
@@ -349,6 +369,7 @@ function Settings() {
     { id: 'display', name: 'Display Options', icon: SettingsIcon },
     { id: 'navigation', name: 'Navigation', icon: Layout },
     { id: 'backup', name: 'Backup & Restore', icon: HardDrive },
+    { id: 'sqlserver', name: 'SQL Server', icon: Database },
     { id: 'theme', name: 'Theme', icon: Palette },
   ];
 

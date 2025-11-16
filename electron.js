@@ -1012,6 +1012,89 @@ ipcMain.handle('backup:selectFile', async (event, mode) => {
   }
 });
 
+// SQL Server Connection
+const SQLServerAdapter = require('./database/sqlServerAdapter');
+
+ipcMain.handle('sqlserver:testConnection', async (event, config) => {
+  try {
+    const adapter = new SQLServerAdapter({
+      type: config.type,
+      host: config.host,
+      port: config.port,
+      username: config.username,
+      password: config.password,
+      database: config.database,
+      ssl: config.ssl
+    });
+
+    const result = await adapter.testConnection();
+    return result;
+  } catch (error) {
+    console.error('Error testing SQL server connection:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+ipcMain.handle('sqlserver:checkDatabase', async (event, config) => {
+  try {
+    const adapter = new SQLServerAdapter({
+      type: config.type,
+      host: config.host,
+      port: config.port,
+      username: config.username,
+      password: config.password,
+      database: config.database,
+      ssl: config.ssl
+    });
+
+    const exists = await adapter.databaseExists();
+    return { success: true, exists };
+  } catch (error) {
+    console.error('Error checking database:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+ipcMain.handle('sqlserver:createDatabase', async (event, config) => {
+  try {
+    const adapter = new SQLServerAdapter({
+      type: config.type,
+      host: config.host,
+      port: config.port,
+      username: config.username,
+      password: config.password,
+      database: config.database,
+      ssl: config.ssl
+    });
+
+    const result = await adapter.createDatabase();
+    return result;
+  } catch (error) {
+    console.error('Error creating database:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+ipcMain.handle('sqlserver:createSchema', async (event, config) => {
+  try {
+    const adapter = new SQLServerAdapter({
+      type: config.type,
+      host: config.host,
+      port: config.port,
+      username: config.username,
+      password: config.password,
+      database: config.database,
+      ssl: config.ssl
+    });
+
+    const result = await adapter.createSchema();
+    return result;
+  } catch (error) {
+    console.error('Error creating schema:', error);
+    return { success: false, message: error.message };
+  }
+});
+
 // Payment Gateway - Stripe
 ipcMain.handle('payment:createStripePaymentLink', async (event, paymentData) => {
   try {

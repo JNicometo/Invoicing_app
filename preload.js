@@ -112,6 +112,11 @@ contextBridge.exposeInMainWorld('electron', {
         'backup:restore',
         'backup:list',
         'backup:selectFile',
+        // SQL Server
+        'sqlserver:testConnection',
+        'sqlserver:checkDatabase',
+        'sqlserver:createDatabase',
+        'sqlserver:createSchema',
       ];
 
       if (validChannels.includes(channel)) {

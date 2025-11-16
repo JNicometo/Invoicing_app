@@ -170,6 +170,16 @@ const runMigrations = () => {
       { name: 'network_api_port', type: 'TEXT', default: "'3100'" },
       { name: 'network_require_auth', type: 'INTEGER', default: '1' },
       { name: 'network_session_timeout', type: 'TEXT', default: "'24'" }, // hours
+
+      // SQL Server Settings
+      { name: 'use_sql_server', type: 'INTEGER', default: '0' },
+      { name: 'sql_server_type', type: 'TEXT', default: "'mysql'" }, // mysql, postgres, mssql
+      { name: 'sql_server_host', type: 'TEXT', default: "'localhost'" },
+      { name: 'sql_server_port', type: 'TEXT', default: "'3306'" },
+      { name: 'sql_server_database', type: 'TEXT', default: "'invoicepro'" },
+      { name: 'sql_server_username', type: 'TEXT', default: "''" },
+      { name: 'sql_server_password', type: 'TEXT', default: "''" },
+      { name: 'sql_server_ssl', type: 'INTEGER', default: '0' },
     ];
 
     let addedCount = 0;
