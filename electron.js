@@ -1218,6 +1218,15 @@ function startWebhookServer() {
       console.log(`Stripe webhook server listening on port ${WEBHOOK_PORT}`);
       console.log(`Webhook endpoint: http://localhost:${WEBHOOK_PORT}/webhook/stripe`);
       console.log('Configure this URL in your Stripe Dashboard webhook settings');
+    })
+    .on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.warn(`Port ${WEBHOOK_PORT} is already in use. Webhook server will not start.`);
+        console.warn('Another instance of the application may be running, or another process is using this port.');
+        webhookServer = null;
+      } else {
+        console.error('Webhook server error:', err);
+      }
     });
 
   } catch (error) {
