@@ -2467,6 +2467,316 @@ function Settings() {
                 </div>
               )}
 
+              {/* SQL Server Tab */}
+              {activeTab === 'sqlserver' && (
+                <div className="space-y-8">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">SQL Server Configuration</h2>
+                    <p className="text-sm text-gray-600 mb-6">
+                      Connect to a remote SQL server database for multi-user access. Multiple users can access the same data simultaneously.
+                    </p>
+                  </div>
+
+                  {/* Enable SQL Server */}
+                  <div className="bg-white border border-gray-200 rounded-lg p-6">
+                    <div className="flex items-center justify-between mb-6">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900">Use SQL Server Database</h3>
+                        <p className="text-sm text-gray-600 mt-1">
+                          Switch from local SQLite to a remote SQL server database
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          name="use_sql_server"
+                          checked={formData.use_sql_server}
+                          onChange={(e) => setFormData(prev => ({ ...prev, use_sql_server: e.target.checked }))}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    {formData.use_sql_server && (
+                      <div className="pt-4 border-t border-gray-200">
+                        <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                          <p className="text-xs text-blue-800">
+                            <strong>Note:</strong> Switching to SQL Server will require restarting the application. Make sure you have a working SQL server and the correct credentials before enabling this feature.
+                          </p>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Connection Settings */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <Server className="w-5 h-5 text-gray-700" />
+                      <h3 className="text-lg font-semibold text-gray-900">Connection Settings</h3>
+                    </div>
+
+                    <div className="bg-white border border-gray-200 rounded-lg p-6 space-y-4">
+                      {/* Server Type */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Database Type
+                        </label>
+                        <select
+                          name="sql_server_type"
+                          value={formData.sql_server_type}
+                          onChange={(e) => {
+                            const type = e.target.value;
+                            let port = '3306';
+                            if (type === 'postgres') port = '5432';
+                            if (type === 'mssql') port = '1433';
+                            setFormData(prev => ({ ...prev, sql_server_type: type, sql_server_port: port }));
+                          }}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        >
+                          <option value="mysql">MySQL / MariaDB</option>
+                          <option value="postgres">PostgreSQL</option>
+                          <option value="mssql">Microsoft SQL Server</option>
+                        </select>
+                      </div>
+
+                      {/* Host and Port */}
+                      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Host / IP Address
+                          </label>
+                          <input
+                            type="text"
+                            name="sql_server_host"
+                            value={formData.sql_server_host}
+                            onChange={handleInputChange}
+                            placeholder="localhost or 192.168.1.100"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Port
+                          </label>
+                          <input
+                            type="text"
+                            name="sql_server_port"
+                            value={formData.sql_server_port}
+                            onChange={handleInputChange}
+                            placeholder="3306"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+
+                      {/* Database Name */}
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-2">
+                          Database Name
+                        </label>
+                        <input
+                          type="text"
+                          name="sql_server_database"
+                          value={formData.sql_server_database}
+                          onChange={handleInputChange}
+                          placeholder="invoicepro"
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      {/* Username and Password */}
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Username
+                          </label>
+                          <input
+                            type="text"
+                            name="sql_server_username"
+                            value={formData.sql_server_username}
+                            onChange={handleInputChange}
+                            placeholder="root"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-2">
+                            Password
+                          </label>
+                          <input
+                            type="password"
+                            name="sql_server_password"
+                            value={formData.sql_server_password}
+                            onChange={handleInputChange}
+                            placeholder="••••••••"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+
+                      {/* SSL */}
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">Enable SSL/TLS</p>
+                          <p className="text-sm text-gray-500">Use encrypted connection to server</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="sql_server_ssl"
+                            checked={formData.sql_server_ssl}
+                            onChange={(e) => setFormData(prev => ({ ...prev, sql_server_ssl: e.target.checked }))}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+
+                      {/* Action Buttons */}
+                      <div className="flex items-center space-x-3 pt-4">
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              setSaving(true);
+                              const result = await window.electron.invoke('sqlserver:testConnection', {
+                                type: formData.sql_server_type,
+                                host: formData.sql_server_host,
+                                port: formData.sql_server_port,
+                                database: formData.sql_server_database,
+                                username: formData.sql_server_username,
+                                password: formData.sql_server_password,
+                                ssl: formData.sql_server_ssl
+                              });
+
+                              if (result.success) {
+                                alert('✓ Connection successful!\n\nThe server is reachable and credentials are valid.');
+                              } else {
+                                alert('✗ Connection failed:\n\n' + result.message);
+                              }
+                            } catch (error) {
+                              alert('✗ Connection failed:\n\n' + error.message);
+                            } finally {
+                              setSaving(false);
+                            }
+                          }}
+                          disabled={saving}
+                          className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors disabled:opacity-50"
+                        >
+                          <Check className="w-4 h-4 mr-2" />
+                          Test Connection
+                        </button>
+
+                        <button
+                          type="button"
+                          onClick={async () => {
+                            try {
+                              setSaving(true);
+
+                              // Check if database exists
+                              const checkResult = await window.electron.invoke('sqlserver:checkDatabase', {
+                                type: formData.sql_server_type,
+                                host: formData.sql_server_host,
+                                port: formData.sql_server_port,
+                                database: formData.sql_server_database,
+                                username: formData.sql_server_username,
+                                password: formData.sql_server_password,
+                                ssl: formData.sql_server_ssl
+                              });
+
+                              if (checkResult.exists) {
+                                alert('Database already exists!\n\nThe database "' + formData.sql_server_database + '" is already on the server.');
+                                setSaving(false);
+                                return;
+                              }
+
+                              // Create database
+                              const createResult = await window.electron.invoke('sqlserver:createDatabase', {
+                                type: formData.sql_server_type,
+                                host: formData.sql_server_host,
+                                port: formData.sql_server_port,
+                                database: formData.sql_server_database,
+                                username: formData.sql_server_username,
+                                password: formData.sql_server_password,
+                                ssl: formData.sql_server_ssl
+                              });
+
+                              if (createResult.success) {
+                                // Create schema
+                                const schemaResult = await window.electron.invoke('sqlserver:createSchema', {
+                                  type: formData.sql_server_type,
+                                  host: formData.sql_server_host,
+                                  port: formData.sql_server_port,
+                                  database: formData.sql_server_database,
+                                  username: formData.sql_server_username,
+                                  password: formData.sql_server_password,
+                                  ssl: formData.sql_server_ssl
+                                });
+
+                                if (schemaResult.success) {
+                                  alert('✓ Database created successfully!\n\nDatabase and all tables have been created on the server.\n\nYou can now enable "Use SQL Server Database" and save settings.');
+                                } else {
+                                  alert('✗ Error creating tables:\n\n' + schemaResult.message);
+                                }
+                              } else {
+                                alert('✗ Error creating database:\n\n' + createResult.message);
+                              }
+                            } catch (error) {
+                              alert('✗ Error:\n\n' + error.message);
+                            } finally {
+                              setSaving(false);
+                            }
+                          }}
+                          disabled={saving}
+                          className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
+                        >
+                          <Database className="w-4 h-4 mr-2" />
+                          {saving ? 'Setting Up...' : 'Create Database & Tables'}
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Setup Instructions */}
+                  <div className="bg-gradient-to-r from-purple-50 to-blue-50 rounded-lg border border-purple-200 p-6">
+                    <h4 className="text-sm font-semibold text-purple-900 mb-3">Setup Instructions</h4>
+                    <ol className="text-sm text-purple-800 space-y-2 list-decimal list-inside">
+                      <li>Install MySQL, PostgreSQL, or MS SQL Server on a computer</li>
+                      <li>Create a user with database creation permissions</li>
+                      <li>Enter the connection details above</li>
+                      <li>Click "Test Connection" to verify credentials</li>
+                      <li>Click "Create Database & Tables" to set up the database</li>
+                      <li>Enable "Use SQL Server Database" toggle</li>
+                      <li>Save settings and restart the application</li>
+                      <li>Other users can connect using the same database credentials</li>
+                    </ol>
+                  </div>
+
+                  {/* Benefits */}
+                  <div className="bg-gray-50 rounded-lg p-6 border border-gray-200">
+                    <h4 className="text-sm font-semibold text-gray-900 mb-3">Why use SQL Server?</h4>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                      {[
+                        'Multiple users access same data simultaneously',
+                        'No file sharing or network drive needed',
+                        'Better performance for large datasets',
+                        'Professional database management',
+                        'Automatic backups (server-side)',
+                        'Centralized data storage',
+                        'Enterprise-grade security',
+                        'Compatible with MySQL, PostgreSQL, MS SQL',
+                      ].map((item) => (
+                        <div key={item} className="flex items-center text-sm text-gray-700">
+                          <Check className="w-4 h-4 text-green-600 mr-2 flex-shrink-0" />
+                          {item}
+                        </div>
+                      ))}
+                    </div>
+                  </div>
+                </div>
+              )}
+
               {/* Save Button */}
               <div className="flex items-center justify-between mt-8 pt-6 border-t border-gray-200">
                 {successMessage && (
