@@ -156,6 +156,14 @@ const runMigrations = () => {
       { name: 'pdf_page_size', type: 'TEXT', default: "'letter'" },
       { name: 'pdf_margin_size', type: 'TEXT', default: "'normal'" },
       { name: 'pdf_header_height', type: 'TEXT', default: "'normal'" },
+
+      // Tab Configuration
+      { name: 'tab_configuration', type: 'TEXT', default: "NULL" },
+
+      // Stripe Integration
+      { name: 'stripe_secret_key', type: 'TEXT', default: "''" },
+      { name: 'stripe_publishable_key', type: 'TEXT', default: "''" },
+      { name: 'stripe_enabled', type: 'INTEGER', default: '0' },
     ];
 
     let addedCount = 0;
@@ -226,6 +234,30 @@ const runMigrations = () => {
       console.log(`✓ Added ${itemAddedCount} new columns to invoice_items table`);
     } else {
       console.log('✓ All invoice item discount columns already exist');
+    }
+
+    // Set default tab configuration if null
+    console.log('Checking tab configuration...');
+    const settings = db.prepare('SELECT tab_configuration FROM settings WHERE id = 1').get();
+    if (!settings || !settings.tab_configuration) {
+      console.log('Setting default tab configuration...');
+      const defaultTabConfig = JSON.stringify([
+        { id: 'dashboard', name: 'Dashboard', enabled: true, order: 0 },
+        { id: 'invoices', name: 'Invoices', enabled: true, order: 1 },
+        { id: 'estimates', name: 'Estimates', enabled: true, order: 2 },
+        { id: 'credit-notes', name: 'Credit Notes', enabled: true, order: 3 },
+        { id: 'recurring', name: 'Recurring', enabled: true, order: 4 },
+        { id: 'clients', name: 'Clients', enabled: true, order: 5 },
+        { id: 'reminders', name: 'Reminders', enabled: true, order: 6 },
+        { id: 'reports', name: 'Reports', enabled: true, order: 7 },
+        { id: 'saved-items', name: 'Saved Items', enabled: true, order: 8 },
+        { id: 'archive', name: 'Archive', enabled: true, order: 9 },
+        { id: 'settings', name: 'Settings', enabled: true, order: 10 }
+      ]);
+      db.prepare('UPDATE settings SET tab_configuration = ? WHERE id = 1').run(defaultTabConfig);
+      console.log('✓ Default tab configuration set');
+    } else {
+      console.log('✓ Tab configuration already exists');
     }
 
     console.log('Migrations completed successfully');
@@ -324,6 +356,10 @@ const updateSettings = (settings) => {
       pdf_page_size = @pdf_page_size,
       pdf_margin_size = @pdf_margin_size,
       pdf_header_height = @pdf_header_height,
+      tab_configuration = @tab_configuration,
+      stripe_secret_key = @stripe_secret_key,
+      stripe_publishable_key = @stripe_publishable_key,
+      stripe_enabled = @stripe_enabled,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = 1
   `);
