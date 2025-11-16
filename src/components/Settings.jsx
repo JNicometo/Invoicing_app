@@ -1510,6 +1510,190 @@ function Settings() {
                 </div>
               )}
 
+              {/* Navigation Tab */}
+              {activeTab === 'navigation' && (
+                <div className="space-y-8">
+                  <div>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Navigation Customization</h2>
+                    <p className="text-sm text-gray-600 mb-6">
+                      Customize which tabs appear in your sidebar and change their order. Drag tabs to reorder or use the arrow buttons.
+                    </p>
+                  </div>
+
+                  {(() => {
+                    // Parse tab configuration or use default
+                    let tabs = [];
+                    try {
+                      tabs = formData.tab_configuration
+                        ? JSON.parse(formData.tab_configuration)
+                        : [
+                            { id: 'dashboard', name: 'Dashboard', enabled: true, order: 0 },
+                            { id: 'invoices', name: 'Invoices', enabled: true, order: 1 },
+                            { id: 'estimates', name: 'Estimates', enabled: true, order: 2 },
+                            { id: 'credit-notes', name: 'Credit Notes', enabled: true, order: 3 },
+                            { id: 'recurring', name: 'Recurring', enabled: true, order: 4 },
+                            { id: 'clients', name: 'Clients', enabled: true, order: 5 },
+                            { id: 'reminders', name: 'Reminders', enabled: true, order: 6 },
+                            { id: 'reports', name: 'Reports', enabled: true, order: 7 },
+                            { id: 'saved-items', name: 'Saved Items', enabled: true, order: 8 },
+                            { id: 'archive', name: 'Archive', enabled: true, order: 9 },
+                            { id: 'settings', name: 'Settings', enabled: true, order: 10 }
+                          ];
+                    } catch (e) {
+                      console.error('Error parsing tab configuration:', e);
+                    }
+
+                    const handleToggleTab = (tabId) => {
+                      const updatedTabs = tabs.map(tab =>
+                        tab.id === tabId ? { ...tab, enabled: !tab.enabled } : tab
+                      );
+                      setFormData(prev => ({ ...prev, tab_configuration: JSON.stringify(updatedTabs) }));
+                    };
+
+                    const handleMoveUp = (index) => {
+                      if (index === 0) return;
+                      const updatedTabs = [...tabs];
+                      const temp = updatedTabs[index];
+                      updatedTabs[index] = updatedTabs[index - 1];
+                      updatedTabs[index - 1] = temp;
+                      // Update order values
+                      updatedTabs.forEach((tab, idx) => tab.order = idx);
+                      setFormData(prev => ({ ...prev, tab_configuration: JSON.stringify(updatedTabs) }));
+                    };
+
+                    const handleMoveDown = (index) => {
+                      if (index === tabs.length - 1) return;
+                      const updatedTabs = [...tabs];
+                      const temp = updatedTabs[index];
+                      updatedTabs[index] = updatedTabs[index + 1];
+                      updatedTabs[index + 1] = temp;
+                      // Update order values
+                      updatedTabs.forEach((tab, idx) => tab.order = idx);
+                      setFormData(prev => ({ ...prev, tab_configuration: JSON.stringify(updatedTabs) }));
+                    };
+
+                    const handleResetToDefaults = () => {
+                      const defaultTabs = [
+                        { id: 'dashboard', name: 'Dashboard', enabled: true, order: 0 },
+                        { id: 'invoices', name: 'Invoices', enabled: true, order: 1 },
+                        { id: 'estimates', name: 'Estimates', enabled: true, order: 2 },
+                        { id: 'credit-notes', name: 'Credit Notes', enabled: true, order: 3 },
+                        { id: 'recurring', name: 'Recurring', enabled: true, order: 4 },
+                        { id: 'clients', name: 'Clients', enabled: true, order: 5 },
+                        { id: 'reminders', name: 'Reminders', enabled: true, order: 6 },
+                        { id: 'reports', name: 'Reports', enabled: true, order: 7 },
+                        { id: 'saved-items', name: 'Saved Items', enabled: true, order: 8 },
+                        { id: 'archive', name: 'Archive', enabled: true, order: 9 },
+                        { id: 'settings', name: 'Settings', enabled: true, order: 10 }
+                      ];
+                      setFormData(prev => ({ ...prev, tab_configuration: JSON.stringify(defaultTabs) }));
+                    };
+
+                    return (
+                      <div className="space-y-6">
+                        <div className="flex justify-between items-center">
+                          <p className="text-sm text-gray-600">
+                            {tabs.filter(t => t.enabled).length} of {tabs.length} tabs enabled
+                          </p>
+                          <button
+                            type="button"
+                            onClick={handleResetToDefaults}
+                            className="px-4 py-2 text-sm text-gray-700 bg-gray-100 rounded-lg hover:bg-gray-200"
+                          >
+                            Reset to Defaults
+                          </button>
+                        </div>
+
+                        <div className="bg-white border border-gray-200 rounded-lg divide-y divide-gray-200">
+                          {tabs.map((tab, index) => (
+                            <div
+                              key={tab.id}
+                              className={`flex items-center justify-between p-4 ${
+                                !tab.enabled ? 'bg-gray-50 opacity-60' : ''
+                              }`}
+                            >
+                              <div className="flex items-center space-x-4 flex-1">
+                                <div className="flex flex-col space-y-1">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveUp(index)}
+                                    disabled={index === 0}
+                                    className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                    title="Move up"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 15l7-7 7 7" />
+                                    </svg>
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleMoveDown(index)}
+                                    disabled={index === tabs.length - 1}
+                                    className="p-1 text-gray-400 hover:text-gray-600 disabled:opacity-30 disabled:cursor-not-allowed"
+                                    title="Move down"
+                                  >
+                                    <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                    </svg>
+                                  </button>
+                                </div>
+
+                                <div className="flex items-center space-x-3 flex-1">
+                                  <span className="text-sm font-medium text-gray-500 w-8">#{index + 1}</span>
+                                  <span className="text-base font-medium text-gray-900">{tab.name}</span>
+                                  {tab.id === 'settings' && (
+                                    <span className="text-xs text-gray-500 italic">(always visible)</span>
+                                  )}
+                                </div>
+                              </div>
+
+                              <div className="flex items-center">
+                                <label className="relative inline-flex items-center cursor-pointer">
+                                  <input
+                                    type="checkbox"
+                                    checked={tab.enabled}
+                                    onChange={() => handleToggleTab(tab.id)}
+                                    disabled={tab.id === 'settings'}
+                                    className="sr-only peer"
+                                  />
+                                  <div className={`w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600 ${
+                                    tab.id === 'settings' ? 'opacity-50 cursor-not-allowed' : ''
+                                  }`}></div>
+                                  <span className="ml-3 text-sm font-medium text-gray-700">
+                                    {tab.enabled ? 'Enabled' : 'Disabled'}
+                                  </span>
+                                </label>
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+
+                        <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                          <div className="flex">
+                            <div className="flex-shrink-0">
+                              <svg className="h-5 w-5 text-blue-400" viewBox="0 0 20 20" fill="currentColor">
+                                <path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" />
+                              </svg>
+                            </div>
+                            <div className="ml-3">
+                              <h3 className="text-sm font-medium text-blue-800">Important Notes</h3>
+                              <div className="mt-2 text-sm text-blue-700">
+                                <ul className="list-disc list-inside space-y-1">
+                                  <li>The Settings tab is always visible and cannot be disabled</li>
+                                  <li>Click "Save Settings" at the top to apply your changes</li>
+                                  <li>Restart the app to see navigation changes take effect</li>
+                                  <li>Disabled tabs won't appear in the sidebar</li>
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+              )}
+
               {/* Theme Tab */}
               {activeTab === 'theme' && (
                 <div className="space-y-8">
