@@ -1220,6 +1220,16 @@ function startWebhookServer() {
       console.log('Configure this URL in your Stripe Dashboard webhook settings');
     });
 
+    // Handle port already in use error
+    webhookServer.on('error', (err) => {
+      if (err.code === 'EADDRINUSE') {
+        console.warn(`Port ${WEBHOOK_PORT} is already in use. Webhook server will not start.`);
+        console.warn('Another instance of the application may be running, or another process is using this port.');
+      } else {
+        console.error('Webhook server error:', err);
+      }
+    });
+
   } catch (error) {
     console.error('Failed to start webhook server:', error);
   }
