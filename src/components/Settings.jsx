@@ -117,7 +117,10 @@ function Settings() {
     // Theme - PDF Options
     pdf_page_size: 'letter',
     pdf_margin_size: 'normal',
-    pdf_header_height: 'normal'
+    pdf_header_height: 'normal',
+
+    // Navigation Tabs
+    tab_configuration: null
   });
 
   useEffect(() => {
@@ -337,6 +340,7 @@ function Settings() {
     { id: 'email', name: 'Email Templates', icon: Mail },
     { id: 'payments', name: 'Payment Gateways', icon: CreditCard },
     { id: 'display', name: 'Display Options', icon: SettingsIcon },
+    { id: 'navigation', name: 'Navigation', icon: Layout },
     { id: 'theme', name: 'Theme', icon: Palette },
   ];
 

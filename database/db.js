@@ -156,6 +156,14 @@ const runMigrations = () => {
       { name: 'pdf_page_size', type: 'TEXT', default: "'letter'" },
       { name: 'pdf_margin_size', type: 'TEXT', default: "'normal'" },
       { name: 'pdf_header_height', type: 'TEXT', default: "'normal'" },
+
+      // Tab Configuration
+      { name: 'tab_configuration', type: 'TEXT', default: "NULL" },
+
+      // Stripe Integration
+      { name: 'stripe_secret_key', type: 'TEXT', default: "''" },
+      { name: 'stripe_publishable_key', type: 'TEXT', default: "''" },
+      { name: 'stripe_enabled', type: 'INTEGER', default: '0' },
     ];
 
     let addedCount = 0;
@@ -226,6 +234,30 @@ const runMigrations = () => {
       console.log(`✓ Added ${itemAddedCount} new columns to invoice_items table`);
     } else {
       console.log('✓ All invoice item discount columns already exist');
+    }
+
+    // Set default tab configuration if null
+    console.log('Checking tab configuration...');
+    const settings = db.prepare('SELECT tab_configuration FROM settings WHERE id = 1').get();
+    if (!settings || !settings.tab_configuration) {
+      console.log('Setting default tab configuration...');
+      const defaultTabConfig = JSON.stringify([
+        { id: 'dashboard', name: 'Dashboard', enabled: true, order: 0 },
+        { id: 'invoices', name: 'Invoices', enabled: true, order: 1 },
+        { id: 'estimates', name: 'Estimates', enabled: true, order: 2 },
+        { id: 'credit-notes', name: 'Credit Notes', enabled: true, order: 3 },
+        { id: 'recurring', name: 'Recurring', enabled: true, order: 4 },
+        { id: 'clients', name: 'Clients', enabled: true, order: 5 },
+        { id: 'reminders', name: 'Reminders', enabled: true, order: 6 },
+        { id: 'reports', name: 'Reports', enabled: true, order: 7 },
+        { id: 'saved-items', name: 'Saved Items', enabled: true, order: 8 },
+        { id: 'archive', name: 'Archive', enabled: true, order: 9 },
+        { id: 'settings', name: 'Settings', enabled: true, order: 10 }
+      ]);
+      db.prepare('UPDATE settings SET tab_configuration = ? WHERE id = 1').run(defaultTabConfig);
+      console.log('✓ Default tab configuration set');
+    } else {
+      console.log('✓ Tab configuration already exists');
     }
 
     console.log('Migrations completed successfully');
@@ -324,6 +356,10 @@ const updateSettings = (settings) => {
       pdf_page_size = @pdf_page_size,
       pdf_margin_size = @pdf_margin_size,
       pdf_header_height = @pdf_header_height,
+      tab_configuration = @tab_configuration,
+      stripe_secret_key = @stripe_secret_key,
+      stripe_publishable_key = @stripe_publishable_key,
+      stripe_enabled = @stripe_enabled,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = 1
   `);
@@ -1177,138 +1213,6 @@ const archiveCreditNote = (id) => {
   return db.prepare('UPDATE credit_notes SET archived = 1 WHERE id = ?').run(id);
 };
 
-// Expense operations
-const generateExpenseNumber = () => {
-  const db = getDatabase();
-  const prefix = 'EXP-';
-
-  const lastExpense = db.prepare('SELECT expense_number FROM expenses ORDER BY id DESC LIMIT 1').get();
-
-  if (!lastExpense) {
-    return `${prefix}0001`;
-  }
-
-  const lastNumber = parseInt(lastExpense.expense_number.replace(prefix, ''));
-  const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
-  return `${prefix}${nextNumber}`;
-};
-
-const createExpense = (expense) => {
-  const db = getDatabase();
-  const stmt = db.prepare(`
-    INSERT INTO expenses (expense_number, category_id, vendor, amount, date, payment_method,
-      reference_number, description, receipt_url, billable, client_id, invoice_id, notes)
-    VALUES (@expense_number, @category_id, @vendor, @amount, @date, @payment_method,
-      @reference_number, @description, @receipt_url, @billable, @client_id, @invoice_id, @notes)
-  `);
-  return stmt.run(expense);
-};
-
-const getAllExpenses = () => {
-  const db = getDatabase();
-  return db.prepare(`
-    SELECT e.*, ec.name as category_name, c.name as client_name, i.invoice_number
-    FROM expenses e
-    LEFT JOIN expense_categories ec ON e.category_id = ec.id
-    LEFT JOIN clients c ON e.client_id = c.id
-    LEFT JOIN invoices i ON e.invoice_id = i.id
-    ORDER BY e.date DESC
-  `).all();
-};
-
-const getExpense = (id) => {
-  const db = getDatabase();
-  return db.prepare(`
-    SELECT e.*, ec.name as category_name, c.name as client_name, i.invoice_number
-    FROM expenses e
-    LEFT JOIN expense_categories ec ON e.category_id = ec.id
-    LEFT JOIN clients c ON e.client_id = c.id
-    LEFT JOIN invoices i ON e.invoice_id = i.id
-    WHERE e.id = ?
-  `).get(id);
-};
-
-const updateExpense = (id, expense) => {
-  const db = getDatabase();
-  const stmt = db.prepare(`
-    UPDATE expenses SET
-      category_id = @category_id,
-      vendor = @vendor,
-      amount = @amount,
-      date = @date,
-      payment_method = @payment_method,
-      reference_number = @reference_number,
-      description = @description,
-      receipt_url = @receipt_url,
-      billable = @billable,
-      client_id = @client_id,
-      invoice_id = @invoice_id,
-      notes = @notes,
-      updated_at = CURRENT_TIMESTAMP
-    WHERE id = @id
-  `);
-  return stmt.run({ ...expense, id });
-};
-
-const deleteExpense = (id) => {
-  const db = getDatabase();
-  return db.prepare('DELETE FROM expenses WHERE id = ?').run(id);
-};
-
-const getExpensesByClient = (clientId) => {
-  const db = getDatabase();
-  return db.prepare(`
-    SELECT e.*, ec.name as category_name
-    FROM expenses e
-    LEFT JOIN expense_categories ec ON e.category_id = ec.id
-    WHERE e.client_id = ?
-    ORDER BY e.date DESC
-  `).all(clientId);
-};
-
-const getBillableExpenses = () => {
-  const db = getDatabase();
-  return db.prepare(`
-    SELECT e.*, ec.name as category_name, c.name as client_name
-    FROM expenses e
-    LEFT JOIN expense_categories ec ON e.category_id = ec.id
-    LEFT JOIN clients c ON e.client_id = c.id
-    WHERE e.billable = 1 AND e.invoice_id IS NULL
-    ORDER BY e.date DESC
-  `).all();
-};
-
-// Expense Category operations
-const getAllExpenseCategories = () => {
-  const db = getDatabase();
-  return db.prepare('SELECT * FROM expense_categories ORDER BY name').all();
-};
-
-const createExpenseCategory = (category) => {
-  const db = getDatabase();
-  const stmt = db.prepare(`
-    INSERT INTO expense_categories (name, description)
-    VALUES (@name, @description)
-  `);
-  return stmt.run(category);
-};
-
-const updateExpenseCategory = (id, category) => {
-  const db = getDatabase();
-  const stmt = db.prepare(`
-    UPDATE expense_categories SET
-      name = @name,
-      description = @description
-    WHERE id = @id
-  `);
-  return stmt.run({ ...category, id });
-};
-
-const deleteExpenseCategory = (id) => {
-  const db = getDatabase();
-  return db.prepare('DELETE FROM expense_categories WHERE id = ?').run(id);
-};
-
 // Reminder Template operations
 const getAllReminderTemplates = () => {
   const db = getDatabase();
@@ -1495,20 +1399,6 @@ module.exports = {
   updateCreditNote,
   deleteCreditNote,
   archiveCreditNote,
-  // Expenses
-  generateExpenseNumber,
-  createExpense,
-  getAllExpenses,
-  getExpense,
-  updateExpense,
-  deleteExpense,
-  getExpensesByClient,
-  getBillableExpenses,
-  // Expense Categories
-  getAllExpenseCategories,
-  createExpenseCategory,
-  updateExpenseCategory,
-  deleteExpenseCategory,
   // Reminder Templates
   getAllReminderTemplates,
   getReminderTemplate,
