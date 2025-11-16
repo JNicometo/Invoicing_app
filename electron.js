@@ -1000,6 +1000,124 @@ ipcMain.handle('payment:createStripePaymentLink', async (event, paymentData) => 
   }
 });
 
+// Create a Payment Intent for direct card payment
+ipcMain.handle('payment:createPaymentIntent', async (event, paymentData) => {
+  try {
+    const { settings, invoice, client, amount } = paymentData;
+
+    // Validate Stripe settings
+    if (!settings.stripe_enabled || !settings.stripe_secret_key) {
+      throw new Error('Stripe is not configured. Please configure Stripe settings first.');
+    }
+
+    // Initialize Stripe with the secret key
+    const stripe = Stripe(settings.stripe_secret_key);
+
+    // Create a payment intent
+    const paymentIntent = await stripe.paymentIntents.create({
+      amount: Math.round((amount || invoice.total) * 100), // Stripe uses cents
+      currency: (settings.currency_code || 'USD').toLowerCase(),
+      metadata: {
+        invoice_id: invoice.id.toString(),
+        invoice_number: invoice.invoice_number,
+        client_id: client.id.toString(),
+        client_name: client.name,
+      },
+      description: `Payment for Invoice ${invoice.invoice_number}`,
+    });
+
+    console.log('Stripe payment intent created:', paymentIntent.id);
+    return {
+      success: true,
+      clientSecret: paymentIntent.client_secret,
+      paymentIntentId: paymentIntent.id,
+    };
+
+  } catch (error) {
+    console.error('Error creating Stripe payment intent:', error);
+    let errorMessage = error.message;
+    if (error.type === 'StripeAuthenticationError') {
+      errorMessage = 'Stripe authentication failed. Please check your API key.';
+    } else if (error.type === 'StripeInvalidRequestError') {
+      errorMessage = 'Invalid request to Stripe. Please check your settings.';
+    }
+    throw new Error(errorMessage);
+  }
+});
+
+// Process a card payment
+ipcMain.handle('payment:processCardPayment', async (event, paymentData) => {
+  try {
+    const { settings, cardDetails, clientSecret } = paymentData;
+
+    // Validate Stripe settings
+    if (!settings.stripe_enabled || !settings.stripe_secret_key) {
+      throw new Error('Stripe is not configured. Please configure Stripe settings first.');
+    }
+
+    // Initialize Stripe with the secret key
+    const stripe = Stripe(settings.stripe_secret_key);
+
+    // Create a payment method from card details
+    const paymentMethod = await stripe.paymentMethods.create({
+      type: 'card',
+      card: {
+        number: cardDetails.number.replace(/\s/g, ''),
+        exp_month: parseInt(cardDetails.expMonth),
+        exp_year: parseInt(cardDetails.expYear),
+        cvc: cardDetails.cvc,
+      },
+      billing_details: {
+        name: cardDetails.name,
+      },
+    });
+
+    // Confirm the payment intent with the payment method
+    const paymentIntent = await stripe.paymentIntents.confirm(
+      clientSecret.split('_secret_')[0], // Extract payment intent ID from client secret
+      {
+        payment_method: paymentMethod.id,
+      }
+    );
+
+    console.log('Payment processed:', paymentIntent.id, paymentIntent.status);
+
+    if (paymentIntent.status === 'succeeded') {
+      return {
+        success: true,
+        paymentIntentId: paymentIntent.id,
+        message: 'Payment successful!',
+      };
+    } else if (paymentIntent.status === 'requires_action') {
+      return {
+        success: false,
+        requiresAction: true,
+        clientSecret: paymentIntent.client_secret,
+        message: 'Additional authentication required.',
+      };
+    } else {
+      return {
+        success: false,
+        message: `Payment ${paymentIntent.status}. Please try again.`,
+      };
+    }
+
+  } catch (error) {
+    console.error('Error processing card payment:', error);
+    let errorMessage = error.message;
+
+    if (error.type === 'StripeCardError') {
+      errorMessage = error.message; // User-friendly message from Stripe
+    } else if (error.type === 'StripeAuthenticationError') {
+      errorMessage = 'Stripe authentication failed. Please check your API key.';
+    } else if (error.type === 'StripeInvalidRequestError') {
+      errorMessage = 'Invalid payment information. Please check your card details.';
+    }
+
+    throw new Error(errorMessage);
+  }
+});
+
 // Send email with payment link
 ipcMain.handle('email:sendInvoiceWithPayment', async (event, emailData) => {
   try {

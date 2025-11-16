@@ -27,6 +27,15 @@ function InvoicePreview({ invoice, onClose }) {
     notes: ''
   });
   const [savingPayment, setSavingPayment] = useState(false);
+  const [showCardPaymentModal, setShowCardPaymentModal] = useState(false);
+  const [cardDetails, setCardDetails] = useState({
+    number: '',
+    name: '',
+    expMonth: '',
+    expYear: '',
+    cvc: '',
+  });
+  const [processingCardPayment, setProcessingCardPayment] = useState(false);
   const { getInvoice, getSettings, saveInvoiceAsPDF, sendInvoiceEmail, createPayment, getPaymentsByInvoice, deletePayment } = useDatabase();
 
   useEffect(() => {
@@ -546,6 +555,117 @@ function InvoicePreview({ invoice, onClose }) {
     }
   };
 
+  const handleProcessCardPayment = async () => {
+    // Validate card details
+    if (!cardDetails.number || !cardDetails.name || !cardDetails.expMonth || !cardDetails.expYear || !cardDetails.cvc) {
+      alert('Please fill in all card details');
+      return;
+    }
+
+    // Basic card number validation
+    const cardNumber = cardDetails.number.replace(/\s/g, '');
+    if (cardNumber.length < 13 || cardNumber.length > 19) {
+      alert('Please enter a valid card number');
+      return;
+    }
+
+    // Validate expiry
+    const currentYear = new Date().getFullYear() % 100;
+    const currentMonth = new Date().getMonth() + 1;
+    const expYear = parseInt(cardDetails.expYear);
+    const expMonth = parseInt(cardDetails.expMonth);
+
+    if (expYear < currentYear || (expYear === currentYear && expMonth < currentMonth)) {
+      alert('Card has expired');
+      return;
+    }
+
+    // Validate CVC
+    if (cardDetails.cvc.length < 3 || cardDetails.cvc.length > 4) {
+      alert('Please enter a valid CVC');
+      return;
+    }
+
+    try {
+      setProcessingCardPayment(true);
+
+      // Calculate balance due
+      const balanceDue = Math.max(0, fullInvoice.total - totalPaid);
+
+      // Step 1: Create payment intent
+      const intentResult = await window.electron.invoke('payment:createPaymentIntent', {
+        settings,
+        invoice: fullInvoice,
+        client: { id: fullInvoice.client_id, name: fullInvoice.client_name },
+        amount: balanceDue,
+      });
+
+      if (!intentResult.success) {
+        throw new Error('Failed to create payment intent');
+      }
+
+      // Step 2: Process card payment
+      const paymentResult = await window.electron.invoke('payment:processCardPayment', {
+        settings,
+        cardDetails,
+        clientSecret: intentResult.clientSecret,
+      });
+
+      if (paymentResult.success) {
+        // Record the payment in the database
+        await createPayment({
+          invoice_id: fullInvoice.id,
+          amount: balanceDue,
+          payment_date: new Date().toISOString().split('T')[0],
+          payment_method: 'Credit Card (Stripe)',
+          reference_number: paymentResult.paymentIntentId,
+          notes: 'Online payment via Stripe'
+        });
+
+        // Reload payments and invoice to get updated status
+        await Promise.all([
+          loadPayments(fullInvoice.id),
+          loadInvoiceData()
+        ]);
+
+        alert('Payment successful! Thank you for your payment.');
+        setShowCardPaymentModal(false);
+
+        // Reset card details
+        setCardDetails({
+          number: '',
+          name: '',
+          expMonth: '',
+          expYear: '',
+          cvc: '',
+        });
+      } else {
+        alert(paymentResult.message || 'Payment failed. Please try again.');
+      }
+
+    } catch (error) {
+      console.error('Error processing card payment:', error);
+      alert('Payment failed: ' + error.message);
+    } finally {
+      setProcessingCardPayment(false);
+    }
+  };
+
+  const formatCardNumber = (value) => {
+    // Remove all non-digits
+    const digits = value.replace(/\D/g, '');
+    // Add space every 4 digits
+    const formatted = digits.match(/.{1,4}/g)?.join(' ') || digits;
+    return formatted;
+  };
+
+  const handleCardNumberChange = (e) => {
+    const formatted = formatCardNumber(e.target.value);
+    if (formatted.replace(/\s/g, '').length <= 19) {
+      setCardDetails(prev => ({ ...prev, number: formatted }));
+    }
+  };
+
   if (loading || !fullInvoice) {
     return (
       <div className="p-8">
@@ -601,13 +721,24 @@ function InvoicePreview({ invoice, onClose }) {
                 <DollarSign className="w-6 h-6 mr-2 text-green-600" />
                 Payment Tracking
               </h2>
-              <button
-                onClick={handleOpenPaymentModal}
-                className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
-              >
-                <CreditCard className="w-4 h-4 mr-2" />
-                Record Payment
-              </button>
+              <div className="flex space-x-2">
+                {settings?.stripe_enabled && (fullInvoice.total - totalPaid) > 0 && (
+                  <button
+                    onClick={() => setShowCardPaymentModal(true)}
+                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                  >
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    Pay with Card
+                  </button>
+                )}
+                <button
+                  onClick={handleOpenPaymentModal}
+                  className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
+                >
+                  <DollarSign className="w-4 h-4 mr-2" />
+                  Record Payment
+                </button>
+              </div>
             </div>
 
             {/* Balance Summary */}
@@ -937,6 +1068,165 @@ function InvoicePreview({ invoice, onClose }) {
                       <>
                         <Mail className="w-4 h-4 mr-2" />
                         Send Email
+                      </>
+                    )}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Card Payment Modal */}
+        {showCardPaymentModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+            <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-6">
+                  <h2 className="text-2xl font-bold text-gray-900">Pay with Credit Card</h2>
+                  <button
+                    onClick={() => setShowCardPaymentModal(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                    disabled={processingCardPayment}
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+
+                <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                  <p className="text-sm text-blue-800">
+                    <strong>Amount Due:</strong> {formatCurrency(Math.max(0, fullInvoice.total - totalPaid))}
+                  </p>
+                  <p className="text-xs text-blue-600 mt-1">
+                    Invoice #{fullInvoice.invoice_number}
+                  </p>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Card Number <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={cardDetails.number}
+                      onChange={handleCardNumberChange}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="1234 5678 9012 3456"
+                      maxLength="19"
+                      disabled={processingCardPayment}
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-2">
+                      Cardholder Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={cardDetails.name}
+                      onChange={(e) => setCardDetails(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      placeholder="John Doe"
+                      disabled={processingCardPayment}
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Month <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={cardDetails.expMonth}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '');
+                          if (value.length <= 2 && (value === '' || (parseInt(value) >= 1 && parseInt(value) <= 12))) {
+                            setCardDetails(prev => ({ ...prev, expMonth: value }));
+                          }
+                        }}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="MM"
+                        maxLength="2"
+                        disabled={processingCardPayment}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        Year <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={cardDetails.expYear}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '');
+                          if (value.length <= 2) {
+                            setCardDetails(prev => ({ ...prev, expYear: value }));
+                          }
+                        }}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="YY"
+                        maxLength="2"
+                        disabled={processingCardPayment}
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-2">
+                        CVC <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        value={cardDetails.cvc}
+                        onChange={(e) => {
+                          const value = e.target.value.replace(/\D/g, '');
+                          if (value.length <= 4) {
+                            setCardDetails(prev => ({ ...prev, cvc: value }));
+                          }
+                        }}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="123"
+                        maxLength="4"
+                        disabled={processingCardPayment}
+                      />
+                    </div>
+                  </div>
+
+                  <div className="p-3 bg-gray-50 border border-gray-200 rounded-lg">
+                    <p className="text-xs text-gray-600 flex items-center">
+                      <svg className="w-4 h-4 mr-2 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 15v2m-6 4h12a2 2 0 002-2v-6a2 2 0 00-2-2H6a2 2 0 00-2 2v6a2 2 0 002 2zm10-10V7a4 4 0 00-8 0v4h8z" />
+                      </svg>
+                      Your payment is secured with SSL encryption
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex justify-end space-x-3 mt-6">
+                  <button
+                    onClick={() => setShowCardPaymentModal(false)}
+                    className="px-6 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                    disabled={processingCardPayment}
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    onClick={handleProcessCardPayment}
+                    disabled={processingCardPayment}
+                    className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed flex items-center"
+                  >
+                    {processingCardPayment ? (
+                      <>
+                        <svg className="animate-spin -ml-1 mr-3 h-5 w-5 text-white" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                          <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"></circle>
+                          <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"></path>
+                        </svg>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <CreditCard className="w-4 h-4 mr-2" />
+                        Pay {formatCurrency(Math.max(0, fullInvoice.total - totalPaid))}
                       </>
                     )}
                   </button>
