@@ -1,0 +1,7 @@
+id,invoice_id,template_id,sent_date,reminder_type,days_overdue,status,notes,created_at
+1,4,1,2024-03-08,automatic,0,sent,Automatic reminder sent 3 days before due,2024-03-08 09:00:00
+2,8,1,2024-04-11,automatic,0,sent,Automatic reminder sent 3 days before due,2024-04-11 10:00:00
+3,16,2,2024-04-17,automatic,-7,sent,First overdue reminder sent,2024-04-17 09:00:00
+4,16,3,2024-04-24,automatic,-14,sent,Second overdue reminder sent,2024-04-24 09:00:00
+5,17,2,2024-05-09,automatic,-7,sent,First overdue reminder sent,2024-05-09 10:00:00
+6,9,NULL,2024-04-28,manual,0,sent,Manual reminder sent to check on payment,2024-04-28 14:30:00

@@ -1,0 +1,4 @@
+id,credit_note_number,invoice_id,client_id,date,reason,subtotal,tax,total,status,notes,archived,created_at,updated_at
+1,CN-2024-001,3,3,2024-03-05,Partial refund - functionality not delivered,1750.00,122.50,1872.50,issued,Refund for 10 hours of work not completed,0,2024-03-05 10:00:00,2024-03-05 14:30:00
+2,CN-2024-002,6,6,2024-03-20,Billing adjustment - overcharged hours,2000.00,140.00,2140.00,applied,Corrected hours calculation error,0,2024-03-20 11:00:00,2024-03-22 09:00:00
+3,CN-2024-003,1,1,2024-02-20,Service quality issue - partial credit,500.00,35.00,535.00,issued,Credit for delayed delivery,0,2024-02-20 15:00:00,2024-02-20 15:00:00

@@ -1,0 +1,9 @@
+id,estimate_number,client_id,date,expiry_date,status,subtotal,tax,total,notes,terms,converted_to_invoice_id,archived,created_at,updated_at
+1,EST-2024-001,1,2024-01-10,2024-02-10,accepted,5000.00,350.00,5350.00,Website redesign proposal,Valid for 30 days,1,0,2024-01-10 09:00:00,2024-01-15 10:00:00
+2,EST-2024-002,3,2024-01-25,2024-02-25,accepted,8750.00,612.50,9362.50,Custom software development estimate,Payment in milestones,3,0,2024-01-25 10:30:00,2024-02-01 09:15:00
+3,EST-2024-003,5,2024-02-05,2024-03-05,accepted,2400.00,168.00,2568.00,Brand identity package proposal,50% upfront - 50% on completion,5,0,2024-02-05 14:20:00,2024-02-15 16:45:00
+4,EST-2024-004,6,2024-02-20,2024-03-20,sent,22000.00,1540.00,23540.00,Full construction project estimate,Net 30 per phase,NULL,0,2024-02-20 08:30:00,2024-02-20 08:30:00
+5,EST-2024-005,9,2024-03-05,2024-04-05,declined,12500.00,875.00,13375.00,Comprehensive business transformation,Payment schedule negotiable,NULL,0,2024-03-05 11:00:00,2024-03-15 09:00:00
+6,EST-2024-006,10,2024-03-20,2024-04-20,sent,3500.00,245.00,3745.00,Complete bakery management system,Due on acceptance,NULL,0,2024-03-20 15:00:00,2024-03-20 15:00:00
+7,EST-2024-007,2,2024-04-01,2024-05-01,draft,5200.00,364.00,5564.00,Legal compliance audit,Valid for 30 days,NULL,0,2024-04-01 10:00:00,2024-04-01 10:00:00
+8,EST-2024-008,4,2024-04-10,2024-05-10,draft,4800.00,336.00,5136.00,Annual landscaping maintenance package,Quarterly billing,NULL,0,2024-04-10 13:30:00,2024-04-10 13:30:00
