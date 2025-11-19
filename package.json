@@ -14,7 +14,10 @@
     "electron:build:win": "npm run build && electron-builder --win",
     "electron:build:mac": "npm run build && electron-builder --mac",
     "electron:build:linux": "npm run build && electron-builder --linux",
-    "fix-db": "node fix-db.js"
+    "fix-db": "node fix-db.js",
+    "check": "npm ls --depth=0",
+    "verify": "npm audit && npm run check",
+    "predev": "npm run check"
   },
   "keywords": [
     "invoice",

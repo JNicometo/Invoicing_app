@@ -8,8 +8,31 @@ const Stripe = require('stripe');
 const express = require('express');
 const bodyParser = require('body-parser');
 const cron = require('node-cron');
+const log = require('./utils/logger');
 
 let mainWindow;
+
+// Input validation helpers
+const validateId = (id, name = 'ID') => {
+  if (!id || typeof id !== 'number' || id < 1) {
+    throw new Error(`Invalid ${name}: must be a positive number`);
+  }
+  return id;
+};
+
+const validateNonEmpty = (value, name = 'Value') => {
+  if (!value || (typeof value === 'string' && value.trim() === '')) {
+    throw new Error(`${name} cannot be empty`);
+  }
+  return value;
+};
+
+const validateObject = (obj, name = 'Object') => {
+  if (!obj || typeof obj !== 'object') {
+    throw new Error(`Invalid ${name}: must be an object`);
+  }
+  return obj;
+};
 
 function createWindow() {
   mainWindow = new BrowserWindow({
@@ -38,15 +61,28 @@ function createWindow() {
 }
 
 // Initialize database when app is ready
-app.whenReady().then(() => {
+app.whenReady().then(async () => {
   try {
-    db.initDatabase();
-    console.log('Database initialized successfully');
-  } catch (error) {
-    console.error('Failed to initialize database:', error);
-  }
+    // Initialize database first
+    await db.initDatabase();
+    log.success('Database initialized successfully');
 
-  createWindow();
+    // Create window after database is ready
+    createWindow();
+
+    // Start webhook server after database is initialized
+    startWebhookServer();
+
+    // Run initial reminder check after 5 seconds
+    setTimeout(() => {
+      log.info('Running initial reminder check...');
+      checkAndSendReminders();
+    }, 5000);
+
+  } catch (error) {
+    log.error('Failed to initialize application:', error);
+    app.quit();
+  }
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -94,9 +130,10 @@ ipcMain.handle('db:getAllClients', async () => {
 
 ipcMain.handle('db:getClient', async (event, id) => {
   try {
+    validateId(id, 'Client ID');
     return db.getClient(id);
   } catch (error) {
-    console.error('Error getting client:', error);
+    log.error('Error getting client:', error);
     throw error;
   }
 });
@@ -112,18 +149,23 @@ ipcMain.handle('db:getClientByCustomerNumber', async (event, customerNumber) => 
 
 ipcMain.handle('db:createClient', async (event, client) => {
   try {
+    validateObject(client, 'Client data');
+    validateNonEmpty(client.name, 'Client name');
+    validateNonEmpty(client.email, 'Client email');
     return db.createClient(client);
   } catch (error) {
-    console.error('Error creating client:', error);
+    log.error('Error creating client:', error);
     throw error;
   }
 });
 
 ipcMain.handle('db:updateClient', async (event, id, client) => {
   try {
+    validateId(id, 'Client ID');
+    validateObject(client, 'Client data');
     return db.updateClient(id, client);
   } catch (error) {
-    console.error('Error updating client:', error);
+    log.error('Error updating client:', error);
     throw error;
   }
 });
@@ -295,6 +337,7 @@ ipcMain.handle('db:getDashboardStats', async () => {
 
 // PDF Generation
 ipcMain.handle('pdf:saveInvoice', async (event, invoiceHtml, invoiceNumber) => {
+  let pdfWindow = null;
   try {
     // Show save dialog
     const { filePath, canceled } = await dialog.showSaveDialog(mainWindow, {
@@ -310,7 +353,7 @@ ipcMain.handle('pdf:saveInvoice', async (event, invoiceHtml, invoiceNumber) => {
     }
 
     // Create a hidden window to render the invoice
-    const pdfWindow = new BrowserWindow({
+    pdfWindow = new BrowserWindow({
       show: false,
       webPreferences: {
         nodeIntegration: false,
@@ -339,18 +382,21 @@ ipcMain.handle('pdf:saveInvoice', async (event, invoiceHtml, invoiceNumber) => {
     // Save the PDF
     fs.writeFileSync(filePath, pdfData);
 
-    // Close the hidden window
-    pdfWindow.close();
-
     return { success: true, filePath };
   } catch (error) {
-    console.error('Error generating PDF:', error);
+    log.error('Error generating PDF:', error);
     throw error;
+  } finally {
+    // Always close the PDF window, even on error
+    if (pdfWindow && !pdfWindow.isDestroyed()) {
+      pdfWindow.close();
+    }
   }
 });
 
 // Email Sending
 ipcMain.handle('email:sendInvoice', async (event, emailData) => {
+  let pdfWindow = null;
   try {
     const { settings, recipient, subject, body, invoiceHtml, invoiceNumber, cc, bcc } = emailData;
 
@@ -369,7 +415,8 @@ ipcMain.handle('email:sendInvoice', async (event, emailData) => {
         pass: settings.smtp_password,
       },
       tls: {
-        rejectUnauthorized: false // Allow self-signed certificates (for development)
+        // Allow configuration of TLS verification (default: true for security)
+        rejectUnauthorized: settings.smtp_verify_tls !== false
       }
     });
 
@@ -377,7 +424,7 @@ ipcMain.handle('email:sendInvoice', async (event, emailData) => {
     await transporter.verify();
 
     // Generate PDF in memory for attachment
-    const pdfWindow = new BrowserWindow({
+    pdfWindow = new BrowserWindow({
       show: false,
       webPreferences: {
         nodeIntegration: false,
@@ -398,8 +445,6 @@ ipcMain.handle('email:sendInvoice', async (event, emailData) => {
         right: 0.5
       }
     });
-
-    pdfWindow.close();
 
     // Prepare email options
     const mailOptions = {
@@ -430,7 +475,7 @@ ipcMain.handle('email:sendInvoice', async (event, emailData) => {
     // Send the email
     const info = await transporter.sendMail(mailOptions);
 
-    console.log('Email sent successfully:', info.messageId);
+    log.success('Email sent successfully:', info.messageId);
     return {
       success: true,
       messageId: info.messageId,
@@ -438,7 +483,7 @@ ipcMain.handle('email:sendInvoice', async (event, emailData) => {
     };
 
   } catch (error) {
-    console.error('Error sending email:', error);
+    log.error('Error sending email:', error);
 
     // Provide user-friendly error messages
     let errorMessage = error.message;
@@ -451,6 +496,11 @@ ipcMain.handle('email:sendInvoice', async (event, emailData) => {
     }
 
     throw new Error(errorMessage);
+  } finally {
+    // Always close the PDF window, even on error
+    if (pdfWindow && !pdfWindow.isDestroyed()) {
+      pdfWindow.close();
+    }
   }
 });
 
@@ -1130,9 +1180,9 @@ ipcMain.handle('payment:createStripePaymentLink', async (event, paymentData) => 
         client_name: client.name,
       },
       after_completion: {
-        type: 'redirect',
-        redirect: {
-          url: `https://example.com/payment-success?invoice=${invoice.invoice_number}`,
+        type: 'hosted_confirmation',
+        hosted_confirmation: {
+          custom_message: `Thank you! Payment for Invoice ${invoice.invoice_number} has been received. You will receive a confirmation email shortly.`,
         },
       },
     });
@@ -1404,10 +1454,13 @@ ipcMain.handle('email:sendInvoiceWithPayment', async (event, emailData) => {
 // ========================================
 
 let webhookServer = null;
-const WEBHOOK_PORT = 3001;
 
 function startWebhookServer() {
   try {
+    const settings = db.getSettings();
+    // Make webhook port configurable via settings (default: 3001)
+    const WEBHOOK_PORT = parseInt(settings.webhook_port) || 3001;
+
     const webhookApp = express();
 
     // Webhook endpoint needs raw body for signature verification
@@ -1420,7 +1473,7 @@ function startWebhookServer() {
           const settings = db.getSettings();
 
           if (!settings.stripe_enabled || !settings.stripe_secret_key) {
-            console.log('Stripe not configured, ignoring webhook');
+            log.warn('Stripe not configured, ignoring webhook');
             return res.status(400).send('Stripe not configured');
           }
 
@@ -1429,16 +1482,21 @@ function startWebhookServer() {
           // Verify webhook signature
           let event;
           try {
-            // For signature verification, you need to set up a webhook secret in Stripe dashboard
-            // For now, we'll parse the event without verification in development
-            // In production, use: event = stripe.webhooks.constructEvent(req.body, sig, webhookSecret);
-            event = JSON.parse(req.body.toString());
+            // Use webhook secret if configured for proper signature verification
+            if (settings.stripe_webhook_secret) {
+              event = stripe.webhooks.constructEvent(req.body, sig, settings.stripe_webhook_secret);
+              log.debug('Webhook signature verified successfully');
+            } else {
+              // Fallback: parse without verification (only for development/testing)
+              log.warn('Stripe webhook secret not configured - signature verification skipped (INSECURE)');
+              event = JSON.parse(req.body.toString());
+            }
           } catch (err) {
-            console.error('Webhook signature verification failed:', err.message);
+            log.error('Webhook signature verification failed:', err.message);
             return res.status(400).send(`Webhook Error: ${err.message}`);
           }
 
-          console.log('Received Stripe webhook event:', event.type);
+          log.info('Received Stripe webhook event:', event.type);
 
           // Handle payment success events
           if (event.type === 'checkout.session.completed' ||
@@ -1492,35 +1550,31 @@ function startWebhookServer() {
     );
 
     webhookServer = webhookApp.listen(WEBHOOK_PORT, () => {
-      console.log(`Stripe webhook server listening on port ${WEBHOOK_PORT}`);
-      console.log(`Webhook endpoint: http://localhost:${WEBHOOK_PORT}/webhook/stripe`);
-      console.log('Configure this URL in your Stripe Dashboard webhook settings');
+      log.success(`Stripe webhook server listening on port ${WEBHOOK_PORT}`);
+      log.info(`Webhook endpoint: http://localhost:${WEBHOOK_PORT}/webhook/stripe`);
+      log.info('Configure this URL in your Stripe Dashboard webhook settings');
     })
     .on('error', (err) => {
       if (err.code === 'EADDRINUSE') {
-        console.warn(`Port ${WEBHOOK_PORT} is already in use. Webhook server will not start.`);
-        console.warn('Another instance of the application may be running, or another process is using this port.');
+        log.warn(`Port ${WEBHOOK_PORT} is already in use. Webhook server will not start.`);
+        log.warn('Another instance of the application may be running, or another process is using this port.');
+        log.warn('Change the webhook_port in settings to use a different port.');
         webhookServer = null;
       } else {
-        console.error('Webhook server error:', err);
+        log.error('Webhook server error:', err);
       }
     });
 
   } catch (error) {
-    console.error('Failed to start webhook server:', error);
+    log.error('Failed to start webhook server:', error);
   }
 }
-
-// Start webhook server when app is ready
-app.whenReady().then(() => {
-  startWebhookServer();
-});
 
 // Stop webhook server when app quits
 app.on('before-quit', () => {
   if (webhookServer) {
     webhookServer.close();
-    console.log('Webhook server stopped');
+    log.info('Webhook server stopped');
   }
 });
 
@@ -1627,17 +1681,28 @@ async function checkAndSendReminders() {
   }
 }
 
-// Schedule reminder checks - runs every hour
-cron.schedule('0 * * * *', () => {
-  console.log('Running scheduled reminder check...');
-  checkAndSendReminders();
+// Reminder check timing protection
+let lastReminderCheck = null;
+const MIN_CHECK_INTERVAL = 30 * 60 * 1000; // 30 minutes
+
+// Enhanced check function with duplicate prevention
+const checkAndSendRemindersWithProtection = async () => {
+  const now = Date.now();
+  if (lastReminderCheck && (now - lastReminderCheck) < MIN_CHECK_INTERVAL) {
+    log.debug('Skipping reminder check - too soon since last check');
+    return;
+  }
+  lastReminderCheck = now;
+  await checkAndSendReminders();
+};
+
+// Schedule reminder checks - runs every 6 hours (more reasonable interval)
+cron.schedule('0 */6 * * *', () => {
+  log.info('Running scheduled reminder check (every 6 hours)...');
+  checkAndSendRemindersWithProtection();
 });
 
-// Run reminder check on startup (after 30 seconds)
-setTimeout(() => {
-  console.log('Running initial reminder check...');
-  checkAndSendReminders();
-}, 30000);
+// Initial check is handled in app.whenReady()
 
 // Automatic backup scheduler - runs daily at 2:00 AM
 cron.schedule('0 2 * * *', async () => {
