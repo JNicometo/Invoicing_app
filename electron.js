@@ -1062,11 +1062,10 @@ ipcMain.handle('backup:selectFile', async (event, mode) => {
   }
 });
 
-// SQL Server Connection
-const SQLServerAdapter = require('./database/sqlServerAdapter');
-
+// SQL Server Connection (lazy-loaded to avoid crashes if packages not installed)
 ipcMain.handle('sqlserver:testConnection', async (event, config) => {
   try {
+    const SQLServerAdapter = require('./database/sqlServerAdapter');
     const adapter = new SQLServerAdapter({
       type: config.type,
       host: config.host,
@@ -1087,6 +1086,7 @@ ipcMain.handle('sqlserver:testConnection', async (event, config) => {
 
 ipcMain.handle('sqlserver:checkDatabase', async (event, config) => {
   try {
+    const SQLServerAdapter = require('./database/sqlServerAdapter');
     const adapter = new SQLServerAdapter({
       type: config.type,
       host: config.host,
@@ -1107,6 +1107,7 @@ ipcMain.handle('sqlserver:checkDatabase', async (event, config) => {
 
 ipcMain.handle('sqlserver:createDatabase', async (event, config) => {
   try {
+    const SQLServerAdapter = require('./database/sqlServerAdapter');
     const adapter = new SQLServerAdapter({
       type: config.type,
       host: config.host,
@@ -1127,6 +1128,7 @@ ipcMain.handle('sqlserver:createDatabase', async (event, config) => {
 
 ipcMain.handle('sqlserver:createSchema', async (event, config) => {
   try {
+    const SQLServerAdapter = require('./database/sqlServerAdapter');
     const adapter = new SQLServerAdapter({
       type: config.type,
       host: config.host,
