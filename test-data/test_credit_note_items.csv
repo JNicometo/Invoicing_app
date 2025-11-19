@@ -1,0 +1,4 @@
+id,credit_note_id,description,quantity,rate,amount,created_at
+1,1,Custom Software Development - Partial Refund,10,175.00,1750.00,2024-03-05 10:05:00
+2,2,Construction Consulting - Hours Adjustment,10,200.00,2000.00,2024-03-20 11:05:00
+3,3,Delayed Delivery Credit,1,500.00,500.00,2024-02-20 15:05:00

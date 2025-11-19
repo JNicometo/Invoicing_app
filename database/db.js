@@ -10,10 +10,16 @@ const getUserDataPath = () => {
   return app ? app.getPath('userData') : './';
 };
 
+// Get database filename (configurable via environment variable)
+const getDbFilename = () => {
+  return process.env.DB_FILENAME || 'invoicepro.db';
+};
+
 // Initialize database
 const initDatabase = () => {
   try {
-    const dbPath = path.join(getUserDataPath(), 'invoicepro.db');
+    const dbFilename = getDbFilename();
+    const dbPath = path.join(getUserDataPath(), dbFilename);
     console.log('Initializing database at:', dbPath);
 
     db = new Database(dbPath);
@@ -39,6 +45,24 @@ const initDatabase = () => {
 const runMigrations = () => {
   try {
     console.log('Running database migrations...');
+
+    // Create backup before running migrations
+    try {
+      const dbFilename = getDbFilename();
+      const dbPath = path.join(getUserDataPath(), dbFilename);
+      const backupPath = path.join(
+        getUserDataPath(),
+        `${dbFilename.replace('.db', '')}-backup-${Date.now()}.db`
+      );
+
+      if (fs.existsSync(dbPath)) {
+        fs.copyFileSync(dbPath, backupPath);
+        console.log(`Database backed up to: ${backupPath}`);
+      }
+    } catch (backupError) {
+      console.warn('Could not create backup before migrations:', backupError.message);
+      // Continue with migrations even if backup fails
+    }
 
     // Check if customer_number column exists in clients table
     const clientColumns = db.pragma('table_info(clients)');
@@ -164,6 +188,11 @@ const runMigrations = () => {
       { name: 'stripe_secret_key', type: 'TEXT', default: "''" },
       { name: 'stripe_publishable_key', type: 'TEXT', default: "''" },
       { name: 'stripe_enabled', type: 'INTEGER', default: '0' },
+      { name: 'stripe_webhook_secret', type: 'TEXT', default: "''" },
+      { name: 'webhook_port', type: 'TEXT', default: "'3001'" },
+
+      // SMTP Security
+      { name: 'smtp_verify_tls', type: 'INTEGER', default: '1' }, // 1 = verify TLS (secure), 0 = skip verification
 
       // Network Mode Settings
       { name: 'network_mode_enabled', type: 'INTEGER', default: '0' },

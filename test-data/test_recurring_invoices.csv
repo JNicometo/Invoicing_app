@@ -1,0 +1,6 @@
+id,client_id,frequency,start_date,end_date,last_generated,next_generation,template_name,subtotal,tax,total,notes,payment_terms,active,created_at,updated_at
+1,2,monthly,2024-01-01,2024-12-31,2024-05-01,2024-06-01,Legal Retainer - Monthly,3500.00,245.00,3745.00,Monthly legal retainer services,Net 30,1,2024-01-01 08:00:00,2024-05-01 09:00:00
+2,7,monthly,2024-02-01,NULL,2024-05-01,2024-06-01,Healthcare IT Support - Monthly,950.00,66.50,1016.50,Monthly IT support and monitoring,Payment due within 30 days,1,2024-02-01 09:00:00,2024-05-01 10:00:00
+3,5,monthly,2024-03-01,NULL,2024-05-01,2024-06-01,Social Media Management - Monthly,800.00,56.00,856.00,Monthly social media management,Due on receipt,1,2024-03-01 10:00:00,2024-05-01 11:00:00
+4,8,weekly,2024-03-01,NULL,2024-05-15,2024-05-22,Weekly Delivery Service,450.00,31.50,481.50,Weekly delivery service package,Net 15,1,2024-03-01 11:00:00,2024-05-15 14:00:00
+5,10,quarterly,2024-01-01,NULL,2024-04-01,2024-07-01,Quarterly Equipment Maintenance,650.00,45.50,695.50,Quarterly bakery equipment maintenance,Payment due within 30 days,1,2024-01-01 12:00:00,2024-04-01 15:00:00

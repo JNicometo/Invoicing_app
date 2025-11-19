@@ -1,0 +1,16 @@
+id,item_number,description,rate,category,created_at,updated_at
+1,ITEM-001,Web Development - Hourly Rate,150.00,Development,2024-01-10 09:00:00,2024-01-10 09:00:00
+2,ITEM-002,Graphic Design - Hourly Rate,85.00,Design,2024-01-10 09:05:00,2024-01-10 09:05:00
+3,ITEM-003,SEO Optimization Services,500.00,Marketing,2024-01-10 09:10:00,2024-01-10 09:10:00
+4,ITEM-004,Content Writing - Per Article,75.00,Writing,2024-01-10 09:15:00,2024-01-10 09:15:00
+5,ITEM-005,Social Media Management - Monthly,800.00,Marketing,2024-01-10 09:20:00,2024-01-10 09:20:00
+6,ITEM-006,Logo Design Package,1200.00,Design,2024-01-10 09:25:00,2024-01-10 09:25:00
+7,ITEM-007,Website Hosting - Monthly,25.00,Hosting,2024-01-10 09:30:00,2024-01-10 09:30:00
+8,ITEM-008,Email Marketing Campaign,350.00,Marketing,2024-01-10 09:35:00,2024-01-10 09:35:00
+9,ITEM-009,Mobile App Development - Hourly,175.00,Development,2024-01-10 09:40:00,2024-01-10 09:40:00
+10,ITEM-010,Database Consulting - Hourly,200.00,Consulting,2024-01-10 09:45:00,2024-01-10 09:45:00
+11,ITEM-011,Technical Support - Hourly,95.00,Support,2024-01-10 09:50:00,2024-01-10 09:50:00
+12,ITEM-012,Video Production Services,2500.00,Media,2024-01-10 09:55:00,2024-01-10 09:55:00
+13,ITEM-013,Photography Session,450.00,Media,2024-01-10 10:00:00,2024-01-10 10:00:00
+14,ITEM-014,Project Management - Hourly,125.00,Management,2024-01-10 10:05:00,2024-01-10 10:05:00
+15,ITEM-015,Training Session - Per Hour,180.00,Training,2024-01-10 10:10:00,2024-01-10 10:10:00

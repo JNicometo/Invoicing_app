@@ -1,0 +1,21 @@
+id,estimate_id,description,quantity,rate,amount,created_at
+1,1,Web Development - Homepage Redesign,20,150.00,3000.00,2024-01-10 09:05:00
+2,1,Responsive Design Implementation,10,150.00,1500.00,2024-01-10 09:06:00
+3,1,Content Migration,5,100.00,500.00,2024-01-10 09:07:00
+4,2,Custom Software Development,50,175.00,8750.00,2024-01-25 10:35:00
+5,3,Logo Design Package,1,1200.00,1200.00,2024-02-05 14:25:00
+6,3,Brand Guidelines Document,1,800.00,800.00,2024-02-05 14:26:00
+7,3,Business Card Design,1,400.00,400.00,2024-02-05 14:27:00
+8,4,Construction Planning & Design,60,200.00,12000.00,2024-02-20 08:35:00
+9,4,Project Management (Full Project),40,200.00,8000.00,2024-02-20 08:36:00
+10,4,Quality Assurance & Inspections,10,200.00,2000.00,2024-02-20 08:37:00
+11,5,Business Process Reengineering,50,125.00,6250.00,2024-03-05 11:05:00
+12,5,Change Management Training,20,180.00,3600.00,2024-03-05 11:06:00
+13,5,Executive Coaching,13,200.00,2600.00,2024-03-05 11:07:00
+14,6,POS System Hardware & Software,1,2500.00,2500.00,2024-03-20 15:05:00
+15,6,Inventory Management System Setup,4,175.00,700.00,2024-03-20 15:06:00
+16,6,Staff Training,2,150.00,300.00,2024-03-20 15:07:00
+17,7,Legal Compliance Audit,20,200.00,4000.00,2024-04-01 10:05:00
+18,7,Documentation Review,12,100.00,1200.00,2024-04-01 10:06:00
+19,8,Spring/Summer Lawn Care,16,150.00,2400.00,2024-04-10 13:35:00
+20,8,Fall/Winter Maintenance,16,150.00,2400.00,2024-04-10 13:36:00
