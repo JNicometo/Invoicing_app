@@ -340,12 +340,92 @@ function listBackups() {
   }
 }
 
+/**
+ * Restore database from CSV files
+ * @param {string[]} csvFilePaths - Array of paths to CSV files
+ * @returns {Promise<object>} - Restore statistics
+ */
+async function restoreFromCSV(csvFilePaths) {
+  const stats = {
+    tables_restored: 0,
+    total_rows: 0,
+    tables: {},
+    errors: []
+  };
+
+  const database = db.getDatabase();
+
+  // Temporarily disable foreign key constraints
+  database.prepare('PRAGMA foreign_keys = OFF').run();
+
+  try {
+    for (const filePath of csvFilePaths) {
+      const fileName = path.basename(filePath);
+      const tableName = fileName.replace('.csv', '').toLowerCase();
+
+      // Check if this is a valid table
+      if (!TABLES_TO_BACKUP.includes(tableName)) {
+        // Try to match by partial name (e.g., "clients_export.csv" -> "clients")
+        const matchedTable = TABLES_TO_BACKUP.find(t => fileName.toLowerCase().includes(t));
+        if (!matchedTable) {
+          stats.errors.push(`Unknown table for file: ${fileName}`);
+          continue;
+        }
+      }
+
+      const targetTable = TABLES_TO_BACKUP.find(t =>
+        tableName === t || fileName.toLowerCase().includes(t)
+      );
+
+      if (!targetTable) {
+        stats.errors.push(`Could not determine table for file: ${fileName}`);
+        continue;
+      }
+
+      try {
+        const csvContent = fs.readFileSync(filePath, 'utf8');
+
+        if (!csvContent || csvContent.trim() === '') {
+          stats.errors.push(`Empty file: ${fileName}`);
+          continue;
+        }
+
+        const rowCount = importTableFromCSV(targetTable, csvContent);
+
+        stats.tables_restored++;
+        stats.total_rows += rowCount;
+        stats.tables[targetTable] = rowCount;
+
+        console.log(`Imported ${rowCount} rows from ${fileName} into ${targetTable}`);
+      } catch (error) {
+        stats.errors.push(`Error importing ${fileName}: ${error.message}`);
+        console.error(`Error importing ${fileName}:`, error);
+      }
+    }
+  } finally {
+    // Re-enable foreign key constraints
+    database.prepare('PRAGMA foreign_keys = ON').run();
+  }
+
+  console.log('CSV restore completed:', stats);
+  return stats;
+}
+
+/**
+ * Get supported table names for CSV import
+ */
+function getSupportedTables() {
+  return [...TABLES_TO_BACKUP];
+}
+
 module.exports = {
   createBackup,
   restoreBackup,
+  restoreFromCSV,
   createAutoBackup,
   getDefaultBackupDir,
   generateBackupFilename,
   listBackups,
-  cleanupOldBackups
+  cleanupOldBackups,
+  getSupportedTables
 };
