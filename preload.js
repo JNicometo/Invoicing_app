@@ -110,8 +110,11 @@ contextBridge.exposeInMainWorld('electron', {
         // Backup & Restore
         'backup:create',
         'backup:restore',
+        'backup:restoreFromCSV',
         'backup:list',
         'backup:selectFile',
+        'backup:selectCSVFiles',
+        'backup:getSupportedTables',
         // SQL Server
         'sqlserver:testConnection',
         'sqlserver:checkDatabase',

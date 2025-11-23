@@ -2416,6 +2416,103 @@ function Settings() {
 
                   <div className="border-t border-gray-200 pt-8"></div>
 
+                  {/* Restore from CSV Files */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-2 mb-4">
+                      <FileText className="w-5 h-5 text-gray-700" />
+                      <h3 className="text-lg font-semibold text-gray-900">Restore from CSV Files</h3>
+                    </div>
+
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      <p className="text-sm text-gray-600 mb-4">
+                        Import data from individual CSV files. Select one or more CSV files to restore specific tables.
+                        File names should match table names (e.g., <code className="bg-gray-100 px-1 rounded">clients.csv</code>, <code className="bg-gray-100 px-1 rounded">invoices.csv</code>).
+                      </p>
+
+                      <div className="mb-4 p-4 bg-blue-50 rounded-lg border border-blue-200">
+                        <p className="text-xs text-blue-800 mb-2">
+                          <strong>Supported tables:</strong>
+                        </p>
+                        <p className="text-xs text-blue-700 font-mono">
+                          clients, invoices, invoice_items, saved_items, payments, recurring_invoices, recurring_invoice_items, estimates, estimate_items, credit_notes, credit_note_items, reminder_templates, invoice_reminders, settings
+                        </p>
+                      </div>
+
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            setSaving(true);
+
+                            // Select CSV files
+                            const fileResult = await window.electron.ipcRenderer.invoke('backup:selectCSVFiles');
+
+                            if (fileResult.canceled) {
+                              setSaving(false);
+                              return;
+                            }
+
+                            // Show confirmation with file list
+                            const fileNames = fileResult.paths.map(p => p.split(/[\\/]/).pop()).join('\n- ');
+                            const confirmed = window.confirm(
+                              `You are about to import the following CSV files:\n\n- ${fileNames}\n\n` +
+                              'Existing records with matching IDs will be updated.\n\n' +
+                              'Continue with import?'
+                            );
+
+                            if (!confirmed) {
+                              setSaving(false);
+                              return;
+                            }
+
+                            // Restore from CSV files
+                            const result = await window.electron.ipcRenderer.invoke('backup:restoreFromCSV', fileResult.paths);
+
+                            if (result.success) {
+                              let message = `CSV Import Complete!\n\n`;
+                              message += `Tables imported: ${result.stats.tables_restored}\n`;
+                              message += `Total rows: ${result.stats.total_rows}\n\n`;
+
+                              if (Object.keys(result.stats.tables).length > 0) {
+                                message += `Details:\n`;
+                                for (const [table, count] of Object.entries(result.stats.tables)) {
+                                  message += `  • ${table}: ${count} rows\n`;
+                                }
+                              }
+
+                              if (result.stats.errors && result.stats.errors.length > 0) {
+                                message += `\nWarnings:\n`;
+                                for (const error of result.stats.errors) {
+                                  message += `  ⚠ ${error}\n`;
+                                }
+                              }
+
+                              message += '\nThe app will reload to apply the changes.';
+                              alert(message);
+
+                              // Reload the app to reflect changes
+                              window.location.reload();
+                            }
+                          } catch (error) {
+                            console.error('Error importing CSV files:', error);
+                            alert('Error importing CSV files: ' + error.message);
+                          } finally {
+                            setSaving(false);
+                          }
+                        }}
+                        disabled={saving}
+                        className={`flex items-center px-6 py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 transition-colors ${
+                          saving ? 'opacity-50 cursor-not-allowed' : ''
+                        }`}
+                      >
+                        <FileText className="w-5 h-5 mr-2" />
+                        {saving ? 'Importing...' : 'Choose CSV Files to Import'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-8"></div>
+
                   {/* Automatic Backups Info */}
                   <div className="space-y-4">
                     <div className="flex items-center space-x-2 mb-4">
