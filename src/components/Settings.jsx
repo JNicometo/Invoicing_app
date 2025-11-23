@@ -2782,26 +2782,23 @@ function Settings() {
                                 ssl: formData.sql_server_ssl
                               });
 
+                              let proceedWithSchema = true;
+
                               if (checkResult.exists) {
-                                alert('Database already exists!\n\nThe database "' + formData.sql_server_database + '" is already on the server.');
-                                setSaving(false);
-                                return;
-                              }
+                                // Database exists - ask if they want to create tables anyway
+                                proceedWithSchema = window.confirm(
+                                  `The database "${formData.sql_server_database}" already exists.\n\n` +
+                                  'Do you want to create/update the tables in this database?\n\n' +
+                                  '(This will not delete existing data, but will create any missing tables)'
+                                );
 
-                              // Create database
-                              const createResult = await window.electron.ipcRenderer.invoke('sqlserver:createDatabase', {
-                                type: formData.sql_server_type,
-                                host: formData.sql_server_host,
-                                port: formData.sql_server_port,
-                                database: formData.sql_server_database,
-                                username: formData.sql_server_username,
-                                password: formData.sql_server_password,
-                                ssl: formData.sql_server_ssl
-                              });
-
-                              if (createResult.success) {
-                                // Create schema
-                                const schemaResult = await window.electron.ipcRenderer.invoke('sqlserver:createSchema', {
+                                if (!proceedWithSchema) {
+                                  setSaving(false);
+                                  return;
+                                }
+                              } else {
+                                // Create database first
+                                const createResult = await window.electron.ipcRenderer.invoke('sqlserver:createDatabase', {
                                   type: formData.sql_server_type,
                                   host: formData.sql_server_host,
                                   port: formData.sql_server_port,
@@ -2811,13 +2808,28 @@ function Settings() {
                                   ssl: formData.sql_server_ssl
                                 });
 
-                                if (schemaResult.success) {
-                                  alert('✓ Database created successfully!\n\nDatabase and all tables have been created on the server.\n\nYou can now enable "Use SQL Server Database" and save settings.');
-                                } else {
-                                  alert('✗ Error creating tables:\n\n' + schemaResult.message);
+                                if (!createResult.success) {
+                                  alert('✗ Error creating database:\n\n' + createResult.message);
+                                  setSaving(false);
+                                  return;
                                 }
+                              }
+
+                              // Create schema/tables
+                              const schemaResult = await window.electron.ipcRenderer.invoke('sqlserver:createSchema', {
+                                type: formData.sql_server_type,
+                                host: formData.sql_server_host,
+                                port: formData.sql_server_port,
+                                database: formData.sql_server_database,
+                                username: formData.sql_server_username,
+                                password: formData.sql_server_password,
+                                ssl: formData.sql_server_ssl
+                              });
+
+                              if (schemaResult.success) {
+                                alert('✓ Setup complete!\n\nDatabase and all tables have been created/updated.\n\nYou can now enable "Use SQL Server Database" and save settings.');
                               } else {
-                                alert('✗ Error creating database:\n\n' + createResult.message);
+                                alert('✗ Error creating tables:\n\n' + schemaResult.message);
                               }
                             } catch (error) {
                               alert('✗ Error:\n\n' + error.message);
@@ -2829,7 +2841,7 @@ function Settings() {
                           className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors disabled:opacity-50"
                         >
                           <Database className="w-4 h-4 mr-2" />
-                          {saving ? 'Setting Up...' : 'Create Database & Tables'}
+                          {saving ? 'Setting Up...' : 'Setup Database & Tables'}
                         </button>
                       </div>
                     </div>
