@@ -1062,6 +1062,57 @@ ipcMain.handle('backup:selectFile', async (event, mode) => {
   }
 });
 
+// CSV Restore - Select multiple CSV files
+ipcMain.handle('backup:selectCSVFiles', async () => {
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Select CSV Files to Restore',
+      filters: [
+        { name: 'CSV Files', extensions: ['csv'] },
+        { name: 'All Files', extensions: ['*'] }
+      ],
+      properties: ['openFile', 'multiSelections']
+    });
+
+    if (result.canceled) {
+      return { canceled: true };
+    }
+
+    return {
+      canceled: false,
+      paths: result.filePaths
+    };
+  } catch (error) {
+    console.error('Error selecting CSV files:', error);
+    throw error;
+  }
+});
+
+// Restore from CSV files
+ipcMain.handle('backup:restoreFromCSV', async (event, csvFilePaths) => {
+  try {
+    const stats = await backup.restoreFromCSV(csvFilePaths);
+
+    return {
+      success: true,
+      stats
+    };
+  } catch (error) {
+    console.error('Error restoring from CSV:', error);
+    throw error;
+  }
+});
+
+// Get supported tables for CSV import
+ipcMain.handle('backup:getSupportedTables', async () => {
+  try {
+    return backup.getSupportedTables();
+  } catch (error) {
+    console.error('Error getting supported tables:', error);
+    throw error;
+  }
+});
+
 // SQL Server Connection (lazy-loaded to avoid crashes if packages not installed)
 ipcMain.handle('sqlserver:testConnection', async (event, config) => {
   try {
