@@ -70,8 +70,12 @@ class SQLServerAdapter {
             options: {
               database: this.config.database,
               port: parseInt(this.config.port) || 1433,
-              encrypt: this.config.ssl,
-              trustServerCertificate: !this.config.ssl
+              encrypt: !!this.config.ssl,
+              trustServerCertificate: true, // Always trust for local/internal servers
+              connectTimeout: 30000, // 30 second timeout
+              requestTimeout: 30000,
+              rowCollectionOnDone: true,
+              useColumnNames: true
             }
           };
 
@@ -79,10 +83,15 @@ class SQLServerAdapter {
 
           this.connection.on('connect', (err) => {
             if (err) {
+              console.error('MSSQL connection error:', err);
               reject(err);
             } else {
               resolve(this.connection);
             }
+          });
+
+          this.connection.on('error', (err) => {
+            console.error('MSSQL error event:', err);
           });
 
           this.connection.connect();
