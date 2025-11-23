@@ -314,6 +314,9 @@ class SQLServerAdapter {
       const schemaPath = path.join(__dirname, 'schema.sql');
       let schema = fs.readFileSync(schemaPath, 'utf8');
 
+      // Remove single-line comments BEFORE splitting (they cause issues when attached to statements)
+      schema = schema.replace(/--.*$/gm, '');
+
       // Convert SQLite schema to target SQL server schema
       schema = this.convertSchema(schema);
 
@@ -321,7 +324,7 @@ class SQLServerAdapter {
       const statements = schema
         .split(';')
         .map(s => s.trim())
-        .filter(s => s.length > 0 && !s.startsWith('--'));
+        .filter(s => s.length > 0);
 
       console.log(`Found ${statements.length} SQL statements to execute`);
 
@@ -381,16 +384,28 @@ class SQLServerAdapter {
       schema = schema.replace(/INTEGER/g, 'INT');
       schema = schema.replace(/TEXT/g, 'NVARCHAR(MAX)');
       schema = schema.replace(/REAL/g, 'DECIMAL(10,2)');
-      schema = schema.replace(/IF NOT EXISTS/g, '');
+
+      // MSSQL doesn't support IF NOT EXISTS - remove it
+      schema = schema.replace(/IF NOT EXISTS\s*/gi, '');
+
+      // MSSQL doesn't support UNIQUE INDEX with WHERE clause the same way
+      // Convert partial unique indexes to regular indexes
+      schema = schema.replace(/CREATE UNIQUE INDEX\s+(\w+)\s+ON\s+(\w+)\((\w+)\)\s+WHERE\s+\w+\s+IS\s+NOT\s+NULL/gi,
+        'CREATE INDEX $1 ON $2($3)');
+
+      // MSSQL uses different default timestamp syntax
+      schema = schema.replace(/DEFAULT CURRENT_TIMESTAMP/g, 'DEFAULT GETDATE()');
     }
 
     // Remove SQLite-specific pragmas
     schema = schema.replace(/PRAGMA.*/g, '');
 
-    // Remove INSERT OR IGNORE (need to handle differently)
-    schema = schema.replace(/INSERT OR IGNORE/g, 'INSERT IGNORE'); // MySQL
-    if (this.type === 'postgres' || this.type === 'mssql') {
-      schema = schema.replace(/INSERT IGNORE/g, 'INSERT');
+    // Handle INSERT statements
+    if (this.type === 'mysql') {
+      schema = schema.replace(/INSERT OR IGNORE/g, 'INSERT IGNORE');
+    } else if (this.type === 'postgres' || this.type === 'mssql') {
+      // For MSSQL and Postgres, just use INSERT (will fail on duplicates but that's ok)
+      schema = schema.replace(/INSERT OR IGNORE/g, 'INSERT');
     }
 
     return schema;
