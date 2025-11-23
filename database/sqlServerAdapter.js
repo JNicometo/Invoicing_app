@@ -147,7 +147,10 @@ class SQLServerAdapter {
         delete tempConfig.database;
       }
 
-      console.log(`Checking if database "${this.config.database}" exists...`);
+      // Explicitly ensure type is set
+      tempConfig.type = this.type;
+
+      console.log(`Checking if database "${this.config.database}" exists (type: ${this.type})...`);
 
       const tempAdapter = new SQLServerAdapter(tempConfig);
       await tempAdapter.connect();
@@ -189,7 +192,7 @@ class SQLServerAdapter {
       return exists;
     } catch (error) {
       console.error('Error checking if database exists:', error);
-      return false;
+      throw error; // Re-throw so caller knows it failed
     }
   }
 
@@ -207,7 +210,10 @@ class SQLServerAdapter {
         delete tempConfig.database;
       }
 
-      console.log(`Creating database "${this.config.database}"...`);
+      // Explicitly ensure type is set
+      tempConfig.type = this.type;
+
+      console.log(`Creating database "${this.config.database}" (type: ${this.type})...`);
 
       const tempAdapter = new SQLServerAdapter(tempConfig);
       await tempAdapter.connect();
@@ -235,15 +241,20 @@ class SQLServerAdapter {
               console.error('Error creating database:', err);
               reject(err);
             } else {
-              console.log('Database created successfully');
+              console.log('Database CREATE command completed');
               resolve();
             }
           });
           tempAdapter.connection.execSql(request);
         });
+
+        // Wait for database to be ready (MSSQL needs time to initialize the database)
+        console.log('Waiting for database to be ready...');
+        await new Promise(resolve => setTimeout(resolve, 2000));
       }
 
       await tempAdapter.disconnect();
+      console.log(`Database "${this.config.database}" created successfully`);
       return { success: true, message: 'Database created successfully' };
     } catch (error) {
       console.error('Error creating database:', error);
@@ -294,7 +305,10 @@ class SQLServerAdapter {
    */
   async createSchema() {
     try {
+      console.log(`Creating schema in database "${this.config.database}" (type: ${this.type})...`);
+
       await this.connect();
+      console.log('Connected to database for schema creation');
 
       // Read SQLite schema and convert to SQL server schema
       const schemaPath = path.join(__dirname, 'schema.sql');
@@ -309,21 +323,31 @@ class SQLServerAdapter {
         .map(s => s.trim())
         .filter(s => s.length > 0 && !s.startsWith('--'));
 
+      console.log(`Found ${statements.length} SQL statements to execute`);
+
+      let successCount = 0;
+      let errorCount = 0;
+
       // Execute each statement
       for (const statement of statements) {
         if (statement.length > 0) {
           try {
             await this.query(statement);
-            console.log('Executed:', statement.substring(0, 100) + '...');
+            successCount++;
+            console.log('Executed:', statement.substring(0, 80) + '...');
           } catch (error) {
-            console.error('Error executing statement:', statement);
-            console.error(error.message);
+            errorCount++;
+            console.error('Error executing statement:', statement.substring(0, 80));
+            console.error('Error:', error.message);
             // Continue with next statement
           }
         }
       }
 
-      return { success: true, message: 'Schema created successfully' };
+      console.log(`Schema creation complete: ${successCount} succeeded, ${errorCount} failed`);
+      await this.disconnect();
+
+      return { success: true, message: `Schema created: ${successCount} statements executed` };
     } catch (error) {
       console.error('Error creating schema:', error);
       return { success: false, message: error.message };
