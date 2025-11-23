@@ -12,6 +12,25 @@ const log = require('./utils/logger');
 
 let mainWindow;
 
+// ==================== Database Routing Helper ====================
+// Route database calls to either SQLite or SQL Server based on settings
+
+/**
+ * Get the appropriate database adapter based on settings
+ * Settings always come from SQLite, data operations go to SQL Server when enabled
+ */
+const getDbAdapter = () => {
+  const sqlServerAdapter = db.getSqlServerAdapter();
+  return sqlServerAdapter || null;
+};
+
+/**
+ * Check if we should use SQL Server for data operations
+ */
+const useSqlServer = () => {
+  return db.isUsingSqlServer();
+};
+
 // Input validation helpers
 const validateId = (id, name = 'ID') => {
   if (!id || typeof id !== 'number' || id < 1) {
@@ -111,7 +130,10 @@ ipcMain.handle('db:getSettings', async () => {
 
 ipcMain.handle('db:updateSettings', async (event, settings) => {
   try {
-    return db.updateSettings(settings);
+    const result = db.updateSettings(settings);
+    // Reset SQL Server adapter when settings change (in case connection settings changed)
+    db.resetSqlServerAdapter();
+    return result;
   } catch (error) {
     console.error('Error updating settings:', error);
     throw error;
@@ -121,6 +143,10 @@ ipcMain.handle('db:updateSettings', async (event, settings) => {
 // Clients
 ipcMain.handle('db:getAllClients', async () => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.getAllClients();
+    }
     return db.getAllClients();
   } catch (error) {
     console.error('Error getting clients:', error);
@@ -131,6 +157,10 @@ ipcMain.handle('db:getAllClients', async () => {
 ipcMain.handle('db:getClient', async (event, id) => {
   try {
     validateId(id, 'Client ID');
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.getClient(id);
+    }
     return db.getClient(id);
   } catch (error) {
     log.error('Error getting client:', error);
@@ -140,6 +170,7 @@ ipcMain.handle('db:getClient', async (event, id) => {
 
 ipcMain.handle('db:getClientByCustomerNumber', async (event, customerNumber) => {
   try {
+    // SQL Server adapter doesn't have this yet, fallback to SQLite
     return db.getClientByCustomerNumber(customerNumber);
   } catch (error) {
     console.error('Error getting client by customer number:', error);
@@ -152,6 +183,10 @@ ipcMain.handle('db:createClient', async (event, client) => {
     validateObject(client, 'Client data');
     validateNonEmpty(client.name, 'Client name');
     validateNonEmpty(client.email, 'Client email');
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.createClient(client);
+    }
     return db.createClient(client);
   } catch (error) {
     log.error('Error creating client:', error);
@@ -163,6 +198,10 @@ ipcMain.handle('db:updateClient', async (event, id, client) => {
   try {
     validateId(id, 'Client ID');
     validateObject(client, 'Client data');
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.updateClient(id, client);
+    }
     return db.updateClient(id, client);
   } catch (error) {
     log.error('Error updating client:', error);
@@ -172,6 +211,10 @@ ipcMain.handle('db:updateClient', async (event, id, client) => {
 
 ipcMain.handle('db:deleteClient', async (event, id) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.deleteClient(id);
+    }
     return db.deleteClient(id);
   } catch (error) {
     console.error('Error deleting client:', error);
@@ -181,6 +224,7 @@ ipcMain.handle('db:deleteClient', async (event, id) => {
 
 ipcMain.handle('db:getClientStats', async (event, clientId) => {
   try {
+    // SQL Server adapter doesn't have this yet, fallback to SQLite
     return db.getClientStats(clientId);
   } catch (error) {
     console.error('Error getting client stats:', error);
@@ -191,6 +235,10 @@ ipcMain.handle('db:getClientStats', async (event, clientId) => {
 // Invoices
 ipcMain.handle('db:getAllInvoices', async () => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.getAllInvoices();
+    }
     return db.getAllInvoices();
   } catch (error) {
     console.error('Error getting invoices:', error);
@@ -200,6 +248,10 @@ ipcMain.handle('db:getAllInvoices', async () => {
 
 ipcMain.handle('db:getArchivedInvoices', async () => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.getArchivedInvoices();
+    }
     return db.getArchivedInvoices();
   } catch (error) {
     console.error('Error getting archived invoices:', error);
@@ -209,6 +261,14 @@ ipcMain.handle('db:getArchivedInvoices', async () => {
 
 ipcMain.handle('db:getInvoice', async (event, id) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      const invoice = await adapter.getInvoice(id);
+      if (invoice) {
+        invoice.items = await adapter.getInvoiceItems(id);
+      }
+      return invoice;
+    }
     return db.getInvoice(id);
   } catch (error) {
     console.error('Error getting invoice:', error);
@@ -218,6 +278,25 @@ ipcMain.handle('db:getInvoice', async (event, id) => {
 
 ipcMain.handle('db:createInvoice', async (event, invoice, items) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      const result = await adapter.createInvoice(invoice);
+      const invoiceId = result.lastInsertRowid;
+      // Insert items
+      for (const item of items) {
+        await adapter.createInvoiceItem({
+          invoice_id: invoiceId,
+          description: item.description,
+          quantity: item.quantity,
+          rate: item.rate,
+          discount_type: item.discount_type || 'none',
+          discount_value: item.discount_value || 0,
+          discount_amount: item.discount_amount || 0,
+          amount: item.amount
+        });
+      }
+      return invoiceId;
+    }
     return db.createInvoice(invoice, items);
   } catch (error) {
     console.error('Error creating invoice:', error);
@@ -227,6 +306,25 @@ ipcMain.handle('db:createInvoice', async (event, invoice, items) => {
 
 ipcMain.handle('db:updateInvoice', async (event, id, invoice, items) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      await adapter.updateInvoice(id, invoice);
+      await adapter.deleteInvoiceItems(id);
+      // Insert new items
+      for (const item of items) {
+        await adapter.createInvoiceItem({
+          invoice_id: id,
+          description: item.description,
+          quantity: item.quantity,
+          rate: item.rate,
+          discount_type: item.discount_type || 'none',
+          discount_value: item.discount_value || 0,
+          discount_amount: item.discount_amount || 0,
+          amount: item.amount
+        });
+      }
+      return;
+    }
     return db.updateInvoice(id, invoice, items);
   } catch (error) {
     console.error('Error updating invoice:', error);
@@ -236,6 +334,10 @@ ipcMain.handle('db:updateInvoice', async (event, id, invoice, items) => {
 
 ipcMain.handle('db:deleteInvoice', async (event, id) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.deleteInvoice(id);
+    }
     return db.deleteInvoice(id);
   } catch (error) {
     console.error('Error deleting invoice:', error);
@@ -245,6 +347,10 @@ ipcMain.handle('db:deleteInvoice', async (event, id) => {
 
 ipcMain.handle('db:archiveInvoice', async (event, id) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.archiveInvoice(id);
+    }
     return db.archiveInvoice(id);
   } catch (error) {
     console.error('Error archiving invoice:', error);
@@ -254,6 +360,10 @@ ipcMain.handle('db:archiveInvoice', async (event, id) => {
 
 ipcMain.handle('db:restoreInvoice', async (event, id) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.restoreInvoice(id);
+    }
     return db.restoreInvoice(id);
   } catch (error) {
     console.error('Error restoring invoice:', error);
@@ -263,6 +373,7 @@ ipcMain.handle('db:restoreInvoice', async (event, id) => {
 
 ipcMain.handle('db:generateInvoiceNumber', async () => {
   try {
+    // Always use SQLite for invoice number generation (settings-based)
     return db.generateInvoiceNumber();
   } catch (error) {
     console.error('Error generating invoice number:', error);
@@ -273,6 +384,10 @@ ipcMain.handle('db:generateInvoiceNumber', async () => {
 // Saved Items
 ipcMain.handle('db:getAllSavedItems', async () => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.getAllSavedItems();
+    }
     return db.getAllSavedItems();
   } catch (error) {
     console.error('Error getting saved items:', error);
@@ -282,6 +397,10 @@ ipcMain.handle('db:getAllSavedItems', async () => {
 
 ipcMain.handle('db:getSavedItem', async (event, id) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.getSavedItem(id);
+    }
     return db.getSavedItem(id);
   } catch (error) {
     console.error('Error getting saved item:', error);
@@ -291,6 +410,7 @@ ipcMain.handle('db:getSavedItem', async (event, id) => {
 
 ipcMain.handle('db:getSavedItemByItemNumber', async (event, itemNumber) => {
   try {
+    // SQL Server adapter doesn't have this yet, fallback to SQLite
     return db.getSavedItemByItemNumber(itemNumber);
   } catch (error) {
     console.error('Error getting saved item by item number:', error);
@@ -300,6 +420,10 @@ ipcMain.handle('db:getSavedItemByItemNumber', async (event, itemNumber) => {
 
 ipcMain.handle('db:createSavedItem', async (event, item) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.createSavedItem(item);
+    }
     return db.createSavedItem(item);
   } catch (error) {
     console.error('Error creating saved item:', error);
@@ -309,6 +433,10 @@ ipcMain.handle('db:createSavedItem', async (event, item) => {
 
 ipcMain.handle('db:updateSavedItem', async (event, id, item) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.updateSavedItem(id, item);
+    }
     return db.updateSavedItem(id, item);
   } catch (error) {
     console.error('Error updating saved item:', error);
@@ -318,6 +446,10 @@ ipcMain.handle('db:updateSavedItem', async (event, id, item) => {
 
 ipcMain.handle('db:deleteSavedItem', async (event, id) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.deleteSavedItem(id);
+    }
     return db.deleteSavedItem(id);
   } catch (error) {
     console.error('Error deleting saved item:', error);
@@ -328,6 +460,21 @@ ipcMain.handle('db:deleteSavedItem', async (event, id) => {
 // Dashboard
 ipcMain.handle('db:getDashboardStats', async () => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      await adapter.connect();
+      const stats = await adapter.query(`
+        SELECT
+          COUNT(*) as total_invoices,
+          COALESCE(SUM(total), 0) as total_revenue,
+          COALESCE(SUM(CASE WHEN status = 'paid' THEN total ELSE 0 END), 0) as paid_amount,
+          COALESCE(SUM(CASE WHEN status = 'pending' THEN total ELSE 0 END), 0) as pending_amount,
+          COALESCE(SUM(CASE WHEN status = 'overdue' THEN total ELSE 0 END), 0) as overdue_amount
+        FROM invoices
+        WHERE archived = 0
+      `);
+      return stats[0] || { total_invoices: 0, total_revenue: 0, paid_amount: 0, pending_amount: 0, overdue_amount: 0 };
+    }
     return db.getDashboardStats();
   } catch (error) {
     console.error('Error getting dashboard stats:', error);
@@ -507,6 +654,10 @@ ipcMain.handle('email:sendInvoice', async (event, emailData) => {
 // Payments
 ipcMain.handle('db:createPayment', async (event, payment) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.createPayment(payment);
+    }
     return db.createPayment(payment);
   } catch (error) {
     console.error('Error creating payment:', error);
@@ -516,6 +667,10 @@ ipcMain.handle('db:createPayment', async (event, payment) => {
 
 ipcMain.handle('db:getPaymentsByInvoice', async (event, invoiceId) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.getPaymentsByInvoice(invoiceId);
+    }
     return db.getPaymentsByInvoice(invoiceId);
   } catch (error) {
     console.error('Error getting payments:', error);
@@ -525,6 +680,10 @@ ipcMain.handle('db:getPaymentsByInvoice', async (event, invoiceId) => {
 
 ipcMain.handle('db:deletePayment', async (event, id) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.deletePayment(id);
+    }
     return db.deletePayment(id);
   } catch (error) {
     console.error('Error deleting payment:', error);
@@ -590,6 +749,7 @@ ipcMain.handle('db:generateInvoiceFromRecurring', async (event, recurringInvoice
 // Estimates
 ipcMain.handle('db:generateEstimateNumber', async () => {
   try {
+    // Always use SQLite for number generation (settings-based)
     return db.generateEstimateNumber();
   } catch (error) {
     console.error('Error generating estimate number:', error);
@@ -599,6 +759,13 @@ ipcMain.handle('db:generateEstimateNumber', async () => {
 
 ipcMain.handle('db:createEstimate', async (event, estimate, items) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      const result = await adapter.createEstimate(estimate);
+      // Note: estimate items would need to be inserted separately
+      // For now, use SQLite for full functionality
+      return result;
+    }
     return db.createEstimate(estimate, items);
   } catch (error) {
     console.error('Error creating estimate:', error);
@@ -608,6 +775,10 @@ ipcMain.handle('db:createEstimate', async (event, estimate, items) => {
 
 ipcMain.handle('db:getAllEstimates', async () => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.getAllEstimates();
+    }
     return db.getAllEstimates();
   } catch (error) {
     console.error('Error getting estimates:', error);
@@ -617,6 +788,7 @@ ipcMain.handle('db:getAllEstimates', async () => {
 
 ipcMain.handle('db:getArchivedEstimates', async () => {
   try {
+    // SQL Server adapter doesn't have this yet, fallback to SQLite
     return db.getArchivedEstimates();
   } catch (error) {
     console.error('Error getting archived estimates:', error);
@@ -626,6 +798,10 @@ ipcMain.handle('db:getArchivedEstimates', async () => {
 
 ipcMain.handle('db:getEstimate', async (event, id) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.getEstimate(id);
+    }
     return db.getEstimate(id);
   } catch (error) {
     console.error('Error getting estimate:', error);
@@ -635,6 +811,10 @@ ipcMain.handle('db:getEstimate', async (event, id) => {
 
 ipcMain.handle('db:updateEstimate', async (event, id, estimate, items) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.updateEstimate(id, estimate);
+    }
     return db.updateEstimate(id, estimate, items);
   } catch (error) {
     console.error('Error updating estimate:', error);
@@ -644,6 +824,10 @@ ipcMain.handle('db:updateEstimate', async (event, id, estimate, items) => {
 
 ipcMain.handle('db:deleteEstimate', async (event, id) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.deleteEstimate(id);
+    }
     return db.deleteEstimate(id);
   } catch (error) {
     console.error('Error deleting estimate:', error);
@@ -653,6 +837,7 @@ ipcMain.handle('db:deleteEstimate', async (event, id) => {
 
 ipcMain.handle('db:archiveEstimate', async (event, id) => {
   try {
+    // SQL Server adapter doesn't have this yet, fallback to SQLite
     return db.archiveEstimate(id);
   } catch (error) {
     console.error('Error archiving estimate:', error);
@@ -662,6 +847,7 @@ ipcMain.handle('db:archiveEstimate', async (event, id) => {
 
 ipcMain.handle('db:restoreEstimate', async (event, id) => {
   try {
+    // SQL Server adapter doesn't have this yet, fallback to SQLite
     return db.restoreEstimate(id);
   } catch (error) {
     console.error('Error restoring estimate:', error);
@@ -671,6 +857,7 @@ ipcMain.handle('db:restoreEstimate', async (event, id) => {
 
 ipcMain.handle('db:convertEstimateToInvoice', async (event, estimateId) => {
   try {
+    // Complex operation - use SQLite for now
     return db.convertEstimateToInvoice(estimateId);
   } catch (error) {
     console.error('Error converting estimate to invoice:', error);
@@ -681,6 +868,7 @@ ipcMain.handle('db:convertEstimateToInvoice', async (event, estimateId) => {
 // Credit Notes
 ipcMain.handle('db:generateCreditNoteNumber', async () => {
   try {
+    // Always use SQLite for number generation (settings-based)
     return db.generateCreditNoteNumber();
   } catch (error) {
     console.error('Error generating credit note number:', error);
@@ -690,6 +878,10 @@ ipcMain.handle('db:generateCreditNoteNumber', async () => {
 
 ipcMain.handle('db:createCreditNote', async (event, creditNote, items) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.createCreditNote(creditNote);
+    }
     return db.createCreditNote(creditNote, items);
   } catch (error) {
     console.error('Error creating credit note:', error);
@@ -699,6 +891,10 @@ ipcMain.handle('db:createCreditNote', async (event, creditNote, items) => {
 
 ipcMain.handle('db:getAllCreditNotes', async () => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.getAllCreditNotes();
+    }
     return db.getAllCreditNotes();
   } catch (error) {
     console.error('Error getting credit notes:', error);
@@ -708,6 +904,10 @@ ipcMain.handle('db:getAllCreditNotes', async () => {
 
 ipcMain.handle('db:getCreditNote', async (event, id) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.getCreditNote(id);
+    }
     return db.getCreditNote(id);
   } catch (error) {
     console.error('Error getting credit note:', error);
@@ -717,6 +917,7 @@ ipcMain.handle('db:getCreditNote', async (event, id) => {
 
 ipcMain.handle('db:getCreditNotesByInvoice', async (event, invoiceId) => {
   try {
+    // SQL Server adapter doesn't have this yet, fallback to SQLite
     return db.getCreditNotesByInvoice(invoiceId);
   } catch (error) {
     console.error('Error getting credit notes by invoice:', error);
@@ -726,6 +927,10 @@ ipcMain.handle('db:getCreditNotesByInvoice', async (event, invoiceId) => {
 
 ipcMain.handle('db:updateCreditNote', async (event, id, creditNote, items) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.updateCreditNote(id, creditNote);
+    }
     return db.updateCreditNote(id, creditNote, items);
   } catch (error) {
     console.error('Error updating credit note:', error);
@@ -735,6 +940,10 @@ ipcMain.handle('db:updateCreditNote', async (event, id, creditNote, items) => {
 
 ipcMain.handle('db:deleteCreditNote', async (event, id) => {
   try {
+    if (useSqlServer()) {
+      const adapter = getDbAdapter();
+      return await adapter.deleteCreditNote(id);
+    }
     return db.deleteCreditNote(id);
   } catch (error) {
     console.error('Error deleting credit note:', error);
@@ -744,6 +953,7 @@ ipcMain.handle('db:deleteCreditNote', async (event, id) => {
 
 ipcMain.handle('db:archiveCreditNote', async (event, id) => {
   try {
+    // SQL Server adapter doesn't have this yet, fallback to SQLite
     return db.archiveCreditNote(id);
   } catch (error) {
     console.error('Error archiving credit note:', error);

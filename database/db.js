@@ -1530,6 +1530,57 @@ const getAuditLogsByResource = (resource_type, resource_id) => {
   `).all(resource_type, resource_id);
 };
 
+// ==================== SQL Server Support ====================
+
+let sqlServerAdapter = null;
+
+/**
+ * Check if SQL Server is enabled and return the adapter
+ * Always reads settings from SQLite to determine if SQL Server should be used
+ */
+const getSqlServerAdapter = () => {
+  const settings = getSettings();
+
+  if (!settings.use_sql_server) {
+    sqlServerAdapter = null;
+    return null;
+  }
+
+  // Create or reuse SQL Server adapter
+  if (!sqlServerAdapter) {
+    const SQLServerAdapter = require('./sqlServerAdapter');
+    sqlServerAdapter = new SQLServerAdapter({
+      type: settings.sql_server_type || 'mssql',
+      host: settings.sql_server_host || 'localhost',
+      port: settings.sql_server_port || '1433',
+      database: settings.sql_server_database || 'invoicepro',
+      username: settings.sql_server_username || '',
+      password: settings.sql_server_password || '',
+      ssl: !!settings.sql_server_ssl
+    });
+  }
+
+  return sqlServerAdapter;
+};
+
+/**
+ * Reset SQL Server adapter (call when settings change)
+ */
+const resetSqlServerAdapter = () => {
+  if (sqlServerAdapter) {
+    sqlServerAdapter.disconnect().catch(() => {});
+    sqlServerAdapter = null;
+  }
+};
+
+/**
+ * Check if using SQL Server
+ */
+const isUsingSqlServer = () => {
+  const settings = getSettings();
+  return !!settings.use_sql_server;
+};
+
 module.exports = {
   initDatabase,
   getDatabase,
@@ -1627,5 +1678,9 @@ module.exports = {
   createAuditLog,
   getAuditLogs,
   getAuditLogsByUser,
-  getAuditLogsByResource
+  getAuditLogsByResource,
+  // SQL Server Support
+  getSqlServerAdapter,
+  resetSqlServerAdapter,
+  isUsingSqlServer
 };

@@ -437,6 +437,282 @@ class SQLServerAdapter {
 
     return schema;
   }
+
+  // ==================== CRUD Operations ====================
+
+  /**
+   * Get all rows from a table
+   */
+  async getAll(table, orderBy = 'id') {
+    await this.connect();
+    return this.query(`SELECT * FROM ${table} ORDER BY ${orderBy}`);
+  }
+
+  /**
+   * Get a single row by ID
+   */
+  async getById(table, id) {
+    await this.connect();
+    const rows = await this.query(`SELECT * FROM ${table} WHERE id = ${id}`);
+    return rows[0] || null;
+  }
+
+  /**
+   * Insert a row into a table
+   */
+  async insert(table, data) {
+    await this.connect();
+    const columns = Object.keys(data).filter(k => data[k] !== undefined);
+    const values = columns.map(k => {
+      const v = data[k];
+      if (v === null) return 'NULL';
+      if (typeof v === 'number') return v;
+      return `'${String(v).replace(/'/g, "''")}'`;
+    });
+
+    const sql = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${values.join(', ')})`;
+    await this.query(sql);
+
+    // Get the last inserted ID
+    const result = await this.query('SELECT SCOPE_IDENTITY() as id');
+    return { lastInsertRowid: result[0]?.id || 0 };
+  }
+
+  /**
+   * Update a row in a table
+   */
+  async update(table, id, data) {
+    await this.connect();
+    const updates = Object.keys(data)
+      .filter(k => data[k] !== undefined && k !== 'id')
+      .map(k => {
+        const v = data[k];
+        if (v === null) return `${k} = NULL`;
+        if (typeof v === 'number') return `${k} = ${v}`;
+        return `${k} = '${String(v).replace(/'/g, "''")}'`;
+      });
+
+    if (updates.length === 0) return { changes: 0 };
+
+    const sql = `UPDATE ${table} SET ${updates.join(', ')} WHERE id = ${id}`;
+    await this.query(sql);
+    return { changes: 1 };
+  }
+
+  /**
+   * Delete a row from a table
+   */
+  async delete(table, id) {
+    await this.connect();
+    await this.query(`DELETE FROM ${table} WHERE id = ${id}`);
+    return { changes: 1 };
+  }
+
+  /**
+   * Execute a custom query with parameters
+   */
+  async queryWithParams(sql, params = []) {
+    await this.connect();
+    // Simple parameter replacement (not ideal for production, but works for this use case)
+    let processedSql = sql;
+    params.forEach((param, index) => {
+      const placeholder = `@p${index}`;
+      const value = param === null ? 'NULL' :
+                    typeof param === 'number' ? param :
+                    `'${String(param).replace(/'/g, "''")}'`;
+      processedSql = processedSql.replace('?', value);
+    });
+    return this.query(processedSql);
+  }
+
+  // ==================== Client Operations ====================
+
+  async getAllClients() {
+    return this.getAll('clients', 'name');
+  }
+
+  async getClient(id) {
+    return this.getById('clients', id);
+  }
+
+  async createClient(client) {
+    return this.insert('clients', client);
+  }
+
+  async updateClient(id, client) {
+    return this.update('clients', id, client);
+  }
+
+  async deleteClient(id) {
+    return this.delete('clients', id);
+  }
+
+  // ==================== Invoice Operations ====================
+
+  async getAllInvoices() {
+    await this.connect();
+    return this.query(`
+      SELECT i.*, c.name as client_name, c.email as client_email
+      FROM invoices i
+      LEFT JOIN clients c ON i.client_id = c.id
+      WHERE i.archived = 0
+      ORDER BY i.created_at DESC
+    `);
+  }
+
+  async getArchivedInvoices() {
+    await this.connect();
+    return this.query(`
+      SELECT i.*, c.name as client_name, c.email as client_email
+      FROM invoices i
+      LEFT JOIN clients c ON i.client_id = c.id
+      WHERE i.archived = 1
+      ORDER BY i.created_at DESC
+    `);
+  }
+
+  async getInvoice(id) {
+    return this.getById('invoices', id);
+  }
+
+  async createInvoice(invoice) {
+    return this.insert('invoices', invoice);
+  }
+
+  async updateInvoice(id, invoice) {
+    return this.update('invoices', id, invoice);
+  }
+
+  async deleteInvoice(id) {
+    await this.connect();
+    await this.query(`DELETE FROM invoice_items WHERE invoice_id = ${id}`);
+    return this.delete('invoices', id);
+  }
+
+  async archiveInvoice(id) {
+    return this.update('invoices', id, { archived: 1 });
+  }
+
+  async restoreInvoice(id) {
+    return this.update('invoices', id, { archived: 0 });
+  }
+
+  // ==================== Invoice Items Operations ====================
+
+  async getInvoiceItems(invoiceId) {
+    await this.connect();
+    return this.query(`SELECT * FROM invoice_items WHERE invoice_id = ${invoiceId}`);
+  }
+
+  async createInvoiceItem(item) {
+    return this.insert('invoice_items', item);
+  }
+
+  async deleteInvoiceItems(invoiceId) {
+    await this.connect();
+    await this.query(`DELETE FROM invoice_items WHERE invoice_id = ${invoiceId}`);
+    return { changes: 1 };
+  }
+
+  // ==================== Saved Items Operations ====================
+
+  async getAllSavedItems() {
+    return this.getAll('saved_items', 'description');
+  }
+
+  async getSavedItem(id) {
+    return this.getById('saved_items', id);
+  }
+
+  async createSavedItem(item) {
+    return this.insert('saved_items', item);
+  }
+
+  async updateSavedItem(id, item) {
+    return this.update('saved_items', id, item);
+  }
+
+  async deleteSavedItem(id) {
+    return this.delete('saved_items', id);
+  }
+
+  // ==================== Payment Operations ====================
+
+  async getPaymentsByInvoice(invoiceId) {
+    await this.connect();
+    return this.query(`SELECT * FROM payments WHERE invoice_id = ${invoiceId} ORDER BY payment_date DESC`);
+  }
+
+  async createPayment(payment) {
+    return this.insert('payments', payment);
+  }
+
+  async deletePayment(id) {
+    return this.delete('payments', id);
+  }
+
+  // ==================== Estimate Operations ====================
+
+  async getAllEstimates() {
+    await this.connect();
+    return this.query(`
+      SELECT e.*, c.name as client_name, c.email as client_email
+      FROM estimates e
+      LEFT JOIN clients c ON e.client_id = c.id
+      WHERE e.archived = 0
+      ORDER BY e.created_at DESC
+    `);
+  }
+
+  async getEstimate(id) {
+    return this.getById('estimates', id);
+  }
+
+  async createEstimate(estimate) {
+    return this.insert('estimates', estimate);
+  }
+
+  async updateEstimate(id, estimate) {
+    return this.update('estimates', id, estimate);
+  }
+
+  async deleteEstimate(id) {
+    await this.connect();
+    await this.query(`DELETE FROM estimate_items WHERE estimate_id = ${id}`);
+    return this.delete('estimates', id);
+  }
+
+  // ==================== Credit Note Operations ====================
+
+  async getAllCreditNotes() {
+    await this.connect();
+    return this.query(`
+      SELECT cn.*, c.name as client_name, i.invoice_number
+      FROM credit_notes cn
+      LEFT JOIN clients c ON cn.client_id = c.id
+      LEFT JOIN invoices i ON cn.invoice_id = i.id
+      WHERE cn.archived = 0
+      ORDER BY cn.created_at DESC
+    `);
+  }
+
+  async getCreditNote(id) {
+    return this.getById('credit_notes', id);
+  }
+
+  async createCreditNote(creditNote) {
+    return this.insert('credit_notes', creditNote);
+  }
+
+  async updateCreditNote(id, creditNote) {
+    return this.update('credit_notes', id, creditNote);
+  }
+
+  async deleteCreditNote(id) {
+    await this.connect();
+    await this.query(`DELETE FROM credit_note_items WHERE credit_note_id = ${id}`);
+    return this.delete('credit_notes', id);
+  }
 }
 
 module.exports = SQLServerAdapter;
