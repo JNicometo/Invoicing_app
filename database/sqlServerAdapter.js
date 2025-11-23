@@ -58,6 +58,9 @@ class SQLServerAdapter {
         await this.connection.connect();
       } else if (this.type === 'mssql') {
         return new Promise((resolve, reject) => {
+          // Use 'master' database if no database specified (needed for creating databases)
+          const targetDatabase = this.config.database || 'master';
+
           const config = {
             server: this.config.host,
             authentication: {
@@ -68,7 +71,7 @@ class SQLServerAdapter {
               }
             },
             options: {
-              database: this.config.database,
+              database: targetDatabase,
               port: parseInt(this.config.port) || 1433,
               encrypt: !!this.config.ssl,
               trustServerCertificate: true, // Always trust for local/internal servers
@@ -79,6 +82,8 @@ class SQLServerAdapter {
             }
           };
 
+          console.log(`MSSQL connecting to ${this.config.host}:${config.options.port}, database: ${targetDatabase}`);
+
           this.connection = new MsSqlConnection(config);
 
           this.connection.on('connect', (err) => {
@@ -86,6 +91,7 @@ class SQLServerAdapter {
               console.error('MSSQL connection error:', err);
               reject(err);
             } else {
+              console.log('MSSQL connected successfully');
               resolve(this.connection);
             }
           });
@@ -133,7 +139,15 @@ class SQLServerAdapter {
   async databaseExists() {
     try {
       const tempConfig = { ...this.config };
-      delete tempConfig.database; // Connect without database
+
+      // For MSSQL, connect to 'master' database to check if target database exists
+      if (this.type === 'mssql') {
+        tempConfig.database = 'master';
+      } else {
+        delete tempConfig.database;
+      }
+
+      console.log(`Checking if database "${this.config.database}" exists...`);
 
       const tempAdapter = new SQLServerAdapter(tempConfig);
       await tempAdapter.connect();
@@ -157,8 +171,13 @@ class SQLServerAdapter {
           const request = new MsSqlRequest(
             `SELECT name FROM sys.databases WHERE name = '${this.config.database}'`,
             (err, rowCount) => {
-              if (err) reject(err);
-              else resolve(rowCount > 0);
+              if (err) {
+                console.error('Error checking database:', err);
+                reject(err);
+              } else {
+                console.log(`Database check result: ${rowCount} rows found`);
+                resolve(rowCount > 0);
+              }
             }
           );
           tempAdapter.connection.execSql(request);
@@ -166,6 +185,7 @@ class SQLServerAdapter {
       }
 
       await tempAdapter.disconnect();
+      console.log(`Database "${this.config.database}" exists: ${exists}`);
       return exists;
     } catch (error) {
       console.error('Error checking if database exists:', error);
@@ -179,7 +199,15 @@ class SQLServerAdapter {
   async createDatabase() {
     try {
       const tempConfig = { ...this.config };
-      delete tempConfig.database;
+
+      // For MSSQL, connect to 'master' database to create new databases
+      if (this.type === 'mssql') {
+        tempConfig.database = 'master';
+      } else {
+        delete tempConfig.database;
+      }
+
+      console.log(`Creating database "${this.config.database}"...`);
 
       const tempAdapter = new SQLServerAdapter(tempConfig);
       await tempAdapter.connect();
@@ -199,13 +227,18 @@ class SQLServerAdapter {
         }
       } else if (this.type === 'mssql') {
         await new Promise((resolve, reject) => {
-          const request = new MsSqlRequest(
-            `IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = '${this.config.database}') CREATE DATABASE [${this.config.database}]`,
-            (err) => {
-              if (err) reject(err);
-              else resolve();
+          const sql = `IF NOT EXISTS (SELECT name FROM sys.databases WHERE name = '${this.config.database}') CREATE DATABASE [${this.config.database}]`;
+          console.log('Executing SQL:', sql);
+
+          const request = new MsSqlRequest(sql, (err) => {
+            if (err) {
+              console.error('Error creating database:', err);
+              reject(err);
+            } else {
+              console.log('Database created successfully');
+              resolve();
             }
-          );
+          });
           tempAdapter.connection.execSql(request);
         });
       }
