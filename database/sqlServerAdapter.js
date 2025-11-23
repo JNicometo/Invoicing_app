@@ -382,8 +382,25 @@ class SQLServerAdapter {
       schema = schema.replace(/INTEGER PRIMARY KEY AUTOINCREMENT/g, 'INT IDENTITY(1,1) PRIMARY KEY');
       schema = schema.replace(/AUTOINCREMENT/g, '');
       schema = schema.replace(/INTEGER/g, 'INT');
-      schema = schema.replace(/TEXT/g, 'NVARCHAR(MAX)');
       schema = schema.replace(/REAL/g, 'DECIMAL(10,2)');
+
+      // MSSQL: Use NVARCHAR(255) for most TEXT columns (can be indexed/unique)
+      // Only use NVARCHAR(MAX) for large text fields like notes, body, details, address, etc.
+      // First, convert all TEXT to NVARCHAR(255)
+      schema = schema.replace(/TEXT/g, 'NVARCHAR(255)');
+
+      // Then convert specific large text columns back to NVARCHAR(MAX)
+      // These are columns that might contain large amounts of text
+      const largeTextColumns = [
+        'notes', 'body', 'details', 'description', 'address', 'terms',
+        'payment_terms', 'bank_details', 'logo_url', 'receipt_url',
+        'user_agent', 'password_hash'
+      ];
+      for (const col of largeTextColumns) {
+        // Match column definitions like: column_name NVARCHAR(255)
+        const regex = new RegExp(`(${col}\\s+)NVARCHAR\\(255\\)`, 'gi');
+        schema = schema.replace(regex, '$1NVARCHAR(MAX)');
+      }
 
       // MSSQL doesn't support IF NOT EXISTS - remove it
       schema = schema.replace(/IF NOT EXISTS\s*/gi, '');
@@ -395,6 +412,16 @@ class SQLServerAdapter {
 
       // MSSQL uses different default timestamp syntax
       schema = schema.replace(/DEFAULT CURRENT_TIMESTAMP/g, 'DEFAULT GETDATE()');
+
+      // Remove INSERT statements with explicit IDs for IDENTITY columns
+      // These cause issues with IDENTITY_INSERT
+      schema = schema.replace(/INSERT INTO settings \(id\) VALUES \(1\)/gi,
+        'IF NOT EXISTS (SELECT 1 FROM settings) INSERT INTO settings DEFAULT VALUES');
+
+      // Remove other problematic INSERT statements (they'll fail anyway)
+      schema = schema.replace(/INSERT INTO users.*?;/gis, '');
+      schema = schema.replace(/INSERT INTO expense_categories.*?;/gis, '');
+      schema = schema.replace(/INSERT INTO reminder_templates.*?;/gis, '');
     }
 
     // Remove SQLite-specific pragmas
