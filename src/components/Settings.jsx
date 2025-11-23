@@ -2295,7 +2295,7 @@ function Settings() {
                             setSaving(true);
 
                             // Select where to save the backup
-                            const fileResult = await window.electron.invoke('backup:selectFile', 'save');
+                            const fileResult = await window.electron.ipcRenderer.invoke('backup:selectFile', 'save');
 
                             if (fileResult.canceled) {
                               setSaving(false);
@@ -2303,7 +2303,7 @@ function Settings() {
                             }
 
                             // Create the backup
-                            const result = await window.electron.invoke('backup:create', fileResult.path);
+                            const result = await window.electron.ipcRenderer.invoke('backup:create', fileResult.path);
 
                             if (result.success) {
                               alert(`Backup created successfully!\n\nSaved to: ${result.path}`);
@@ -2375,7 +2375,7 @@ function Settings() {
                             setSaving(true);
 
                             // Select backup file to restore
-                            const fileResult = await window.electron.invoke('backup:selectFile', 'open');
+                            const fileResult = await window.electron.ipcRenderer.invoke('backup:selectFile', 'open');
 
                             if (fileResult.canceled) {
                               setSaving(false);
@@ -2383,7 +2383,7 @@ function Settings() {
                             }
 
                             // Restore the backup
-                            const result = await window.electron.invoke('backup:restore', fileResult.path);
+                            const result = await window.electron.ipcRenderer.invoke('backup:restore', fileResult.path);
 
                             if (result.success) {
                               alert(
@@ -2640,7 +2640,7 @@ function Settings() {
                           onClick={async () => {
                             try {
                               setSaving(true);
-                              const result = await window.electron.invoke('sqlserver:testConnection', {
+                              const result = await window.electron.ipcRenderer.invoke('sqlserver:testConnection', {
                                 type: formData.sql_server_type,
                                 host: formData.sql_server_host,
                                 port: formData.sql_server_port,
@@ -2675,7 +2675,7 @@ function Settings() {
                               setSaving(true);
 
                               // Check if database exists
-                              const checkResult = await window.electron.invoke('sqlserver:checkDatabase', {
+                              const checkResult = await window.electron.ipcRenderer.invoke('sqlserver:checkDatabase', {
                                 type: formData.sql_server_type,
                                 host: formData.sql_server_host,
                                 port: formData.sql_server_port,
@@ -2692,7 +2692,7 @@ function Settings() {
                               }
 
                               // Create database
-                              const createResult = await window.electron.invoke('sqlserver:createDatabase', {
+                              const createResult = await window.electron.ipcRenderer.invoke('sqlserver:createDatabase', {
                                 type: formData.sql_server_type,
                                 host: formData.sql_server_host,
                                 port: formData.sql_server_port,
@@ -2704,7 +2704,7 @@ function Settings() {
 
                               if (createResult.success) {
                                 // Create schema
-                                const schemaResult = await window.electron.invoke('sqlserver:createSchema', {
+                                const schemaResult = await window.electron.ipcRenderer.invoke('sqlserver:createSchema', {
                                   type: formData.sql_server_type,
                                   host: formData.sql_server_host,
                                   port: formData.sql_server_port,
