@@ -593,7 +593,7 @@ function InvoicePreview({ invoice, onClose }) {
       const balanceDue = Math.max(0, fullInvoice.total - totalPaid);
 
       // Step 1: Create payment intent
-      const intentResult = await window.electron.invoke('payment:createPaymentIntent', {
+      const intentResult = await window.electron.ipcRenderer.invoke('payment:createPaymentIntent', {
         settings,
         invoice: fullInvoice,
         client: { id: fullInvoice.client_id, name: fullInvoice.client_name },
@@ -605,7 +605,7 @@ function InvoicePreview({ invoice, onClose }) {
       }
 
       // Step 2: Process card payment
-      const paymentResult = await window.electron.invoke('payment:processCardPayment', {
+      const paymentResult = await window.electron.ipcRenderer.invoke('payment:processCardPayment', {
         settings,
         cardDetails,
         clientSecret: intentResult.clientSecret,
