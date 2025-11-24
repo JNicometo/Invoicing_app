@@ -1272,6 +1272,28 @@ ipcMain.handle('backup:selectFile', async (event, mode) => {
   }
 });
 
+// Select folder for scheduled backups
+ipcMain.handle('backup:selectFolder', async () => {
+  try {
+    const result = await dialog.showOpenDialog(mainWindow, {
+      title: 'Select Backup Folder',
+      properties: ['openDirectory', 'createDirectory']
+    });
+
+    if (result.canceled) {
+      return { canceled: true };
+    }
+
+    return {
+      canceled: false,
+      path: result.filePaths[0]
+    };
+  } catch (error) {
+    console.error('Error selecting folder:', error);
+    throw error;
+  }
+});
+
 // CSV Restore - Select multiple CSV files
 ipcMain.handle('backup:selectCSVFiles', async () => {
   try {
@@ -1967,16 +1989,124 @@ cron.schedule('0 */6 * * *', () => {
 
 // Initial check is handled in app.whenReady()
 
-// Automatic backup scheduler - runs daily at 2:00 AM
-cron.schedule('0 2 * * *', async () => {
-  console.log('Running scheduled automatic backup...');
-  try {
-    const backupPath = await backup.createAutoBackup();
-    console.log(`Automatic backup created successfully: ${backupPath}`);
-  } catch (error) {
-    console.error('Error creating automatic backup:', error);
+// Scheduled backup checker - runs every minute to check if backup should run
+let lastBackupCheck = null;
+
+const shouldRunBackup = (settings) => {
+  if (!settings || !settings.backup_enabled) return false;
+
+  const now = new Date();
+  const [scheduleHour, scheduleMinute] = (settings.backup_time || '02:00').split(':').map(Number);
+
+  // Check if current time matches schedule time (within the same minute)
+  if (now.getHours() !== scheduleHour || now.getMinutes() !== scheduleMinute) {
+    return false;
   }
-});
+
+  // Check if we already ran a backup in this minute
+  if (lastBackupCheck) {
+    const timeSinceLastCheck = now - lastBackupCheck;
+    if (timeSinceLastCheck < 60000) { // Less than 1 minute
+      return false;
+    }
+  }
+
+  // Check schedule type
+  const schedule = settings.backup_schedule || 'daily';
+  const dayOfWeek = now.getDay(); // 0 = Sunday
+  const dayOfMonth = now.getDate();
+
+  if (schedule === 'weekly') {
+    const scheduledDay = settings.backup_day_of_week || 0;
+    if (dayOfWeek !== scheduledDay) return false;
+  } else if (schedule === 'monthly') {
+    const scheduledDayOfMonth = settings.backup_day_of_month || 1;
+    if (dayOfMonth !== scheduledDayOfMonth) return false;
+  }
+  // daily runs every day at the scheduled time
+
+  // Check if we already ran a backup today (for daily) or this period
+  if (settings.backup_last_run) {
+    const lastRun = new Date(settings.backup_last_run);
+    const hoursSinceLastBackup = (now - lastRun) / (1000 * 60 * 60);
+
+    if (schedule === 'daily' && hoursSinceLastBackup < 20) return false; // At least 20 hours between daily backups
+    if (schedule === 'weekly' && hoursSinceLastBackup < 144) return false; // At least 6 days between weekly backups
+    if (schedule === 'monthly' && hoursSinceLastBackup < 600) return false; // At least 25 days between monthly backups
+  }
+
+  return true;
+};
+
+const runScheduledBackup = async () => {
+  try {
+    const settings = db.getSettings();
+
+    if (!shouldRunBackup(settings)) {
+      return;
+    }
+
+    console.log('Running scheduled automatic backup...');
+    lastBackupCheck = new Date();
+
+    // Determine backup location
+    const backupLocation = settings.backup_location || backup.getDefaultBackupDir();
+    const filename = backup.generateBackupFilename();
+    const backupPath = path.join(backupLocation, filename);
+
+    // Ensure backup directory exists
+    if (!fs.existsSync(backupLocation)) {
+      fs.mkdirSync(backupLocation, { recursive: true });
+    }
+
+    // Create the backup
+    await backup.createBackup(backupPath);
+    console.log(`Scheduled backup created successfully: ${backupPath}`);
+
+    // Update last run time in settings
+    db.updateSettings({ backup_last_run: new Date().toISOString() });
+
+    // Clean up old backups based on retention setting
+    const retention = settings.backup_retention || 7;
+    if (retention > 0) {
+      cleanupOldBackups(backupLocation, retention);
+    }
+
+  } catch (error) {
+    console.error('Error creating scheduled backup:', error);
+  }
+};
+
+const cleanupOldBackups = (backupDir, retention) => {
+  try {
+    const files = fs.readdirSync(backupDir)
+      .filter(f => f.startsWith('invoicepro-backup-') && f.endsWith('.zip'))
+      .map(f => ({
+        name: f,
+        path: path.join(backupDir, f),
+        time: fs.statSync(path.join(backupDir, f)).mtime.getTime()
+      }))
+      .sort((a, b) => b.time - a.time); // Sort newest first
+
+    // Delete files beyond retention limit
+    if (files.length > retention) {
+      const toDelete = files.slice(retention);
+      toDelete.forEach(file => {
+        try {
+          fs.unlinkSync(file.path);
+          console.log(`Deleted old backup: ${file.name}`);
+        } catch (err) {
+          console.error(`Error deleting old backup ${file.name}:`, err);
+        }
+      });
+    }
+  } catch (error) {
+    console.error('Error cleaning up old backups:', error);
+  }
+};
+
+// Check for scheduled backup every minute
+cron.schedule('* * * * *', runScheduledBackup);
 
 // IPC handler to manually trigger reminder check
 ipcMain.handle('reminders:checkAndSend', async () => {

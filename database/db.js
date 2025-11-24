@@ -209,6 +209,16 @@ const runMigrations = () => {
       { name: 'sql_server_username', type: 'TEXT', default: "''" },
       { name: 'sql_server_password', type: 'TEXT', default: "''" },
       { name: 'sql_server_ssl', type: 'INTEGER', default: '0' },
+
+      // Backup Schedule Settings
+      { name: 'backup_enabled', type: 'INTEGER', default: '0' },
+      { name: 'backup_schedule', type: 'TEXT', default: "'daily'" }, // daily, weekly, monthly
+      { name: 'backup_time', type: 'TEXT', default: "'02:00'" }, // HH:MM format
+      { name: 'backup_day_of_week', type: 'INTEGER', default: '0' }, // 0=Sunday, 6=Saturday (for weekly)
+      { name: 'backup_day_of_month', type: 'INTEGER', default: '1' }, // 1-28 (for monthly)
+      { name: 'backup_location', type: 'TEXT', default: "''" }, // folder path
+      { name: 'backup_retention', type: 'INTEGER', default: '7' }, // number of backups to keep
+      { name: 'backup_last_run', type: 'TEXT', default: "''" }, // ISO timestamp of last backup
     ];
 
     let addedCount = 0;
@@ -426,6 +436,14 @@ const updateSettings = (settings) => {
       sql_server_username = @sql_server_username,
       sql_server_password = @sql_server_password,
       sql_server_ssl = @sql_server_ssl,
+      backup_enabled = @backup_enabled,
+      backup_schedule = @backup_schedule,
+      backup_time = @backup_time,
+      backup_day_of_week = @backup_day_of_week,
+      backup_day_of_month = @backup_day_of_month,
+      backup_location = @backup_location,
+      backup_retention = @backup_retention,
+      backup_last_run = @backup_last_run,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = 1
   `);
