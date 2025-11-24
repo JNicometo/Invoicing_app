@@ -76,19 +76,20 @@ async function exportTableToCSV(tableName) {
  * @returns {Promise<string>} - Path to the created backup file
  */
 async function createBackup(backupPath) {
-  return new Promise((resolve, reject) => {
-    // Create backup directory if it doesn't exist
-    const backupDir = path.dirname(backupPath);
-    if (!fs.existsSync(backupDir)) {
-      fs.mkdirSync(backupDir, { recursive: true });
-    }
+  // Create backup directory if it doesn't exist
+  const backupDir = path.dirname(backupPath);
+  if (!fs.existsSync(backupDir)) {
+    fs.mkdirSync(backupDir, { recursive: true });
+  }
 
-    // Create write stream for the zip file
-    const output = fs.createWriteStream(backupPath);
-    const archive = archiver('zip', {
-      zlib: { level: 9 } // Maximum compression
-    });
+  // Create write stream for the zip file
+  const output = fs.createWriteStream(backupPath);
+  const archive = archiver('zip', {
+    zlib: { level: 9 } // Maximum compression
+  });
 
+  // Set up promise to wait for archive to close
+  const closePromise = new Promise((resolve, reject) => {
     output.on('close', () => {
       console.log(`Backup created: ${backupPath} (${archive.pointer()} bytes)`);
       resolve(backupPath);
@@ -97,35 +98,36 @@ async function createBackup(backupPath) {
     archive.on('error', (err) => {
       reject(err);
     });
-
-    // Pipe archive data to the file
-    archive.pipe(output);
-
-    // Add metadata file
-    const metadata = {
-      backup_date: new Date().toISOString(),
-      app_name: 'InvoicePro Desktop',
-      app_version: '1.0.0',
-      tables: TABLES_TO_BACKUP
-    };
-    archive.append(JSON.stringify(metadata, null, 2), { name: 'metadata.json' });
-
-    // Export each table to CSV and add to archive
-    for (const tableName of TABLES_TO_BACKUP) {
-      try {
-        const csvData = await exportTableToCSV(tableName);
-        if (csvData) {
-          archive.append(csvData, { name: `${tableName}.csv` });
-          console.log(`Added ${tableName} to backup`);
-        }
-      } catch (error) {
-        console.error(`Error backing up table ${tableName}:`, error);
-      }
-    }
-
-    // Finalize the archive
-    archive.finalize();
   });
+
+  // Pipe archive data to the file
+  archive.pipe(output);
+
+  // Add metadata file
+  const metadata = {
+    backup_date: new Date().toISOString(),
+    app_name: 'InvoicePro Desktop',
+    app_version: '1.0.0',
+    tables: TABLES_TO_BACKUP
+  };
+  archive.append(JSON.stringify(metadata, null, 2), { name: 'metadata.json' });
+
+  // Export each table to CSV and add to archive
+  for (const tableName of TABLES_TO_BACKUP) {
+    try {
+      const csvData = await exportTableToCSV(tableName);
+      if (csvData) {
+        archive.append(csvData, { name: `${tableName}.csv` });
+        console.log(`Added ${tableName} to backup`);
+      }
+    } catch (error) {
+      console.error(`Error backing up table ${tableName}:`, error);
+    }
+  }
+
+  // Finalize the archive and wait for it to close
+  archive.finalize();
+  return closePromise;
 }
 
 /**
