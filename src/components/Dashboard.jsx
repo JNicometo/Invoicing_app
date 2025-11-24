@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { DollarSign, FileText, TrendingUp, AlertCircle, Edit, Eye, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { DollarSign, FileText, Edit, Eye, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { formatCurrency } from '../utils/formatting';
 import InvoiceForm from './InvoiceForm';
@@ -14,11 +14,7 @@ function Dashboard({ onNavigateToInvoices }) {
   const [loading, setLoading] = useState(true);
   const { getDashboardStats, getAllInvoices } = useDatabase();
 
-  useEffect(() => {
-    loadDashboardData();
-  }, []);
-
-  const loadDashboardData = async () => {
+  const loadDashboardData = useCallback(async () => {
     try {
       setLoading(true);
       const [statsData, invoicesData] = await Promise.all([
@@ -32,7 +28,11 @@ function Dashboard({ onNavigateToInvoices }) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getDashboardStats, getAllInvoices]);
+
+  useEffect(() => {
+    loadDashboardData();
+  }, [loadDashboardData]);
 
   const handleEdit = (invoice) => {
     setSelectedInvoice(invoice);
