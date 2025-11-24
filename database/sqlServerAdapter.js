@@ -745,6 +745,133 @@ class SQLServerAdapter {
     await this.query(`DELETE FROM credit_note_items WHERE credit_note_id = ${id}`);
     return this.delete('credit_notes', id);
   }
+
+  // ==================== Backup/Restore Operations ====================
+
+  /**
+   * Clear all tables for restore (handles foreign key constraints)
+   */
+  async clearAllTables(tablesToClear) {
+    await this.connect();
+
+    // Disable foreign key constraints
+    if (this.type === 'mssql') {
+      // Disable all constraints
+      for (const table of tablesToClear) {
+        try {
+          await this.query(`ALTER TABLE ${table} NOCHECK CONSTRAINT ALL`);
+        } catch (e) {
+          console.log(`Could not disable constraints for ${table}:`, e.message);
+        }
+      }
+    } else if (this.type === 'mysql') {
+      await this.query('SET FOREIGN_KEY_CHECKS = 0');
+    } else if (this.type === 'postgres') {
+      await this.query('SET session_replication_role = replica');
+    }
+
+    // Clear tables in reverse order
+    for (const table of [...tablesToClear].reverse()) {
+      if (table === 'settings') continue; // Don't clear settings
+      try {
+        await this.query(`DELETE FROM ${table}`);
+        console.log(`Cleared table ${table}`);
+      } catch (e) {
+        console.log(`Could not clear ${table}:`, e.message);
+      }
+    }
+
+    // Re-enable foreign key constraints
+    if (this.type === 'mssql') {
+      for (const table of tablesToClear) {
+        try {
+          await this.query(`ALTER TABLE ${table} CHECK CONSTRAINT ALL`);
+        } catch (e) {
+          console.log(`Could not enable constraints for ${table}:`, e.message);
+        }
+      }
+    } else if (this.type === 'mysql') {
+      await this.query('SET FOREIGN_KEY_CHECKS = 1');
+    } else if (this.type === 'postgres') {
+      await this.query('SET session_replication_role = DEFAULT');
+    }
+  }
+
+  /**
+   * Import data from parsed CSV rows into a table
+   */
+  async importTableData(tableName, rows) {
+    if (!rows || rows.length === 0) {
+      console.log(`No data to import for table ${tableName}`);
+      return 0;
+    }
+
+    await this.connect();
+    const columns = Object.keys(rows[0]);
+    let importedCount = 0;
+
+    // For MSSQL, we need to handle IDENTITY columns
+    if (this.type === 'mssql') {
+      // Check if table has an identity column and if we're inserting 'id'
+      if (columns.includes('id')) {
+        try {
+          await this.query(`SET IDENTITY_INSERT ${tableName} ON`);
+        } catch (e) {
+          // Table might not have identity column
+          console.log(`Note: Could not enable IDENTITY_INSERT for ${tableName}`);
+        }
+      }
+    }
+
+    try {
+      for (const row of rows) {
+        try {
+          const values = columns.map(col => {
+            const value = row[col];
+            if (value === '' || value === 'NULL' || value === null || value === undefined) {
+              return null;
+            }
+            return value;
+          });
+
+          // Build INSERT statement
+          const columnNames = columns.join(', ');
+          const valuePlaceholders = values.map(v => {
+            if (v === null) return 'NULL';
+            if (typeof v === 'number') return v;
+            // Escape single quotes
+            return `'${String(v).replace(/'/g, "''")}'`;
+          }).join(', ');
+
+          const sql = `INSERT INTO ${tableName} (${columnNames}) VALUES (${valuePlaceholders})`;
+          await this.query(sql);
+          importedCount++;
+        } catch (rowError) {
+          console.error(`Error inserting row into ${tableName}:`, rowError.message);
+        }
+      }
+    } finally {
+      // Turn off IDENTITY_INSERT if we turned it on
+      if (this.type === 'mssql' && columns.includes('id')) {
+        try {
+          await this.query(`SET IDENTITY_INSERT ${tableName} OFF`);
+        } catch (e) {
+          // Ignore
+        }
+      }
+    }
+
+    console.log(`Imported ${importedCount} rows into ${tableName}`);
+    return importedCount;
+  }
+
+  /**
+   * Get all data from a table (for backup)
+   */
+  async getTableData(tableName) {
+    await this.connect();
+    return this.query(`SELECT * FROM ${tableName}`);
+  }
 }
 
 module.exports = SQLServerAdapter;
