@@ -1,5 +1,5 @@
-import React, { useState, useRef, useEffect } from 'react';
-import { Home, FileText, Users, Archive as ArchiveIcon, Settings as SettingsIcon, Save, HelpCircle, X, Keyboard, Search, Repeat, ClipboardList, TrendingUp, FileX, Bell } from 'lucide-react';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { Home, FileText, Users, Archive as ArchiveIcon, Settings as SettingsIcon, Save, X, Keyboard, Search, Repeat, ClipboardList, TrendingUp, FileX, Bell } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import InvoiceList from './components/InvoiceList';
 import ClientManagement from './components/ClientManagement';
@@ -23,13 +23,12 @@ function App() {
   const [searchResults, setSearchResults] = useState({ invoices: [], clients: [], items: [] });
   const [isSearching, setIsSearching] = useState(false);
   const [navigation, setNavigation] = useState([]);
-  const invoiceListRef = useRef(null);
   const searchInputRef = useRef(null);
 
   const { getAllInvoices, getAllClients, getAllSavedItems, getSettings } = useDatabase();
 
   // Global search functionality
-  const performSearch = async (query) => {
+  const performSearch = useCallback(async (query) => {
     if (!query.trim()) {
       setSearchResults({ invoices: [], clients: [], items: [] });
       return;
@@ -71,7 +70,7 @@ function App() {
     } finally {
       setIsSearching(false);
     }
-  };
+  }, [getAllInvoices, getAllClients, getAllSavedItems]);
 
   useEffect(() => {
     if (searchQuery) {
@@ -82,7 +81,7 @@ function App() {
     } else {
       setSearchResults({ invoices: [], clients: [], items: [] });
     }
-  }, [searchQuery]);
+  }, [searchQuery, performSearch]);
 
   useEffect(() => {
     if (showSearch && searchInputRef.current) {
@@ -91,7 +90,7 @@ function App() {
   }, [showSearch]);
 
   // Load tab configuration from settings
-  const loadNavigation = async () => {
+  const loadNavigation = useCallback(async () => {
     try {
       const settings = await getSettings();
 
@@ -151,7 +150,7 @@ function App() {
         { id: 'settings', name: 'Settings', icon: SettingsIcon },
       ]);
     }
-  };
+  }, [getSettings]);
 
   useEffect(() => {
     loadNavigation();
@@ -167,7 +166,7 @@ function App() {
     return () => {
       window.removeEventListener('navigation-updated', handleNavigationUpdate);
     };
-  }, []);
+  }, [loadNavigation]);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -246,7 +245,7 @@ function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [showKeyboardHelp]);
+  }, [showKeyboardHelp, showSearch]);
 
   const handleNavigateToInvoices = (filterOrClientId = null) => {
     // Check if it's a status filter (string like 'paid', 'pending', 'overdue') or a clientId (number)

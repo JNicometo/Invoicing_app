@@ -1,5 +1,5 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, Eye, Edit, Trash2, Archive, Printer, FileText, User, Filter, CheckCircle2, Clock, AlertTriangle, X, CheckSquare, Square } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, Search, Eye, Edit, Trash2, Archive, FileText, User, CheckCircle2, Clock, AlertTriangle, X } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { formatCurrency, formatDate, getStatusBadgeColor } from '../utils/formatting';
 import InvoiceForm from './InvoiceForm';
@@ -34,39 +34,12 @@ function InvoiceList({ selectedClientId, selectedStatusFilter, onClearFilter }) 
     archiveInvoice,
     getClient,
     getAllClients,
-    updateInvoice,
     batchUpdateInvoiceStatus,
     batchArchiveInvoices,
     batchDeleteInvoices
   } = useDatabase();
 
-  useEffect(() => {
-    loadInvoices();
-    loadClients();
-  }, []);
-
-  useEffect(() => {
-    if (selectedClientId) {
-      loadClientName();
-    }
-  }, [selectedClientId]);
-
-  useEffect(() => {
-    filterInvoices();
-  }, [searchTerm, statusFilter, invoices, selectedClientId, dateFrom, dateTo, clientFilter]);
-
-  const loadClientName = async () => {
-    if (selectedClientId) {
-      try {
-        const client = await getClient(selectedClientId);
-        setClientName(client?.name || '');
-      } catch (error) {
-        console.error('Error loading client:', error);
-      }
-    }
-  };
-
-  const loadInvoices = async () => {
+  const loadInvoices = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getAllInvoices();
@@ -76,18 +49,29 @@ function InvoiceList({ selectedClientId, selectedStatusFilter, onClearFilter }) 
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAllInvoices]);
 
-  const loadClients = async () => {
+  const loadClients = useCallback(async () => {
     try {
       const data = await getAllClients();
       setClients(data);
     } catch (error) {
       console.error('Error loading clients:', error);
     }
-  };
+  }, [getAllClients]);
 
-  const filterInvoices = () => {
+  const loadClientName = useCallback(async () => {
+    if (selectedClientId) {
+      try {
+        const client = await getClient(selectedClientId);
+        setClientName(client?.name || '');
+      } catch (error) {
+        console.error('Error loading client:', error);
+      }
+    }
+  }, [selectedClientId, getClient]);
+
+  const filterInvoices = useCallback(() => {
     let filtered = [...invoices];
 
     // Filter by selected client (from Dashboard)
@@ -127,7 +111,22 @@ function InvoiceList({ selectedClientId, selectedStatusFilter, onClearFilter }) 
     }
 
     setFilteredInvoices(filtered);
-  };
+  }, [invoices, selectedClientId, clientFilter, searchTerm, statusFilter, dateFrom, dateTo]);
+
+  useEffect(() => {
+    loadInvoices();
+    loadClients();
+  }, [loadInvoices, loadClients]);
+
+  useEffect(() => {
+    if (selectedClientId) {
+      loadClientName();
+    }
+  }, [selectedClientId, loadClientName]);
+
+  useEffect(() => {
+    filterInvoices();
+  }, [filterInvoices]);
 
   const clearAllFilters = () => {
     setSearchTerm('');
