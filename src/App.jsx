@@ -543,8 +543,6 @@ function App() {
                   <div className="space-y-2">
                     <ShortcutRow shortcut="Ctrl/Cmd + N" description="New Invoice (opens Invoice page)" />
                     <ShortcutRow shortcut="Ctrl/Cmd + F" description="Global Search" />
-                    <ShortcutRow shortcut="Ctrl/Cmd + S" description="Save (in forms)" />
-                    <ShortcutRow shortcut="Ctrl/Cmd + P" description="Print (in preview)" />
                     <ShortcutRow shortcut="Escape" description="Close modals/forms" />
                   </div>
                 </div>
