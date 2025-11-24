@@ -13,6 +13,8 @@ class SQLServerAdapter {
     this.config = config;
     this.connection = null;
     this.type = config.type; // 'mysql', 'postgres', 'mssql'
+    this.mssqlBusy = false; // Track if MSSQL connection is busy
+    this.mssqlQueue = []; // Queue for MSSQL requests
   }
 
   /**
@@ -276,36 +278,61 @@ class SQLServerAdapter {
         const result = await this.connection.query(sql, params);
         return result.rows;
       } else if (this.type === 'mssql') {
-        return new Promise((resolve, reject) => {
-          const rows = [];
-          const request = new MsSqlRequest(sql, (err) => {
-            if (err) reject(err);
-            else resolve(rows);
-          });
-
-          request.on('row', (columns) => {
-            const row = {};
-            // With useColumnNames: true, columns is an object, not an array
-            if (Array.isArray(columns)) {
-              columns.forEach(column => {
-                row[column.metadata.colName] = column.value;
-              });
-            } else {
-              // columns is an object with column names as keys
-              for (const [colName, column] of Object.entries(columns)) {
-                row[colName] = column.value;
-              }
-            }
-            rows.push(row);
-          });
-
-          this.connection.execSql(request);
-        });
+        // MSSQL/tedious can only handle one request at a time
+        // Use a queue to serialize requests
+        return this.executeMssqlQuery(sql);
       }
     } catch (error) {
       console.error('Error executing query:', error);
       throw error;
     }
+  }
+
+  /**
+   * Execute MSSQL query with queue to prevent concurrent requests
+   */
+  async executeMssqlQuery(sql) {
+    return new Promise((resolve, reject) => {
+      const executeQuery = () => {
+        this.mssqlBusy = true;
+        const rows = [];
+        const request = new MsSqlRequest(sql, (err) => {
+          this.mssqlBusy = false;
+          // Process next item in queue
+          if (this.mssqlQueue.length > 0) {
+            const next = this.mssqlQueue.shift();
+            next();
+          }
+          if (err) reject(err);
+          else resolve(rows);
+        });
+
+        request.on('row', (columns) => {
+          const row = {};
+          // With useColumnNames: true, columns is an object, not an array
+          if (Array.isArray(columns)) {
+            columns.forEach(column => {
+              row[column.metadata.colName] = column.value;
+            });
+          } else {
+            // columns is an object with column names as keys
+            for (const [colName, column] of Object.entries(columns)) {
+              row[colName] = column.value;
+            }
+          }
+          rows.push(row);
+        });
+
+        this.connection.execSql(request);
+      };
+
+      // If connection is busy, queue the request
+      if (this.mssqlBusy) {
+        this.mssqlQueue.push(executeQuery);
+      } else {
+        executeQuery();
+      }
+    });
   }
 
   /**
@@ -810,54 +837,41 @@ class SQLServerAdapter {
     const columns = Object.keys(rows[0]);
     let importedCount = 0;
 
-    // For MSSQL, we need to handle IDENTITY columns
-    if (this.type === 'mssql') {
-      // Check if table has an identity column and if we're inserting 'id'
-      if (columns.includes('id')) {
-        try {
-          await this.query(`SET IDENTITY_INSERT ${tableName} ON`);
-        } catch (e) {
-          // Table might not have identity column
-          console.log(`Note: Could not enable IDENTITY_INSERT for ${tableName}`);
-        }
-      }
-    }
+    // For MSSQL, check if we need IDENTITY_INSERT (when 'id' column is present)
+    const needsIdentityInsert = this.type === 'mssql' && columns.includes('id');
 
-    try {
-      for (const row of rows) {
-        try {
-          const values = columns.map(col => {
-            const value = row[col];
-            if (value === '' || value === 'NULL' || value === null || value === undefined) {
-              return null;
-            }
-            return value;
-          });
+    for (const row of rows) {
+      try {
+        const values = columns.map(col => {
+          const value = row[col];
+          if (value === '' || value === 'NULL' || value === null || value === undefined) {
+            return null;
+          }
+          return value;
+        });
 
-          // Build INSERT statement
-          const columnNames = columns.join(', ');
-          const valuePlaceholders = values.map(v => {
-            if (v === null) return 'NULL';
-            if (typeof v === 'number') return v;
-            // Escape single quotes
-            return `'${String(v).replace(/'/g, "''")}'`;
-          }).join(', ');
+        // Build INSERT statement
+        const columnNames = columns.join(', ');
+        const valuePlaceholders = values.map(v => {
+          if (v === null) return 'NULL';
+          if (typeof v === 'number') return v;
+          // Escape single quotes
+          return `'${String(v).replace(/'/g, "''")}'`;
+        }).join(', ');
 
-          const sql = `INSERT INTO ${tableName} (${columnNames}) VALUES (${valuePlaceholders})`;
-          await this.query(sql);
-          importedCount++;
-        } catch (rowError) {
-          console.error(`Error inserting row into ${tableName}:`, rowError.message);
+        let sql;
+        if (needsIdentityInsert) {
+          // For MSSQL with identity columns, wrap INSERT with IDENTITY_INSERT ON/OFF
+          // This must be in the same batch for the setting to take effect
+          sql = `SET IDENTITY_INSERT ${tableName} ON; INSERT INTO ${tableName} (${columnNames}) VALUES (${valuePlaceholders}); SET IDENTITY_INSERT ${tableName} OFF;`;
+        } else {
+          sql = `INSERT INTO ${tableName} (${columnNames}) VALUES (${valuePlaceholders})`;
         }
-      }
-    } finally {
-      // Turn off IDENTITY_INSERT if we turned it on
-      if (this.type === 'mssql' && columns.includes('id')) {
-        try {
-          await this.query(`SET IDENTITY_INSERT ${tableName} OFF`);
-        } catch (e) {
-          // Ignore
-        }
+
+        await this.query(sql);
+        importedCount++;
+      } catch (rowError) {
+        console.error(`Error inserting row into ${tableName}:`, rowError.message);
       }
     }
 
