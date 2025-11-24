@@ -5,12 +5,12 @@ import { formatCurrency, formatDate, getStatusBadgeColor } from '../utils/format
 import InvoiceForm from './InvoiceForm';
 import InvoicePreview from './InvoicePreview';
 
-function InvoiceList({ selectedClientId, onClearClientFilter }) {
+function InvoiceList({ selectedClientId, selectedStatusFilter, onClearFilter }) {
   const [invoices, setInvoices] = useState([]);
   const [filteredInvoices, setFilteredInvoices] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState(selectedStatusFilter || 'all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [clientFilter, setClientFilter] = useState('');
@@ -20,6 +20,13 @@ function InvoiceList({ selectedClientId, onClearClientFilter }) {
   const [selectedInvoice, setSelectedInvoice] = useState(null);
   const [clientName, setClientName] = useState('');
   const [selectedInvoices, setSelectedInvoices] = useState([]);
+
+  // Update status filter when prop changes
+  useEffect(() => {
+    if (selectedStatusFilter) {
+      setStatusFilter(selectedStatusFilter);
+    }
+  }, [selectedStatusFilter]);
 
   const {
     getAllInvoices,
@@ -128,8 +135,8 @@ function InvoiceList({ selectedClientId, onClearClientFilter }) {
     setDateFrom('');
     setDateTo('');
     setClientFilter('');
-    if (onClearClientFilter) {
-      onClearClientFilter();
+    if (onClearFilter) {
+      onClearFilter();
     }
   };
 
@@ -272,7 +279,7 @@ function InvoiceList({ selectedClientId, onClearClientFilter }) {
               </span>
             </div>
             <button
-              onClick={onClearClientFilter}
+              onClick={onClearFilter}
               className="text-blue-600 hover:text-blue-900 text-sm font-medium flex items-center"
             >
               Clear filter

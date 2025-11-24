@@ -84,6 +84,7 @@ function Dashboard({ onNavigateToInvoices }) {
       iconBg: 'bg-blue-500',
       textColor: 'text-blue-600',
       description: 'All-time earnings',
+      filter: null, // No filter for total
     },
     {
       name: 'Total Invoices',
@@ -94,6 +95,7 @@ function Dashboard({ onNavigateToInvoices }) {
       textColor: 'text-purple-600',
       description: 'Created invoices',
       isCount: true,
+      filter: null, // Show all invoices
     },
     {
       name: 'Paid',
@@ -104,6 +106,7 @@ function Dashboard({ onNavigateToInvoices }) {
       textColor: 'text-green-600',
       description: 'Received payments',
       percentage: stats?.total_revenue ? ((stats?.paid_amount || 0) / stats.total_revenue * 100).toFixed(1) : 0,
+      filter: 'paid',
     },
     {
       name: 'Pending',
@@ -114,6 +117,7 @@ function Dashboard({ onNavigateToInvoices }) {
       textColor: 'text-yellow-600',
       description: 'Awaiting payment',
       percentage: stats?.total_revenue ? ((stats?.pending_amount || 0) / stats.total_revenue * 100).toFixed(1) : 0,
+      filter: 'pending',
     },
     {
       name: 'Overdue',
@@ -125,8 +129,15 @@ function Dashboard({ onNavigateToInvoices }) {
       description: 'Needs attention',
       percentage: stats?.total_revenue ? ((stats?.overdue_amount || 0) / stats.total_revenue * 100).toFixed(1) : 0,
       highlight: (stats?.overdue_amount || 0) > 0,
+      filter: 'overdue',
     },
   ];
+
+  const handleStatClick = (filter) => {
+    if (onNavigateToInvoices) {
+      onNavigateToInvoices(filter);
+    }
+  };
 
   return (
     <div className="p-8">
@@ -139,15 +150,17 @@ function Dashboard({ onNavigateToInvoices }) {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6 mb-8">
         {statCards.map((stat) => {
           const Icon = stat.icon;
+          const isClickable = stat.filter !== undefined;
           return (
             <div
               key={stat.name}
+              onClick={() => isClickable && handleStatClick(stat.filter)}
               className={`bg-white rounded-xl shadow-lg border-2 p-6 transition-all hover:shadow-xl ${
                 stat.highlight ? 'border-red-300 ring-2 ring-red-100' : 'border-gray-100'
-              }`}
+              } ${isClickable ? 'cursor-pointer hover:scale-105' : ''}`}
             >
-              <div className="flex items-start justify-between mb-4">
-                <div>
+              <div className="flex items-center justify-between mb-4">
+                <div className="flex-1 text-center">
                   <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide">{stat.name}</p>
                   <p className="text-sm text-gray-400 mt-1">{stat.description}</p>
                 </div>
@@ -156,7 +169,7 @@ function Dashboard({ onNavigateToInvoices }) {
                 </div>
               </div>
 
-              <div className="mt-3">
+              <div className="mt-3 text-center">
                 <p className={`text-3xl font-bold ${stat.textColor}`}>
                   {stat.isCount ? stat.value : formatCurrency(stat.value)}
                 </p>
@@ -174,6 +187,10 @@ function Dashboard({ onNavigateToInvoices }) {
                       />
                     </div>
                   </div>
+                )}
+
+                {isClickable && (
+                  <p className="text-xs text-gray-400 mt-2">Click to view</p>
                 )}
               </div>
             </div>
