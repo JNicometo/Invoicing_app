@@ -329,6 +329,19 @@ const getSettings = () => {
 
 const updateSettings = (settings) => {
   const db = getDatabase();
+
+  // Sanitize settings: convert booleans to integers and undefined to null
+  const sanitized = {};
+  for (const [key, value] of Object.entries(settings)) {
+    if (typeof value === 'boolean') {
+      sanitized[key] = value ? 1 : 0;
+    } else if (value === undefined) {
+      sanitized[key] = null;
+    } else {
+      sanitized[key] = value;
+    }
+  }
+
   const stmt = db.prepare(`
     UPDATE settings SET
       company_name = @company_name,
@@ -416,7 +429,7 @@ const updateSettings = (settings) => {
       updated_at = CURRENT_TIMESTAMP
     WHERE id = 1
   `);
-  return stmt.run(settings);
+  return stmt.run(sanitized);
 };
 
 // Client operations
