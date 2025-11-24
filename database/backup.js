@@ -4,6 +4,20 @@ const archiver = require('archiver');
 const db = require('./db');
 const Papa = require('papaparse');
 
+/**
+ * Check if SQL Server is being used
+ */
+function isUsingSqlServer() {
+  return db.isUsingSqlServer();
+}
+
+/**
+ * Get SQL Server adapter if enabled
+ */
+function getSqlServerAdapter() {
+  return db.getSqlServerAdapter();
+}
+
 // Tables to backup (excluding expense_categories since expenses are removed)
 const TABLES_TO_BACKUP = [
   'settings',
@@ -35,8 +49,18 @@ function rowsToCSV(rows) {
 /**
  * Export a single table to CSV
  */
-function exportTableToCSV(tableName) {
+async function exportTableToCSV(tableName) {
   try {
+    // Check if using SQL Server
+    if (isUsingSqlServer()) {
+      const adapter = getSqlServerAdapter();
+      if (adapter) {
+        const rows = await adapter.getTableData(tableName);
+        return rowsToCSV(rows);
+      }
+    }
+
+    // Default to SQLite
     const database = db.getDatabase();
     const rows = database.prepare(`SELECT * FROM ${tableName}`).all();
     return rowsToCSV(rows);
@@ -89,7 +113,7 @@ async function createBackup(backupPath) {
     // Export each table to CSV and add to archive
     for (const tableName of TABLES_TO_BACKUP) {
       try {
-        const csvData = exportTableToCSV(tableName);
+        const csvData = await exportTableToCSV(tableName);
         if (csvData) {
           archive.append(csvData, { name: `${tableName}.csv` });
           console.log(`Added ${tableName} to backup`);
@@ -119,7 +143,7 @@ function parseCSV(csvContent) {
 /**
  * Import data from CSV into a table
  */
-function importTableFromCSV(tableName, csvContent) {
+async function importTableFromCSV(tableName, csvContent, useSqlServer = false) {
   if (!csvContent || csvContent.trim() === '') {
     console.log(`No data to import for table ${tableName}`);
     return 0;
@@ -132,6 +156,15 @@ function importTableFromCSV(tableName, csvContent) {
       return 0;
     }
 
+    // Use SQL Server adapter if enabled
+    if (useSqlServer) {
+      const adapter = getSqlServerAdapter();
+      if (adapter) {
+        return await adapter.importTableData(tableName, rows);
+      }
+    }
+
+    // Default to SQLite
     const database = db.getDatabase();
     const columns = Object.keys(rows[0]);
 
@@ -171,23 +204,33 @@ function importTableFromCSV(tableName, csvContent) {
  * @returns {Promise<object>} - Restore statistics
  */
 async function restoreBackup(backupPath) {
-  return new Promise(async (resolve, reject) => {
-    try {
-      if (!fs.existsSync(backupPath)) {
-        throw new Error('Backup file not found');
+  try {
+    if (!fs.existsSync(backupPath)) {
+      throw new Error('Backup file not found');
+    }
+
+    const AdmZip = require('adm-zip');
+    const zip = new AdmZip(backupPath);
+    const zipEntries = zip.getEntries();
+
+    const stats = {
+      tables_restored: 0,
+      total_rows: 0,
+      tables: {},
+      database: isUsingSqlServer() ? 'SQL Server' : 'SQLite'
+    };
+
+    const usingSqlServer = isUsingSqlServer();
+
+    // Clear all tables first
+    if (usingSqlServer) {
+      // Use SQL Server adapter to clear tables
+      const adapter = getSqlServerAdapter();
+      if (adapter) {
+        await adapter.clearAllTables(TABLES_TO_BACKUP);
       }
-
-      const AdmZip = require('adm-zip');
-      const zip = new AdmZip(backupPath);
-      const zipEntries = zip.getEntries();
-
-      const stats = {
-        tables_restored: 0,
-        total_rows: 0,
-        tables: {}
-      };
-
-      // Clear all tables first (in reverse order to handle foreign keys)
+    } else {
+      // Use SQLite
       const database = db.getDatabase();
       const clearTables = database.transaction(() => {
         // Temporarily disable foreign key constraints
@@ -211,33 +254,33 @@ async function restoreBackup(backupPath) {
       });
 
       clearTables();
+    }
 
-      // Import data from each CSV file
-      for (const entry of zipEntries) {
-        const fileName = entry.entryName;
+    // Import data from each CSV file
+    for (const entry of zipEntries) {
+      const fileName = entry.entryName;
 
-        if (fileName.endsWith('.csv')) {
-          const tableName = fileName.replace('.csv', '');
+      if (fileName.endsWith('.csv')) {
+        const tableName = fileName.replace('.csv', '');
 
-          if (TABLES_TO_BACKUP.includes(tableName)) {
-            const csvContent = entry.getData().toString('utf8');
-            const rowCount = importTableFromCSV(tableName, csvContent);
+        if (TABLES_TO_BACKUP.includes(tableName)) {
+          const csvContent = entry.getData().toString('utf8');
+          const rowCount = await importTableFromCSV(tableName, csvContent, usingSqlServer);
 
-            stats.tables_restored++;
-            stats.total_rows += rowCount;
-            stats.tables[tableName] = rowCount;
-          }
+          stats.tables_restored++;
+          stats.total_rows += rowCount;
+          stats.tables[tableName] = rowCount;
         }
       }
-
-      console.log('Backup restored successfully:', stats);
-      resolve(stats);
-
-    } catch (error) {
-      console.error('Error restoring backup:', error);
-      reject(error);
     }
-  });
+
+    console.log('Backup restored successfully:', stats);
+    return stats;
+
+  } catch (error) {
+    console.error('Error restoring backup:', error);
+    throw error;
+  }
 }
 
 /**
@@ -346,17 +389,20 @@ function listBackups() {
  * @returns {Promise<object>} - Restore statistics
  */
 async function restoreFromCSV(csvFilePaths) {
+  const usingSqlServer = isUsingSqlServer();
   const stats = {
     tables_restored: 0,
     total_rows: 0,
     tables: {},
-    errors: []
+    errors: [],
+    database: usingSqlServer ? 'SQL Server' : 'SQLite'
   };
 
-  const database = db.getDatabase();
-
-  // Temporarily disable foreign key constraints
-  database.prepare('PRAGMA foreign_keys = OFF').run();
+  // Disable foreign key constraints
+  if (!usingSqlServer) {
+    const database = db.getDatabase();
+    database.prepare('PRAGMA foreign_keys = OFF').run();
+  }
 
   try {
     for (const filePath of csvFilePaths) {
@@ -390,7 +436,7 @@ async function restoreFromCSV(csvFilePaths) {
           continue;
         }
 
-        const rowCount = importTableFromCSV(targetTable, csvContent);
+        const rowCount = await importTableFromCSV(targetTable, csvContent, usingSqlServer);
 
         stats.tables_restored++;
         stats.total_rows += rowCount;
@@ -404,7 +450,10 @@ async function restoreFromCSV(csvFilePaths) {
     }
   } finally {
     // Re-enable foreign key constraints
-    database.prepare('PRAGMA foreign_keys = ON').run();
+    if (!usingSqlServer) {
+      const database = db.getDatabase();
+      database.prepare('PRAGMA foreign_keys = ON').run();
+    }
   }
 
   console.log('CSV restore completed:', stats);
