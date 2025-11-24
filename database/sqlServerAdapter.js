@@ -391,10 +391,13 @@ class SQLServerAdapter {
 
       // Then convert specific large text columns back to NVARCHAR(MAX)
       // These are columns that might contain large amounts of text
+      // Note: email, customer_number, item_number must stay NVARCHAR(255) for indexing
       const largeTextColumns = [
-        'notes', 'body', 'details', 'description', 'address', 'terms',
+        'notes', 'body', 'details', 'address', 'terms',
         'payment_terms', 'bank_details', 'logo_url', 'receipt_url',
-        'user_agent', 'password_hash'
+        'user_agent', 'password_hash', 'tab_configuration',
+        'email_subject_template', 'email_body_template', 'default_notes',
+        'invoice_footer'
       ];
       for (const col of largeTextColumns) {
         // Match column definitions like: column_name NVARCHAR(255)
@@ -402,26 +405,31 @@ class SQLServerAdapter {
         schema = schema.replace(regex, '$1NVARCHAR(MAX)');
       }
 
-      // MSSQL doesn't support IF NOT EXISTS - remove it
+      // MSSQL doesn't support IF NOT EXISTS for CREATE TABLE - wrap in conditional
+      // First remove any existing IF NOT EXISTS (from SQLite)
       schema = schema.replace(/IF NOT EXISTS\s*/gi, '');
 
+      // Replace CREATE TABLE with IF NOT EXISTS wrapper using sysobjects
+      schema = schema.replace(/CREATE TABLE\s+(\w+)\s*\(/gi, (match, tableName) => {
+        return `IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='${tableName}' AND xtype='U') CREATE TABLE ${tableName} (`;
+      });
+
       // MSSQL doesn't support UNIQUE INDEX with WHERE clause the same way
-      // Convert partial unique indexes to regular indexes
+      // Convert partial unique indexes to regular indexes with IF NOT EXISTS
       schema = schema.replace(/CREATE UNIQUE INDEX\s+(\w+)\s+ON\s+(\w+)\((\w+)\)\s+WHERE\s+\w+\s+IS\s+NOT\s+NULL/gi,
-        'CREATE INDEX $1 ON $2($3)');
+        "IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='$1') CREATE INDEX $1 ON $2($3)");
+
+      // Wrap regular CREATE INDEX with IF NOT EXISTS
+      schema = schema.replace(/CREATE INDEX\s+(\w+)\s+ON\s+(\w+)\((\w+)\)/gi, (match, indexName, tableName, columnName) => {
+        return `IF NOT EXISTS (SELECT * FROM sys.indexes WHERE name='${indexName}') CREATE INDEX ${indexName} ON ${tableName}(${columnName})`;
+      });
 
       // MSSQL uses different default timestamp syntax
       schema = schema.replace(/DEFAULT CURRENT_TIMESTAMP/g, 'DEFAULT GETDATE()');
 
-      // Remove INSERT statements with explicit IDs for IDENTITY columns
-      // These cause issues with IDENTITY_INSERT
-      schema = schema.replace(/INSERT INTO settings \(id\) VALUES \(1\)/gi,
-        'IF NOT EXISTS (SELECT 1 FROM settings) INSERT INTO settings DEFAULT VALUES');
-
-      // Remove other problematic INSERT statements (they'll fail anyway)
-      schema = schema.replace(/INSERT INTO users.*?;/gis, '');
-      schema = schema.replace(/INSERT INTO expense_categories.*?;/gis, '');
-      schema = schema.replace(/INSERT INTO reminder_templates.*?;/gis, '');
+      // Remove all INSERT statements - they cause IDENTITY_INSERT issues and duplicates
+      // The app will insert default data as needed
+      schema = schema.replace(/INSERT\s+INTO\s+\w+.*?;/gis, '');
     }
 
     // Remove SQLite-specific pragmas
