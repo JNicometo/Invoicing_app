@@ -130,7 +130,17 @@ function Settings() {
     sql_server_database: 'invoicepro',
     sql_server_username: '',
     sql_server_password: '',
-    sql_server_ssl: false
+    sql_server_ssl: false,
+
+    // Backup Schedule Settings
+    backup_enabled: false,
+    backup_schedule: 'daily',
+    backup_time: '02:00',
+    backup_day_of_week: 0,
+    backup_day_of_month: 1,
+    backup_location: '',
+    backup_retention: 7,
+    backup_last_run: ''
   });
 
   useEffect(() => {
@@ -258,7 +268,17 @@ function Settings() {
           sql_server_database: data.sql_server_database || 'invoicepro',
           sql_server_username: data.sql_server_username || '',
           sql_server_password: data.sql_server_password || '',
-          sql_server_ssl: data.sql_server_ssl !== undefined ? data.sql_server_ssl : false
+          sql_server_ssl: data.sql_server_ssl !== undefined ? data.sql_server_ssl : false,
+
+          // Backup Schedule Settings
+          backup_enabled: data.backup_enabled !== undefined ? Boolean(data.backup_enabled) : false,
+          backup_schedule: data.backup_schedule || 'daily',
+          backup_time: data.backup_time || '02:00',
+          backup_day_of_week: data.backup_day_of_week !== undefined ? data.backup_day_of_week : 0,
+          backup_day_of_month: data.backup_day_of_month !== undefined ? data.backup_day_of_month : 1,
+          backup_location: data.backup_location || '',
+          backup_retention: data.backup_retention !== undefined ? data.backup_retention : 7,
+          backup_last_run: data.backup_last_run || ''
         });
 
         // Set logo preview if exists
@@ -2513,28 +2533,185 @@ function Settings() {
 
                   <div className="border-t border-gray-200 pt-8"></div>
 
-                  {/* Automatic Backups Info */}
+                  {/* Automatic Backups Settings */}
                   <div className="space-y-4">
                     <div className="flex items-center space-x-2 mb-4">
                       <HardDrive className="w-5 h-5 text-gray-700" />
-                      <h3 className="text-lg font-semibold text-gray-900">Automatic Backups</h3>
+                      <h3 className="text-lg font-semibold text-gray-900">Scheduled Backups</h3>
                     </div>
 
-                    <div className="bg-gradient-to-r from-green-50 to-emerald-50 rounded-lg border border-green-200 p-6">
-                      <div className="flex items-start space-x-3">
-                        <Check className="w-5 h-5 text-green-600 mt-0.5" />
+                    <div className="bg-white border border-gray-200 rounded-lg p-6">
+                      {/* Enable/Disable Toggle */}
+                      <div className="flex items-center justify-between mb-6">
                         <div>
-                          <p className="text-sm font-semibold text-green-900 mb-2">
-                            Automatic Daily Backups Enabled
-                          </p>
-                          <p className="text-sm text-green-800 mb-3">
-                            Your data is automatically backed up every day at 2:00 AM. Backups are stored in your application data folder and the last 30 backups are kept.
-                          </p>
-                          <p className="text-xs text-green-700">
-                            <strong>Backup Location:</strong> Your automatic backups are saved in the app's data directory under the "backups" folder.
+                          <h4 className="text-sm font-semibold text-gray-900">Enable Automatic Backups</h4>
+                          <p className="text-sm text-gray-600 mt-1">
+                            Automatically create backups on a schedule
                           </p>
                         </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="backup_enabled"
+                            checked={formData.backup_enabled}
+                            onChange={(e) => setFormData(prev => ({ ...prev, backup_enabled: e.target.checked }))}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
                       </div>
+
+                      {formData.backup_enabled && (
+                        <div className="pt-4 border-t border-gray-200 space-y-4">
+                          {/* Schedule Frequency */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Backup Frequency
+                            </label>
+                            <select
+                              name="backup_schedule"
+                              value={formData.backup_schedule}
+                              onChange={(e) => setFormData(prev => ({ ...prev, backup_schedule: e.target.value }))}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                              <option value="daily">Daily</option>
+                              <option value="weekly">Weekly</option>
+                              <option value="monthly">Monthly</option>
+                            </select>
+                          </div>
+
+                          {/* Time of Day */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Backup Time
+                            </label>
+                            <input
+                              type="time"
+                              name="backup_time"
+                              value={formData.backup_time}
+                              onChange={(e) => setFormData(prev => ({ ...prev, backup_time: e.target.value }))}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">Time when the backup will run (app must be open)</p>
+                          </div>
+
+                          {/* Day of Week (for weekly) */}
+                          {formData.backup_schedule === 'weekly' && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Day of Week
+                              </label>
+                              <select
+                                name="backup_day_of_week"
+                                value={formData.backup_day_of_week}
+                                onChange={(e) => setFormData(prev => ({ ...prev, backup_day_of_week: parseInt(e.target.value) }))}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              >
+                                <option value={0}>Sunday</option>
+                                <option value={1}>Monday</option>
+                                <option value={2}>Tuesday</option>
+                                <option value={3}>Wednesday</option>
+                                <option value={4}>Thursday</option>
+                                <option value={5}>Friday</option>
+                                <option value={6}>Saturday</option>
+                              </select>
+                            </div>
+                          )}
+
+                          {/* Day of Month (for monthly) */}
+                          {formData.backup_schedule === 'monthly' && (
+                            <div>
+                              <label className="block text-sm font-medium text-gray-700 mb-2">
+                                Day of Month
+                              </label>
+                              <select
+                                name="backup_day_of_month"
+                                value={formData.backup_day_of_month}
+                                onChange={(e) => setFormData(prev => ({ ...prev, backup_day_of_month: parseInt(e.target.value) }))}
+                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                              >
+                                {[...Array(28)].map((_, i) => (
+                                  <option key={i + 1} value={i + 1}>{i + 1}</option>
+                                ))}
+                              </select>
+                              <p className="text-xs text-gray-500 mt-1">Days 29-31 are not available to ensure monthly backups work consistently</p>
+                            </div>
+                          )}
+
+                          {/* Backup Location */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Backup Location
+                            </label>
+                            <div className="flex gap-2">
+                              <input
+                                type="text"
+                                name="backup_location"
+                                value={formData.backup_location}
+                                onChange={(e) => setFormData(prev => ({ ...prev, backup_location: e.target.value }))}
+                                placeholder="Click Browse to select folder..."
+                                className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                                readOnly
+                              />
+                              <button
+                                type="button"
+                                onClick={async () => {
+                                  try {
+                                    const result = await window.electron.ipcRenderer.invoke('backup:selectFolder');
+                                    if (!result.canceled && result.path) {
+                                      setFormData(prev => ({ ...prev, backup_location: result.path }));
+                                    }
+                                  } catch (error) {
+                                    console.error('Error selecting folder:', error);
+                                  }
+                                }}
+                                className="px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors border border-gray-300"
+                              >
+                                Browse
+                              </button>
+                            </div>
+                            <p className="text-xs text-gray-500 mt-1">Leave empty to use default app data folder</p>
+                          </div>
+
+                          {/* Retention */}
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-2">
+                              Backups to Keep
+                            </label>
+                            <select
+                              name="backup_retention"
+                              value={formData.backup_retention}
+                              onChange={(e) => setFormData(prev => ({ ...prev, backup_retention: parseInt(e.target.value) }))}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            >
+                              <option value={3}>Keep last 3 backups</option>
+                              <option value={7}>Keep last 7 backups</option>
+                              <option value={14}>Keep last 14 backups</option>
+                              <option value={30}>Keep last 30 backups</option>
+                              <option value={90}>Keep last 90 backups</option>
+                              <option value={0}>Keep all backups</option>
+                            </select>
+                            <p className="text-xs text-gray-500 mt-1">Older backups will be automatically deleted</p>
+                          </div>
+
+                          {/* Last Backup Info */}
+                          {formData.backup_last_run && (
+                            <div className="mt-4 p-4 bg-green-50 rounded-lg border border-green-200">
+                              <p className="text-sm text-green-800">
+                                <strong>Last backup:</strong> {new Date(formData.backup_last_run).toLocaleString()}
+                              </p>
+                            </div>
+                          )}
+                        </div>
+                      )}
+
+                      {!formData.backup_enabled && (
+                        <div className="p-4 bg-yellow-50 rounded-lg border border-yellow-200">
+                          <p className="text-sm text-yellow-800">
+                            Automatic backups are currently disabled. Enable them to protect your data automatically.
+                          </p>
+                        </div>
+                      )}
                     </div>
                   </div>
 
