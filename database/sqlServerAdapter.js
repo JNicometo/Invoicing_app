@@ -285,9 +285,17 @@ class SQLServerAdapter {
 
           request.on('row', (columns) => {
             const row = {};
-            columns.forEach(column => {
-              row[column.metadata.colName] = column.value;
-            });
+            // With useColumnNames: true, columns is an object, not an array
+            if (Array.isArray(columns)) {
+              columns.forEach(column => {
+                row[column.metadata.colName] = column.value;
+              });
+            } else {
+              // columns is an object with column names as keys
+              for (const [colName, column] of Object.entries(columns)) {
+                row[colName] = column.value;
+              }
+            }
             rows.push(row);
           });
 
