@@ -414,6 +414,26 @@ class SQLServerAdapter {
         return `IF NOT EXISTS (SELECT * FROM sysobjects WHERE name='${tableName}' AND xtype='U') CREATE TABLE ${tableName} (`;
       });
 
+      // Remove ALL INSERT statements FIRST (including INSERT OR IGNORE)
+      // They cause IDENTITY_INSERT issues and duplicate key errors
+      schema = schema.replace(/INSERT\s+OR\s+IGNORE\s+INTO\s+\w+[\s\S]*?;/gi, '');
+      schema = schema.replace(/INSERT\s+INTO\s+\w+[\s\S]*?;/gi, '');
+
+      // Remove indexes on expenses table (table was removed from schema)
+      schema = schema.replace(/CREATE\s+(?:UNIQUE\s+)?INDEX.*?ON\s+expenses\s*\([^)]+\).*?;/gi, '');
+
+      // Remove indexes on columns that may be NVARCHAR(MAX) in existing databases
+      // These will fail if the table already exists with wrong column types
+      const problematicIndexes = [
+        'idx_clients_email',
+        'idx_clients_customer_number',
+        'idx_saved_items_item_number'
+      ];
+      for (const idx of problematicIndexes) {
+        const regex = new RegExp(`CREATE\\s+(?:UNIQUE\\s+)?INDEX.*?${idx}.*?;`, 'gi');
+        schema = schema.replace(regex, '');
+      }
+
       // MSSQL doesn't support UNIQUE INDEX with WHERE clause the same way
       // Convert partial unique indexes to regular indexes with IF NOT EXISTS
       schema = schema.replace(/CREATE UNIQUE INDEX\s+(\w+)\s+ON\s+(\w+)\((\w+)\)\s+WHERE\s+\w+\s+IS\s+NOT\s+NULL/gi,
@@ -426,20 +446,16 @@ class SQLServerAdapter {
 
       // MSSQL uses different default timestamp syntax
       schema = schema.replace(/DEFAULT CURRENT_TIMESTAMP/g, 'DEFAULT GETDATE()');
-
-      // Remove all INSERT statements - they cause IDENTITY_INSERT issues and duplicates
-      // The app will insert default data as needed
-      schema = schema.replace(/INSERT\s+INTO\s+\w+.*?;/gis, '');
     }
 
     // Remove SQLite-specific pragmas
     schema = schema.replace(/PRAGMA.*/g, '');
 
-    // Handle INSERT statements
+    // Handle INSERT statements for non-MSSQL databases
     if (this.type === 'mysql') {
       schema = schema.replace(/INSERT OR IGNORE/g, 'INSERT IGNORE');
-    } else if (this.type === 'postgres' || this.type === 'mssql') {
-      // For MSSQL and Postgres, just use INSERT (will fail on duplicates but that's ok)
+    } else if (this.type === 'postgres') {
+      // For Postgres, just use INSERT (will fail on duplicates but that's ok)
       schema = schema.replace(/INSERT OR IGNORE/g, 'INSERT');
     }
 
