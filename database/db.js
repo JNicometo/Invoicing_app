@@ -405,6 +405,14 @@ const updateSettings = (settings) => {
       stripe_secret_key = @stripe_secret_key,
       stripe_publishable_key = @stripe_publishable_key,
       stripe_enabled = @stripe_enabled,
+      use_sql_server = @use_sql_server,
+      sql_server_type = @sql_server_type,
+      sql_server_host = @sql_server_host,
+      sql_server_port = @sql_server_port,
+      sql_server_database = @sql_server_database,
+      sql_server_username = @sql_server_username,
+      sql_server_password = @sql_server_password,
+      sql_server_ssl = @sql_server_ssl,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = 1
   `);
