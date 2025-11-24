@@ -16,6 +16,7 @@ import { useDatabase } from './hooks/useDatabase';
 function App() {
   const [currentView, setCurrentView] = useState('dashboard');
   const [selectedClientId, setSelectedClientId] = useState(null);
+  const [selectedStatusFilter, setSelectedStatusFilter] = useState(null);
   const [showKeyboardHelp, setShowKeyboardHelp] = useState(false);
   const [showSearch, setShowSearch] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
@@ -247,13 +248,25 @@ function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [showKeyboardHelp]);
 
-  const handleNavigateToInvoices = (clientId = null) => {
-    setSelectedClientId(clientId);
+  const handleNavigateToInvoices = (filterOrClientId = null) => {
+    // Check if it's a status filter (string like 'paid', 'pending', 'overdue') or a clientId (number)
+    if (typeof filterOrClientId === 'string' && ['paid', 'pending', 'overdue', 'draft'].includes(filterOrClientId)) {
+      setSelectedStatusFilter(filterOrClientId);
+      setSelectedClientId(null);
+    } else if (typeof filterOrClientId === 'number') {
+      setSelectedClientId(filterOrClientId);
+      setSelectedStatusFilter(null);
+    } else {
+      // null or undefined - clear all filters
+      setSelectedClientId(null);
+      setSelectedStatusFilter(null);
+    }
     setCurrentView('invoices');
   };
 
   const handleClearClientFilter = () => {
     setSelectedClientId(null);
+    setSelectedStatusFilter(null);
   };
 
   const renderView = () => {
@@ -261,7 +274,7 @@ function App() {
       case 'dashboard':
         return <Dashboard onNavigateToInvoices={handleNavigateToInvoices} />;
       case 'invoices':
-        return <InvoiceList selectedClientId={selectedClientId} onClearClientFilter={handleClearClientFilter} />;
+        return <InvoiceList selectedClientId={selectedClientId} selectedStatusFilter={selectedStatusFilter} onClearFilter={handleClearClientFilter} />;
       case 'estimates':
         return <EstimateList />;
       case 'credit-notes':
