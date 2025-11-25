@@ -236,11 +236,38 @@ const runMigrations = () => {
       console.log('✓ All theme customization columns already exist');
     }
 
-    // Add discount and adjustment columns to invoices table
-    console.log('Checking for invoice discount/adjustment columns...');
+    // Add client snapshot columns to invoices table for preserving client info at time of invoice creation
+    console.log('Checking for invoice client snapshot columns...');
     const invoiceColumns = db.pragma('table_info(invoices)');
     const invoiceColumnNames = invoiceColumns.map(col => col.name);
 
+    const clientSnapshotColumns = [
+      { name: 'client_name', type: 'TEXT', default: "''" },
+      { name: 'client_email', type: 'TEXT', default: "''" },
+      { name: 'client_phone', type: 'TEXT', default: "''" },
+      { name: 'client_address', type: 'TEXT', default: "''" },
+      { name: 'client_city', type: 'TEXT', default: "''" },
+      { name: 'client_state', type: 'TEXT', default: "''" },
+      { name: 'client_zip', type: 'TEXT', default: "''" }
+    ];
+
+    let clientSnapshotAdded = 0;
+    clientSnapshotColumns.forEach(column => {
+      if (!invoiceColumnNames.includes(column.name)) {
+        console.log(`Adding ${column.name} column to invoices table...`);
+        db.exec(`ALTER TABLE invoices ADD COLUMN ${column.name} ${column.type} DEFAULT ${column.default}`);
+        clientSnapshotAdded++;
+      }
+    });
+
+    if (clientSnapshotAdded > 0) {
+      console.log(`✓ Added ${clientSnapshotAdded} client snapshot columns to invoices table`);
+    } else {
+      console.log('✓ All invoice client snapshot columns already exist');
+    }
+
+    // Add discount and adjustment columns to invoices table (legacy check)
+    console.log('Checking for invoice discount/adjustment columns...');
     const invoiceNewColumns = [
       { name: 'discount_type', type: 'TEXT', default: "'none'" },
       { name: 'discount_value', type: 'REAL', default: '0' },
@@ -587,22 +614,39 @@ const getInvoiceItems = (invoiceId) => {
 const createInvoice = (invoice, items) => {
   const db = getDatabase();
 
+  // Get client info to snapshot at time of invoice creation
+  const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(invoice.client_id);
+
   const invoiceStmt = db.prepare(`
     INSERT INTO invoices (invoice_number, client_id, date, due_date, status, subtotal, tax,
       discount_type, discount_value, discount_amount, shipping, adjustment, adjustment_label,
-      total, notes, payment_terms)
+      total, notes, payment_terms, client_name, client_email, client_phone, client_address,
+      client_city, client_state, client_zip)
     VALUES (@invoice_number, @client_id, @date, @due_date, @status, @subtotal, @tax,
       @discount_type, @discount_value, @discount_amount, @shipping, @adjustment, @adjustment_label,
-      @total, @notes, @payment_terms)
+      @total, @notes, @payment_terms, @client_name, @client_email, @client_phone, @client_address,
+      @client_city, @client_state, @client_zip)
   `);
+
+  // Add client snapshot to invoice data
+  const invoiceWithClient = {
+    ...invoice,
+    client_name: client?.name || '',
+    client_email: client?.email || '',
+    client_phone: client?.phone || '',
+    client_address: client?.address || '',
+    client_city: client?.city || '',
+    client_state: client?.state || '',
+    client_zip: client?.zip || ''
+  };
 
   const itemStmt = db.prepare(`
     INSERT INTO invoice_items (invoice_id, description, quantity, rate, discount_type, discount_value, discount_amount, amount)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  const transaction = db.transaction((invoice, items) => {
-    const result = invoiceStmt.run(invoice);
+  const transaction = db.transaction((invoiceData, items) => {
+    const result = invoiceStmt.run(invoiceData);
     const invoiceId = result.lastInsertRowid;
 
     for (const item of items) {
@@ -621,7 +665,7 @@ const createInvoice = (invoice, items) => {
     return invoiceId;
   });
 
-  return transaction(invoice, items);
+  return transaction(invoiceWithClient, items);
 };
 
 const updateInvoice = (id, invoice, items) => {

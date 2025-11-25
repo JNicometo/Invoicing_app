@@ -640,7 +640,23 @@ class SQLServerAdapter {
   }
 
   async createInvoice(invoice) {
-    return this.insert('invoices', invoice);
+    // Get client info to snapshot at time of invoice creation
+    const client = await this.query(`SELECT * FROM clients WHERE id = ${invoice.client_id}`);
+    const clientData = client[0];
+
+    // Add client snapshot to invoice data
+    const invoiceWithClient = {
+      ...invoice,
+      client_name: clientData?.name || '',
+      client_email: clientData?.email || '',
+      client_phone: clientData?.phone || '',
+      client_address: clientData?.address || '',
+      client_city: clientData?.city || '',
+      client_state: clientData?.state || '',
+      client_zip: clientData?.zip || ''
+    };
+
+    return this.insert('invoices', invoiceWithClient);
   }
 
   async updateInvoice(id, invoice) {
