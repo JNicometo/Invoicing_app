@@ -350,7 +350,7 @@ function InvoicePreview({ invoice, onClose }) {
               </tr>
             </thead>
             <tbody>
-              ${fullInvoice.items.map(item => `
+              ${(fullInvoice.items || []).map(item => `
                 <tr>
                   <td>${item.description}</td>
                   <td class="text-center">${item.quantity}</td>
@@ -457,6 +457,11 @@ function InvoicePreview({ invoice, onClose }) {
 
     if (!settings?.smtp_host || !settings?.smtp_user || !settings?.smtp_password) {
       alert('Email settings are not configured. Please configure SMTP settings in Settings > Email Templates.');
+      return;
+    }
+
+    if (!fullInvoice || !fullInvoice.items || fullInvoice.items.length === 0) {
+      alert('Invoice data is not fully loaded. Please wait a moment and try again.');
       return;
     }
 
