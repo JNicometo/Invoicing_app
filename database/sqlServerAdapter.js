@@ -529,12 +529,17 @@ class SQLServerAdapter {
       return `'${String(v).replace(/'/g, "''")}'`;
     });
 
-    const sql = `INSERT INTO ${table} (${columns.join(', ')}) VALUES (${values.join(', ')})`;
-    await this.query(sql);
+    // Use OUTPUT INSERTED.id to get the ID in the same query
+    const sql = `INSERT INTO ${table} (${columns.join(', ')}) OUTPUT INSERTED.id VALUES (${values.join(', ')})`;
+    const result = await this.query(sql);
 
-    // Get the last inserted ID
-    const result = await this.query('SELECT SCOPE_IDENTITY() as id');
-    return { lastInsertRowid: result[0]?.id || 0 };
+    // Return the inserted ID in the same format as SQLite
+    const insertedId = result[0]?.id;
+    if (!insertedId) {
+      console.error('Failed to get inserted ID for table:', table);
+      throw new Error('Failed to get inserted ID after insert');
+    }
+    return { lastInsertRowid: insertedId };
   }
 
   /**
