@@ -336,6 +336,50 @@ class SQLServerAdapter {
   }
 
   /**
+   * Add missing columns to existing tables
+   */
+  async addMissingColumns() {
+    try {
+      console.log('Checking for missing columns in SQL Server...');
+
+      // Add client snapshot columns to invoices table if they don't exist
+      const clientSnapshotColumns = [
+        { name: 'client_name', type: 'VARCHAR(255)', default: "''" },
+        { name: 'client_email', type: 'VARCHAR(255)', default: "''" },
+        { name: 'client_phone', type: 'VARCHAR(255)', default: "''" },
+        { name: 'client_address', type: 'VARCHAR(255)', default: "''" },
+        { name: 'client_city', type: 'VARCHAR(255)', default: "''" },
+        { name: 'client_state', type: 'VARCHAR(255)', default: "''" },
+        { name: 'client_zip', type: 'VARCHAR(255)', default: "''" }
+      ];
+
+      for (const column of clientSnapshotColumns) {
+        try {
+          // Check if column exists
+          const checkQuery = `
+            SELECT COUNT(*) as count
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = 'invoices'
+            AND COLUMN_NAME = '${column.name}'
+          `;
+          const result = await this.query(checkQuery);
+
+          if (result[0].count === 0) {
+            // Column doesn't exist, add it
+            const alterQuery = `ALTER TABLE invoices ADD ${column.name} ${column.type} DEFAULT ${column.default}`;
+            await this.query(alterQuery);
+            console.log(`✓ Added ${column.name} column to invoices table`);
+          }
+        } catch (error) {
+          console.error(`Error adding column ${column.name}:`, error.message);
+        }
+      }
+    } catch (error) {
+      console.error('Error in addMissingColumns:', error.message);
+    }
+  }
+
+  /**
    * Create all tables from schema
    */
   async createSchema() {
@@ -344,6 +388,9 @@ class SQLServerAdapter {
 
       await this.connect();
       console.log('Connected to database for schema creation');
+
+      // Add missing columns to existing tables
+      await this.addMissingColumns();
 
       // Read SQLite schema and convert to SQL server schema
       const schemaPath = path.join(__dirname, 'schema.sql');
@@ -640,23 +687,45 @@ class SQLServerAdapter {
   }
 
   async createInvoice(invoice) {
-    // Get client info to snapshot at time of invoice creation
-    const client = await this.query(`SELECT * FROM clients WHERE id = ${invoice.client_id}`);
-    const clientData = client[0];
+    try {
+      // Check if client snapshot columns exist
+      const checkQuery = `
+        SELECT COUNT(*) as count
+        FROM INFORMATION_SCHEMA.COLUMNS
+        WHERE TABLE_NAME = 'invoices'
+        AND COLUMN_NAME = 'client_name'
+      `;
+      const result = await this.query(checkQuery);
+      const hasClientColumns = result[0].count > 0;
 
-    // Add client snapshot to invoice data
-    const invoiceWithClient = {
-      ...invoice,
-      client_name: clientData?.name || '',
-      client_email: clientData?.email || '',
-      client_phone: clientData?.phone || '',
-      client_address: clientData?.address || '',
-      client_city: clientData?.city || '',
-      client_state: clientData?.state || '',
-      client_zip: clientData?.zip || ''
-    };
+      if (hasClientColumns) {
+        // Get client info to snapshot at time of invoice creation
+        const client = await this.query(`SELECT * FROM clients WHERE id = ${invoice.client_id}`);
+        const clientData = client[0];
 
-    return this.insert('invoices', invoiceWithClient);
+        // Add client snapshot to invoice data
+        const invoiceWithClient = {
+          ...invoice,
+          client_name: clientData?.name || '',
+          client_email: clientData?.email || '',
+          client_phone: clientData?.phone || '',
+          client_address: clientData?.address || '',
+          client_city: clientData?.city || '',
+          client_state: clientData?.state || '',
+          client_zip: clientData?.zip || ''
+        };
+
+        return this.insert('invoices', invoiceWithClient);
+      } else {
+        // Columns don't exist yet, insert without client snapshot
+        console.warn('Client snapshot columns not found, inserting invoice without client info');
+        return this.insert('invoices', invoice);
+      }
+    } catch (error) {
+      console.error('Error in createInvoice:', error);
+      // Fallback: try inserting without client snapshot
+      return this.insert('invoices', invoice);
+    }
   }
 
   async updateInvoice(id, invoice) {
