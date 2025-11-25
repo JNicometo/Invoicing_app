@@ -562,9 +562,19 @@ ipcMain.handle('email:sendInvoice', async (event, emailData) => {
         pass: settings.smtp_password,
       },
       tls: {
-        // Allow configuration of TLS verification (default: true for security)
-        rejectUnauthorized: settings.smtp_verify_tls !== false
-      }
+        // More lenient TLS settings for Gmail and other providers
+        rejectUnauthorized: false,
+        minVersion: 'TLSv1.2'
+      },
+      connectionTimeout: 10000, // 10 second timeout
+      greetingTimeout: 5000
+    });
+
+    console.log('SMTP Config:', {
+      host: settings.smtp_host,
+      port: parseInt(settings.smtp_port) || 587,
+      secure: settings.smtp_secure === true || settings.smtp_secure === 1,
+      user: settings.smtp_user
     });
 
     // Verify connection configuration
