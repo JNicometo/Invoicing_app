@@ -327,16 +327,16 @@ function InvoicePreview({ invoice, onClose }) {
           <div class="details">
             <div class="bill-to">
               <h3>BILL TO:</h3>
-              <p><strong>${fullInvoice.client_name}</strong></p>
-              ${fullInvoice.client_email ? `<p>${fullInvoice.client_email}</p>` : ''}
-              ${fullInvoice.client_phone ? `<p>${fullInvoice.client_phone}</p>` : ''}
-              ${fullInvoice.client_address ? `<p>${fullInvoice.client_address}</p>` : ''}
-              ${fullInvoice.client_city ? `<p>${fullInvoice.client_city}, ${fullInvoice.client_state} ${fullInvoice.client_zip}</p>` : ''}
+              <p><strong>${fullInvoice?.client_name || 'Client Name'}</strong></p>
+              ${fullInvoice?.client_email ? `<p>${fullInvoice.client_email}</p>` : ''}
+              ${fullInvoice?.client_phone ? `<p>${fullInvoice.client_phone}</p>` : ''}
+              ${fullInvoice?.client_address ? `<p>${fullInvoice.client_address}</p>` : ''}
+              ${fullInvoice?.client_city ? `<p>${fullInvoice.client_city}, ${fullInvoice.client_state || ''} ${fullInvoice.client_zip || ''}</p>` : ''}
             </div>
             <div class="invoice-details">
-              <p><strong>Invoice Date:</strong> ${formatDate(fullInvoice.date)}</p>
-              <p><strong>Due Date:</strong> ${formatDate(fullInvoice.due_date)}</p>
-              <p><strong>Status:</strong> <span class="status ${fullInvoice.status}">${fullInvoice.status.toUpperCase()}</span></p>
+              <p><strong>Invoice Date:</strong> ${formatDate(fullInvoice?.date || '')}</p>
+              <p><strong>Due Date:</strong> ${formatDate(fullInvoice?.due_date || '')}</p>
+              <p><strong>Status:</strong> <span class="status ${fullInvoice?.status || 'pending'}">${(fullInvoice?.status || 'pending').toUpperCase()}</span></p>
             </div>
           </div>
 
@@ -364,26 +364,26 @@ function InvoicePreview({ invoice, onClose }) {
           <div class="totals">
             <div class="totals-row">
               <span>Subtotal:</span>
-              <span>${formatCurrency(fullInvoice.subtotal)}</span>
+              <span>${formatCurrency(fullInvoice?.subtotal || 0)}</span>
             </div>
             <div class="totals-row">
               <span>Tax (${settings?.tax_rate || 0}%):</span>
-              <span>${formatCurrency(fullInvoice.tax)}</span>
+              <span>${formatCurrency(fullInvoice?.tax || 0)}</span>
             </div>
             <div class="totals-row total">
               <span>Total:</span>
-              <span>${formatCurrency(fullInvoice.total)}</span>
+              <span>${formatCurrency(fullInvoice?.total || 0)}</span>
             </div>
           </div>
 
-          ${fullInvoice.notes ? `
+          ${fullInvoice?.notes ? `
             <div class="notes">
               <h3>Notes:</h3>
               <p>${fullInvoice.notes}</p>
             </div>
           ` : ''}
 
-          ${fullInvoice.payment_terms ? `
+          ${fullInvoice?.payment_terms ? `
             <div class="payment-terms">
               <h3>Payment Terms:</h3>
               <p>${fullInvoice.payment_terms}</p>
@@ -426,15 +426,15 @@ function InvoicePreview({ invoice, onClose }) {
   const handleOpenEmailModal = () => {
     // Populate email template variables
     const subject = (settings?.email_subject_template || 'Invoice {invoice_number} from {company_name}')
-      .replace('{invoice_number}', fullInvoice.invoice_number)
+      .replace('{invoice_number}', fullInvoice?.invoice_number || '')
       .replace('{company_name}', settings?.company_name || '')
-      .replace('{total}', formatCurrency(fullInvoice.total));
+      .replace('{total}', formatCurrency(fullInvoice?.total || 0));
 
     const body = (settings?.email_body_template || 'Dear {client_name},\n\nPlease find attached invoice {invoice_number} for {total}.\n\nThank you for your business!\n\nBest regards,\n{company_name}')
-      .replace('{client_name}', fullInvoice.client_name)
-      .replace('{invoice_number}', fullInvoice.invoice_number)
-      .replace('{total}', formatCurrency(fullInvoice.total))
-      .replace('{due_date}', formatDate(fullInvoice.due_date))
+      .replace('{client_name}', fullInvoice?.client_name || 'Valued Customer')
+      .replace('{invoice_number}', fullInvoice?.invoice_number || '')
+      .replace('{total}', formatCurrency(fullInvoice?.total || 0))
+      .replace('{due_date}', formatDate(fullInvoice?.due_date || ''))
       .replace('{company_name}', settings?.company_name || '');
 
     setEmailData({

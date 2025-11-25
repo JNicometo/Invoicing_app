@@ -553,7 +553,7 @@ ipcMain.handle('email:sendInvoice', async (event, emailData) => {
     }
 
     // Create a transporter
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: settings.smtp_host,
       port: parseInt(settings.smtp_port) || 587,
       secure: settings.smtp_secure === true || settings.smtp_secure === 1, // true for 465, false for other ports
@@ -1623,7 +1623,7 @@ ipcMain.handle('email:sendInvoiceWithPayment', async (event, emailData) => {
     }
 
     // Create a transporter
-    const transporter = nodemailer.createTransporter({
+    const transporter = nodemailer.createTransport({
       host: settings.smtp_host,
       port: parseInt(settings.smtp_port) || 587,
       secure: settings.smtp_secure === true || settings.smtp_secure === 1,
