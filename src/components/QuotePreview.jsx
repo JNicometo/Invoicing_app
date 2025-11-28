@@ -3,7 +3,7 @@ import { X, Printer, Download, Mail, CheckCircle, XCircle, RefreshCcw } from 'lu
 import { useDatabase } from '../hooks/useDatabase';
 import { formatCurrency, formatDate } from '../utils/formatting';
 
-function EstimatePreview({ estimate, onClose }) {
+function QuotePreview({ quote, onClose }) {
   const [fullEstimate, setFullEstimate] = useState(null);
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -19,30 +19,30 @@ function EstimatePreview({ estimate, onClose }) {
   const [converting, setConverting] = useState(false);
 
   const {
-    getEstimate,
+    getQuote,
     getSettings,
     saveInvoiceAsPDF,
     sendInvoiceEmail,
-    convertEstimateToInvoice,
+    convertQuoteToInvoice,
     updateEstimate
   } = useDatabase();
 
   useEffect(() => {
     loadEstimateData();
-  }, [estimate]);
+  }, [quote]);
 
   const loadEstimateData = async () => {
     try {
       setLoading(true);
       const [estimateData, settingsData] = await Promise.all([
-        getEstimate(estimate.id),
+        getQuote(quote.id),
         getSettings()
       ]);
       setFullEstimate(estimateData);
       setSettings(settingsData);
     } catch (error) {
-      console.error('Error loading estimate:', error);
-      alert('Error loading estimate: ' + error.message);
+      console.error('Error loading quote:', error);
+      alert('Error loading quote: ' + error.message);
     } finally {
       setLoading(false);
     }
@@ -78,7 +78,7 @@ function EstimatePreview({ estimate, onClose }) {
       <html>
       <head>
         <meta charset="UTF-8">
-        <title>Estimate ${fullEstimate.estimate_number}</title>
+        <title>Quote ${fullEstimate.quote_number}</title>
         <style>
           * { margin: 0; padding: 0; box-sizing: border-box; }
           body {
@@ -115,14 +115,14 @@ function EstimatePreview({ estimate, onClose }) {
             color: ${textSecondaryColor};
             margin: 2px 0;
           }
-          .estimate-title { text-align: right; }
-          .estimate-title h1 {
+          .quote-title { text-align: right; }
+          .quote-title h1 {
             font-family: ${headingFont}, sans-serif;
             font-size: ${headingFontSize};
             color: ${estimateHeaderColor};
             margin-bottom: 8px;
           }
-          .estimate-title p {
+          .quote-title p {
             font-size: ${parseInt(bodyFontSize) + 2}pt;
             font-weight: bold;
             color: ${estimateAccentColor};
@@ -133,18 +133,18 @@ function EstimatePreview({ estimate, onClose }) {
             margin-bottom: 40px;
             padding: 20px 0;
           }
-          .bill-to h3, .estimate-details h3 {
+          .bill-to h3, .quote-details h3 {
             font-size: ${parseInt(bodyFontSize) + 1}pt;
             color: ${estimateHeaderColor};
             margin-bottom: 10px;
             font-weight: 700;
           }
-          .bill-to p, .estimate-details p {
+          .bill-to p, .quote-details p {
             font-size: ${bodyFontSize};
             color: ${textSecondaryColor};
             margin: 4px 0;
           }
-          .estimate-details { text-align: right; }
+          .quote-details { text-align: right; }
           .status {
             display: inline-block;
             padding: 4px 12px;
@@ -247,9 +247,9 @@ function EstimatePreview({ estimate, onClose }) {
               ${settings?.company_email ? `<p>${settings.company_email}</p>` : ''}
               ${settings?.company_phone ? `<p>${settings.company_phone}</p>` : ''}
             </div>
-            <div class="estimate-title">
-              <h1>ESTIMATE</h1>
-              <p>${fullEstimate.estimate_number}</p>
+            <div class="quote-title">
+              <h1>QUOTE</h1>
+              <p>${fullEstimate.quote_number}</p>
             </div>
           </div>
 
@@ -262,8 +262,8 @@ function EstimatePreview({ estimate, onClose }) {
               ${fullEstimate.client_address ? `<p>${fullEstimate.client_address}</p>` : ''}
               ${fullEstimate.client_city ? `<p>${fullEstimate.client_city}, ${fullEstimate.client_state} ${fullEstimate.client_zip}</p>` : ''}
             </div>
-            <div class="estimate-details">
-              <p><strong>Estimate Date:</strong> ${formatDate(fullEstimate.date)}</p>
+            <div class="quote-details">
+              <p><strong>Quote Date:</strong> ${formatDate(fullEstimate.date)}</p>
               <p><strong>Valid Until:</strong> ${formatDate(fullEstimate.expiry_date)}</p>
               <p><strong>Status:</strong> <span class="status ${fullEstimate.status}">${fullEstimate.status.toUpperCase()}</span></p>
             </div>
@@ -331,10 +331,10 @@ function EstimatePreview({ estimate, onClose }) {
   const handleDownload = async () => {
     try {
       const estimateHtml = generateEstimateHTML();
-      const result = await saveInvoiceAsPDF(estimateHtml, fullEstimate.estimate_number);
+      const result = await saveInvoiceAsPDF(estimateHtml, fullEstimate.quote_number);
 
       if (result.success) {
-        alert(`Estimate PDF saved successfully at: ${result.filePath}`);
+        alert(`Quote PDF saved successfully at: ${result.filePath}`);
       }
     } catch (error) {
       console.error('Error saving PDF:', error);
@@ -343,8 +343,8 @@ function EstimatePreview({ estimate, onClose }) {
   };
 
   const handleOpenEmailModal = () => {
-    const subject = `Estimate ${fullEstimate.estimate_number} from ${settings?.company_name || 'Your Company'}`;
-    const body = `Dear ${fullEstimate.client_name},\n\nPlease find attached estimate ${fullEstimate.estimate_number} for ${formatCurrency(fullEstimate.total)}.\n\nThis estimate is valid until ${formatDate(fullEstimate.expiry_date)}.\n\nIf you have any questions or would like to proceed, please let us know.\n\nBest regards,\n${settings?.company_name || 'Your Company'}`;
+    const subject = `Quote ${fullEstimate.quote_number} from ${settings?.company_name || 'Your Company'}`;
+    const body = `Dear ${fullEstimate.client_name},\n\nPlease find attached quote ${fullEstimate.quote_number} for ${formatCurrency(fullEstimate.total)}.\n\nThis quote is valid until ${formatDate(fullEstimate.expiry_date)}.\n\nIf you have any questions or would like to proceed, please let us know.\n\nBest regards,\n${settings?.company_name || 'Your Company'}`;
 
     setEmailData({
       recipient: fullEstimate.client_email || '',
@@ -380,11 +380,11 @@ function EstimatePreview({ estimate, onClose }) {
         cc: emailData.cc,
         bcc: emailData.bcc,
         invoiceHtml: estimateHtml,
-        invoiceNumber: fullEstimate.estimate_number
+        invoiceNumber: fullEstimate.quote_number
       });
 
       if (result.success) {
-        alert(result.message || 'Estimate email sent successfully!');
+        alert(result.message || 'Quote email sent successfully!');
         setShowEmailModal(false);
       }
     } catch (error) {
@@ -397,26 +397,26 @@ function EstimatePreview({ estimate, onClose }) {
 
   const handleConvertToInvoice = async () => {
     if (fullEstimate.status !== 'approved') {
-      if (!window.confirm('This estimate is not marked as approved. Do you still want to convert it to an invoice?')) {
+      if (!window.confirm('This quote is not marked as approved. Do you still want to convert it to an invoice?')) {
         return;
       }
     } else {
-      if (!window.confirm('Convert this estimate to an invoice? This will create a new invoice with the same details.')) {
+      if (!window.confirm('Convert this quote to an invoice? This will create a new invoice with the same details.')) {
         return;
       }
     }
 
     try {
       setConverting(true);
-      const result = await convertEstimateToInvoice(fullEstimate.id);
+      const result = await convertQuoteToInvoice(fullEstimate.id);
 
       if (result) {
-        alert(`Estimate converted successfully! Invoice ${result.invoiceNumber} has been created.`);
-        onClose(true); // Reload the estimate list
+        alert(`Quote converted successfully! Invoice ${result.invoiceNumber} has been created.`);
+        onClose(true); // Reload the quote list
       }
     } catch (error) {
-      console.error('Error converting estimate:', error);
-      alert('Error converting estimate: ' + error.message);
+      console.error('Error converting quote:', error);
+      alert('Error converting quote: ' + error.message);
     } finally {
       setConverting(false);
     }
@@ -426,7 +426,7 @@ function EstimatePreview({ estimate, onClose }) {
     try {
       await updateEstimate(fullEstimate.id, { ...fullEstimate, status: newStatus }, fullEstimate.items);
       await loadEstimateData();
-      alert(`Estimate marked as ${newStatus}`);
+      alert(`Quote marked as ${newStatus}`);
     } catch (error) {
       console.error('Error updating status:', error);
       alert('Error updating status: ' + error.message);
@@ -437,7 +437,7 @@ function EstimatePreview({ estimate, onClose }) {
     return (
       <div className="p-8">
         <div className="text-center py-12">
-          <p className="text-gray-500">Loading estimate...</p>
+          <p className="text-gray-500">Loading quote...</p>
         </div>
       </div>
     );
@@ -448,7 +448,7 @@ function EstimatePreview({ estimate, onClose }) {
       <div className="max-w-4xl mx-auto">
         {/* Header Actions */}
         <div className="flex justify-between items-center mb-6 print:hidden">
-          <h1 className="text-3xl font-bold text-gray-900">Estimate Preview</h1>
+          <h1 className="text-3xl font-bold text-gray-900">Quote Preview</h1>
           <div className="flex space-x-3">
             <button
               onClick={handlePrint}
@@ -532,7 +532,7 @@ function EstimatePreview({ estimate, onClose }) {
         {fullEstimate.status === 'converted' && fullEstimate.converted_to_invoice_id && (
           <div className="bg-purple-50 border border-purple-200 rounded-lg p-4 mb-6 print:hidden">
             <p className="text-purple-900">
-              <strong>This estimate has been converted to an invoice</strong>
+              <strong>This quote has been converted to an invoice</strong>
             </p>
           </div>
         )}
@@ -543,7 +543,7 @@ function EstimatePreview({ estimate, onClose }) {
             <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full max-h-[90vh] overflow-y-auto">
               <div className="p-6">
                 <div className="flex justify-between items-center mb-6">
-                  <h2 className="text-2xl font-bold text-gray-900">Send Estimate by Email</h2>
+                  <h2 className="text-2xl font-bold text-gray-900">Send Quote by Email</h2>
                   <button
                     onClick={() => setShowEmailModal(false)}
                     className="text-gray-400 hover:text-gray-600"
@@ -613,7 +613,7 @@ function EstimatePreview({ estimate, onClose }) {
 
                   <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
                     <p className="text-sm text-indigo-800">
-                      <strong>Attachment:</strong> Estimate-{fullEstimate.estimate_number}.pdf
+                      <strong>Attachment:</strong> Quote-{fullEstimate.quote_number}.pdf
                     </p>
                   </div>
                 </div>
@@ -652,7 +652,7 @@ function EstimatePreview({ estimate, onClose }) {
           </div>
         )}
 
-        {/* Estimate Document */}
+        {/* Quote Document */}
         <div className="bg-white shadow-lg p-12 rounded-lg">
           {/* Company Header */}
           <div
@@ -687,15 +687,15 @@ function EstimatePreview({ estimate, onClose }) {
 
             <div className="text-right">
               <h1 className="text-4xl font-bold" style={{ color: settings?.invoice_header_color || '#1F2937' }}>
-                ESTIMATE
+                QUOTE
               </h1>
               <p className="text-lg font-semibold mt-2" style={{ color: settings?.invoice_accent_color || '#6366F1' }}>
-                {fullEstimate.estimate_number}
+                {fullEstimate.quote_number}
               </p>
             </div>
           </div>
 
-          {/* Estimate Details */}
+          {/* Quote Details */}
           <div className="grid grid-cols-2 gap-8 mb-8 p-5 bg-gray-50 rounded-lg">
             <div>
               <h3 className="text-sm font-semibold mb-2" style={{ color: settings?.invoice_header_color || '#1F2937' }}>
@@ -722,7 +722,7 @@ function EstimatePreview({ estimate, onClose }) {
               <div className="space-y-2">
                 <div className="flex justify-between">
                   <span className="font-semibold" style={{ color: settings?.invoice_header_color || '#1F2937' }}>
-                    Estimate Date:
+                    Quote Date:
                   </span>
                   <span style={{ color: settings?.text_secondary_color || '#6B7280' }}>
                     {formatDate(fullEstimate.date)}
@@ -868,4 +868,4 @@ function EstimatePreview({ estimate, onClose }) {
   );
 }
 
-export default EstimatePreview;
+export default QuotePreview;

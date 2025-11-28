@@ -7,7 +7,7 @@ import SavedItems from './components/SavedItems';
 import ArchiveComponent from './components/Archive';
 import Settings from './components/Settings';
 import RecurringInvoices from './components/RecurringInvoices';
-import EstimateList from './components/EstimateList';
+import QuoteList from './components/QuoteList';
 import Reports from './components/Reports';
 import CreditNotes from './components/CreditNotes';
 import Reminders from './components/Reminders';
@@ -98,7 +98,7 @@ function App() {
       const defaultNavigation = [
         { id: 'dashboard', name: 'Dashboard', icon: Home },
         { id: 'invoices', name: 'Invoices', icon: FileText },
-        { id: 'estimates', name: 'Estimates', icon: ClipboardList },
+        { id: 'quotes', name: 'Quotes', icon: ClipboardList },
         { id: 'credit-notes', name: 'Credit Notes', icon: FileX },
         { id: 'recurring', name: 'Recurring', icon: Repeat },
         { id: 'clients', name: 'Clients', icon: Users },
@@ -139,7 +139,7 @@ function App() {
       setNavigation([
         { id: 'dashboard', name: 'Dashboard', icon: Home },
         { id: 'invoices', name: 'Invoices', icon: FileText },
-        { id: 'estimates', name: 'Estimates', icon: ClipboardList },
+        { id: 'quotes', name: 'Quotes', icon: ClipboardList },
         { id: 'credit-notes', name: 'Credit Notes', icon: FileX },
         { id: 'recurring', name: 'Recurring', icon: Repeat },
         { id: 'clients', name: 'Clients', icon: Users },
@@ -274,8 +274,8 @@ function App() {
         return <Dashboard onNavigateToInvoices={handleNavigateToInvoices} />;
       case 'invoices':
         return <InvoiceList selectedClientId={selectedClientId} selectedStatusFilter={selectedStatusFilter} onClearFilter={handleClearClientFilter} />;
-      case 'estimates':
-        return <EstimateList />;
+      case 'quotes':
+        return <QuoteList />;
       case 'credit-notes':
         return <CreditNotes />;
       case 'recurring':
