@@ -42,6 +42,7 @@ CREATE TABLE IF NOT EXISTS invoices (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
   invoice_number TEXT NOT NULL UNIQUE,
   client_id INTEGER NOT NULL,
+  created_from_quote_id INTEGER DEFAULT NULL,
   date TEXT NOT NULL,
   due_date TEXT NOT NULL,
   status TEXT DEFAULT 'draft',
@@ -56,10 +57,18 @@ CREATE TABLE IF NOT EXISTS invoices (
   total REAL DEFAULT 0,
   notes TEXT DEFAULT '',
   payment_terms TEXT DEFAULT '',
+  client_name TEXT DEFAULT '',
+  client_email TEXT DEFAULT '',
+  client_phone TEXT DEFAULT '',
+  client_address TEXT DEFAULT '',
+  client_city TEXT DEFAULT '',
+  client_state TEXT DEFAULT '',
+  client_zip TEXT DEFAULT '',
   archived INTEGER DEFAULT 0,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (client_id) REFERENCES clients(id)
+  FOREIGN KEY (client_id) REFERENCES clients(id),
+  FOREIGN KEY (created_from_quote_id) REFERENCES quotes(id)
 );
 
 -- Invoice items table
@@ -134,16 +143,22 @@ CREATE TABLE IF NOT EXISTS recurring_invoice_items (
   FOREIGN KEY (recurring_invoice_id) REFERENCES recurring_invoices(id) ON DELETE CASCADE
 );
 
--- Estimates table (quotes)
-CREATE TABLE IF NOT EXISTS estimates (
+-- Quotes table (formerly estimates)
+CREATE TABLE IF NOT EXISTS quotes (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  estimate_number TEXT NOT NULL UNIQUE,
+  quote_number TEXT NOT NULL UNIQUE,
   client_id INTEGER NOT NULL,
   date TEXT NOT NULL,
   expiry_date TEXT NOT NULL,
   status TEXT DEFAULT 'draft',
   subtotal REAL DEFAULT 0,
   tax REAL DEFAULT 0,
+  discount_type TEXT DEFAULT 'none',
+  discount_value REAL DEFAULT 0,
+  discount_amount REAL DEFAULT 0,
+  shipping REAL DEFAULT 0,
+  adjustment REAL DEFAULT 0,
+  adjustment_label TEXT DEFAULT '',
   total REAL DEFAULT 0,
   notes TEXT DEFAULT '',
   terms TEXT DEFAULT '',
@@ -155,16 +170,19 @@ CREATE TABLE IF NOT EXISTS estimates (
   FOREIGN KEY (converted_to_invoice_id) REFERENCES invoices(id)
 );
 
--- Estimate items table
-CREATE TABLE IF NOT EXISTS estimate_items (
+-- Quote items table
+CREATE TABLE IF NOT EXISTS quote_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  estimate_id INTEGER NOT NULL,
+  quote_id INTEGER NOT NULL,
   description TEXT NOT NULL,
   quantity REAL DEFAULT 1,
   rate REAL DEFAULT 0,
+  discount_type TEXT DEFAULT 'none',
+  discount_value REAL DEFAULT 0,
+  discount_amount REAL DEFAULT 0,
   amount REAL DEFAULT 0,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
-  FOREIGN KEY (estimate_id) REFERENCES estimates(id) ON DELETE CASCADE
+  FOREIGN KEY (quote_id) REFERENCES quotes(id) ON DELETE CASCADE
 );
 
 -- Credit notes table for refunds and adjustments
@@ -336,10 +354,10 @@ CREATE INDEX IF NOT EXISTS idx_payments_invoice_id ON payments(invoice_id);
 CREATE INDEX IF NOT EXISTS idx_recurring_invoices_client_id ON recurring_invoices(client_id);
 CREATE INDEX IF NOT EXISTS idx_recurring_invoices_active ON recurring_invoices(active);
 CREATE INDEX IF NOT EXISTS idx_recurring_invoice_items_recurring_invoice_id ON recurring_invoice_items(recurring_invoice_id);
-CREATE INDEX IF NOT EXISTS idx_estimates_client_id ON estimates(client_id);
-CREATE INDEX IF NOT EXISTS idx_estimates_status ON estimates(status);
-CREATE INDEX IF NOT EXISTS idx_estimates_archived ON estimates(archived);
-CREATE INDEX IF NOT EXISTS idx_estimate_items_estimate_id ON estimate_items(estimate_id);
+CREATE INDEX IF NOT EXISTS idx_quotes_client_id ON quotes(client_id);
+CREATE INDEX IF NOT EXISTS idx_quotes_status ON quotes(status);
+CREATE INDEX IF NOT EXISTS idx_quotes_archived ON quotes(archived);
+CREATE INDEX IF NOT EXISTS idx_quote_items_quote_id ON quote_items(quote_id);
 CREATE INDEX IF NOT EXISTS idx_credit_notes_invoice_id ON credit_notes(invoice_id);
 CREATE INDEX IF NOT EXISTS idx_credit_notes_client_id ON credit_notes(client_id);
 CREATE INDEX IF NOT EXISTS idx_credit_notes_status ON credit_notes(status);

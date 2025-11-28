@@ -175,45 +175,45 @@ export const useDatabase = () => {
     return await ipcCall('db:generateInvoiceFromRecurring', recurringInvoiceId);
   }, [ipcCall]);
 
-  // Estimates
-  const generateEstimateNumber = useCallback(async () => {
-    return await ipcCall('db:generateEstimateNumber');
+  // Quotes
+  const generateQuoteNumber = useCallback(async () => {
+    return await ipcCall('db:generateQuoteNumber');
   }, [ipcCall]);
 
-  const createEstimate = useCallback(async (estimate, items) => {
-    return await ipcCall('db:createEstimate', estimate, items);
+  const createQuote = useCallback(async (quote, items) => {
+    return await ipcCall('db:createQuote', quote, items);
   }, [ipcCall]);
 
-  const getAllEstimates = useCallback(async () => {
-    return await ipcCall('db:getAllEstimates');
+  const getAllQuotes = useCallback(async () => {
+    return await ipcCall('db:getAllQuotes');
   }, [ipcCall]);
 
-  const getArchivedEstimates = useCallback(async () => {
-    return await ipcCall('db:getArchivedEstimates');
+  const getArchivedQuotes = useCallback(async () => {
+    return await ipcCall('db:getArchivedQuotes');
   }, [ipcCall]);
 
-  const getEstimate = useCallback(async (id) => {
-    return await ipcCall('db:getEstimate', id);
+  const getQuote = useCallback(async (id) => {
+    return await ipcCall('db:getQuote', id);
   }, [ipcCall]);
 
-  const updateEstimate = useCallback(async (id, estimate, items) => {
-    return await ipcCall('db:updateEstimate', id, estimate, items);
+  const updateQuote = useCallback(async (id, quote, items) => {
+    return await ipcCall('db:updateQuote', id, quote, items);
   }, [ipcCall]);
 
-  const deleteEstimate = useCallback(async (id) => {
-    return await ipcCall('db:deleteEstimate', id);
+  const deleteQuote = useCallback(async (id) => {
+    return await ipcCall('db:deleteQuote', id);
   }, [ipcCall]);
 
-  const archiveEstimate = useCallback(async (id) => {
-    return await ipcCall('db:archiveEstimate', id);
+  const archiveQuote = useCallback(async (id) => {
+    return await ipcCall('db:archiveQuote', id);
   }, [ipcCall]);
 
-  const restoreEstimate = useCallback(async (id) => {
-    return await ipcCall('db:restoreEstimate', id);
+  const restoreQuote = useCallback(async (id) => {
+    return await ipcCall('db:restoreQuote', id);
   }, [ipcCall]);
 
-  const convertEstimateToInvoice = useCallback(async (estimateId) => {
-    return await ipcCall('db:convertEstimateToInvoice', estimateId);
+  const convertQuoteToInvoice = useCallback(async (quoteId) => {
+    return await ipcCall('db:convertQuoteToInvoice', quoteId);
   }, [ipcCall]);
 
   // Credit Notes
@@ -411,17 +411,17 @@ export const useDatabase = () => {
     updateRecurringInvoice,
     deleteRecurringInvoice,
     generateInvoiceFromRecurring,
-    // Estimates
-    generateEstimateNumber,
-    createEstimate,
-    getAllEstimates,
-    getArchivedEstimates,
-    getEstimate,
-    updateEstimate,
-    deleteEstimate,
-    archiveEstimate,
-    restoreEstimate,
-    convertEstimateToInvoice,
+    // Quotes
+    generateQuoteNumber,
+    createQuote,
+    getAllQuotes,
+    getArchivedQuotes,
+    getQuote,
+    updateQuote,
+    deleteQuote,
+    archiveQuote,
+    restoreQuote,
+    convertQuoteToInvoice,
     // Credit Notes
     generateCreditNoteNumber,
     createCreditNote,
