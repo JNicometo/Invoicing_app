@@ -318,6 +318,158 @@ const runMigrations = () => {
       console.log('✓ All invoice item discount columns already exist');
     }
 
+    // Migrate estimates tables to quotes
+    console.log('Checking for estimates to quotes migration...');
+    const tables = db.prepare("SELECT name FROM sqlite_master WHERE type='table'").all();
+    const tableNames = tables.map(t => t.name);
+
+    if (tableNames.includes('estimates') && !tableNames.includes('quotes')) {
+      console.log('Migrating estimates to quotes...');
+
+      // Rename estimates table to quotes
+      db.exec('ALTER TABLE estimates RENAME TO quotes');
+      console.log('✓ Renamed estimates table to quotes');
+
+      // Rename estimate_items table to quote_items
+      db.exec('ALTER TABLE estimate_items RENAME TO quote_items');
+      console.log('✓ Renamed estimate_items table to quote_items');
+
+      // Rename estimate_number column to quote_number
+      db.exec(`
+        CREATE TABLE quotes_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          quote_number TEXT NOT NULL UNIQUE,
+          client_id INTEGER NOT NULL,
+          date TEXT NOT NULL,
+          expiry_date TEXT NOT NULL,
+          status TEXT DEFAULT 'draft',
+          subtotal REAL DEFAULT 0,
+          tax REAL DEFAULT 0,
+          discount_type TEXT DEFAULT 'none',
+          discount_value REAL DEFAULT 0,
+          discount_amount REAL DEFAULT 0,
+          shipping REAL DEFAULT 0,
+          adjustment REAL DEFAULT 0,
+          adjustment_label TEXT DEFAULT '',
+          total REAL DEFAULT 0,
+          notes TEXT DEFAULT '',
+          terms TEXT DEFAULT '',
+          converted_to_invoice_id INTEGER DEFAULT NULL,
+          archived INTEGER DEFAULT 0,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (client_id) REFERENCES clients(id),
+          FOREIGN KEY (converted_to_invoice_id) REFERENCES invoices(id)
+        );
+      `);
+
+      // Copy data from old quotes table to new one
+      db.exec(`
+        INSERT INTO quotes_new
+        SELECT id, estimate_number, client_id, date, expiry_date, status,
+               subtotal, tax, 'none', 0, 0, 0, 0, '',
+               total, notes, terms, converted_to_invoice_id, archived, created_at, updated_at
+        FROM quotes
+      `);
+
+      // Drop old table and rename new one
+      db.exec('DROP TABLE quotes');
+      db.exec('ALTER TABLE quotes_new RENAME TO quotes');
+      console.log('✓ Renamed estimate_number to quote_number and added discount columns');
+
+      // Recreate indexes
+      db.exec('CREATE INDEX IF NOT EXISTS idx_quotes_client_id ON quotes(client_id)');
+      db.exec('CREATE INDEX IF NOT EXISTS idx_quotes_status ON quotes(status)');
+      db.exec('CREATE INDEX IF NOT EXISTS idx_quotes_archived ON quotes(archived)');
+
+      // Update quote_items table structure
+      db.exec(`
+        CREATE TABLE quote_items_new (
+          id INTEGER PRIMARY KEY AUTOINCREMENT,
+          quote_id INTEGER NOT NULL,
+          description TEXT NOT NULL,
+          quantity REAL DEFAULT 1,
+          rate REAL DEFAULT 0,
+          discount_type TEXT DEFAULT 'none',
+          discount_value REAL DEFAULT 0,
+          discount_amount REAL DEFAULT 0,
+          amount REAL DEFAULT 0,
+          created_at TEXT DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (quote_id) REFERENCES quotes(id) ON DELETE CASCADE
+        );
+      `);
+
+      // Copy data from old quote_items
+      db.exec(`
+        INSERT INTO quote_items_new
+        SELECT id, estimate_id, description, quantity, rate, 'none', 0, 0, amount, created_at
+        FROM quote_items
+      `);
+
+      // Drop old table and rename new one
+      db.exec('DROP TABLE quote_items');
+      db.exec('ALTER TABLE quote_items_new RENAME TO quote_items');
+      console.log('✓ Updated quote_items table structure');
+
+      // Recreate index
+      db.exec('CREATE INDEX IF NOT EXISTS idx_quote_items_quote_id ON quote_items(quote_id)');
+
+      console.log('✓ Estimates to quotes migration completed');
+    } else if (tableNames.includes('quotes')) {
+      console.log('✓ Already using quotes table');
+
+      // Check if discount columns exist in quotes table
+      const quoteColumns = db.pragma('table_info(quotes)');
+      const quoteColumnNames = quoteColumns.map(col => col.name);
+
+      if (!quoteColumnNames.includes('discount_type')) {
+        console.log('Adding discount/adjustment columns to quotes table...');
+        const quoteNewColumns = [
+          { name: 'discount_type', type: 'TEXT', default: "'none'" },
+          { name: 'discount_value', type: 'REAL', default: '0' },
+          { name: 'discount_amount', type: 'REAL', default: '0' },
+          { name: 'shipping', type: 'REAL', default: '0' },
+          { name: 'adjustment', type: 'REAL', default: '0' },
+          { name: 'adjustment_label', type: 'TEXT', default: "''" }
+        ];
+
+        quoteNewColumns.forEach(column => {
+          db.exec(`ALTER TABLE quotes ADD COLUMN ${column.name} ${column.type} DEFAULT ${column.default}`);
+        });
+        console.log('✓ Added discount/adjustment columns to quotes');
+      }
+
+      // Check if discount columns exist in quote_items table
+      const quoteItemColumns = db.pragma('table_info(quote_items)');
+      const quoteItemColumnNames = quoteItemColumns.map(col => col.name);
+
+      if (!quoteItemColumnNames.includes('discount_type')) {
+        console.log('Adding discount columns to quote_items table...');
+        const quoteItemNewColumns = [
+          { name: 'discount_type', type: 'TEXT', default: "'none'" },
+          { name: 'discount_value', type: 'REAL', default: '0' },
+          { name: 'discount_amount', type: 'REAL', default: '0' }
+        ];
+
+        quoteItemNewColumns.forEach(column => {
+          db.exec(`ALTER TABLE quote_items ADD COLUMN ${column.name} ${column.type} DEFAULT ${column.default}`);
+        });
+        console.log('✓ Added discount columns to quote_items');
+      }
+    } else {
+      console.log('✓ No estimates table found, will create quotes table from schema');
+    }
+
+    // Add created_from_quote_id to invoices table
+    const invoiceColumnsCheck = db.pragma('table_info(invoices)');
+    const invoiceColumnNamesCheck = invoiceColumnsCheck.map(col => col.name);
+
+    if (!invoiceColumnNamesCheck.includes('created_from_quote_id')) {
+      console.log('Adding created_from_quote_id column to invoices table...');
+      db.exec('ALTER TABLE invoices ADD COLUMN created_from_quote_id INTEGER DEFAULT NULL');
+      console.log('✓ Added created_from_quote_id column');
+    }
+
     // Set default tab configuration if null
     console.log('Checking tab configuration...');
     const settings = db.prepare('SELECT tab_configuration FROM settings WHERE id = 1').get();
@@ -326,7 +478,7 @@ const runMigrations = () => {
       const defaultTabConfig = JSON.stringify([
         { id: 'dashboard', name: 'Dashboard', enabled: true, order: 0 },
         { id: 'invoices', name: 'Invoices', enabled: true, order: 1 },
-        { id: 'estimates', name: 'Estimates', enabled: true, order: 2 },
+        { id: 'quotes', name: 'Quotes', enabled: true, order: 2 },
         { id: 'credit-notes', name: 'Credit Notes', enabled: true, order: 3 },
         { id: 'recurring', name: 'Recurring', enabled: true, order: 4 },
         { id: 'clients', name: 'Clients', enabled: true, order: 5 },
@@ -339,7 +491,18 @@ const runMigrations = () => {
       db.prepare('UPDATE settings SET tab_configuration = ? WHERE id = 1').run(defaultTabConfig);
       console.log('✓ Default tab configuration set');
     } else {
-      console.log('✓ Tab configuration already exists');
+      // Update existing tab configuration to change 'estimates' to 'quotes'
+      console.log('Updating tab configuration to use quotes instead of estimates...');
+      const tabConfig = JSON.parse(settings.tab_configuration);
+      const estimatesTab = tabConfig.find(tab => tab.id === 'estimates');
+      if (estimatesTab) {
+        estimatesTab.id = 'quotes';
+        estimatesTab.name = 'Quotes';
+        db.prepare('UPDATE settings SET tab_configuration = ? WHERE id = 1').run(JSON.stringify(tabConfig));
+        console.log('✓ Updated tab configuration to use quotes');
+      } else {
+        console.log('✓ Tab configuration already uses quotes');
+      }
     }
 
     console.log('Migrations completed successfully');
@@ -618,11 +781,11 @@ const createInvoice = (invoice, items) => {
   const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(invoice.client_id);
 
   const invoiceStmt = db.prepare(`
-    INSERT INTO invoices (invoice_number, client_id, date, due_date, status, subtotal, tax,
+    INSERT INTO invoices (invoice_number, client_id, created_from_quote_id, date, due_date, status, subtotal, tax,
       discount_type, discount_value, discount_amount, shipping, adjustment, adjustment_label,
       total, notes, payment_terms, client_name, client_email, client_phone, client_address,
       client_city, client_state, client_zip)
-    VALUES (@invoice_number, @client_id, @date, @due_date, @status, @subtotal, @tax,
+    VALUES (@invoice_number, @client_id, @created_from_quote_id, @date, @due_date, @status, @subtotal, @tax,
       @discount_type, @discount_value, @discount_amount, @shipping, @adjustment, @adjustment_label,
       @total, @notes, @payment_terms, @client_name, @client_email, @client_phone, @client_address,
       @client_city, @client_state, @client_zip)
@@ -662,7 +825,7 @@ const createInvoice = (invoice, items) => {
       );
     }
 
-    return invoiceId;
+    return result;
   });
 
   return transaction(invoiceWithClient, items);
@@ -1045,98 +1208,118 @@ const generateInvoiceFromRecurring = (recurringInvoiceId) => {
   return result;
 };
 
-// Estimate operations
-const generateEstimateNumber = () => {
+// Quote operations
+const generateQuoteNumber = () => {
   const db = getDatabase();
   const settings = getSettings();
-  const prefix = settings.quote_prefix || 'EST-';
+  const prefix = settings.quote_prefix || 'QUO-';
 
-  const lastEstimate = db.prepare('SELECT estimate_number FROM estimates ORDER BY id DESC LIMIT 1').get();
+  const lastQuote = db.prepare('SELECT quote_number FROM quotes ORDER BY id DESC LIMIT 1').get();
 
-  if (!lastEstimate) {
+  if (!lastQuote) {
     return `${prefix}0001`;
   }
 
-  const lastNumber = parseInt(lastEstimate.estimate_number.replace(prefix, ''));
+  const lastNumber = parseInt(lastQuote.quote_number.replace(prefix, ''));
   const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
 
   return `${prefix}${nextNumber}`;
 };
 
-const createEstimate = (estimate, items) => {
+const createQuote = (quote, items) => {
   const db = getDatabase();
 
   const stmt = db.prepare(`
-    INSERT INTO estimates (estimate_number, client_id, date, expiry_date, status, subtotal, tax, total, notes, terms)
-    VALUES (@estimate_number, @client_id, @date, @expiry_date, @status, @subtotal, @tax, @total, @notes, @terms)
+    INSERT INTO quotes (quote_number, client_id, date, expiry_date, status, subtotal, tax,
+      discount_type, discount_value, discount_amount, shipping, adjustment, adjustment_label,
+      total, notes, terms)
+    VALUES (@quote_number, @client_id, @date, @expiry_date, @status, @subtotal, @tax,
+      @discount_type, @discount_value, @discount_amount, @shipping, @adjustment, @adjustment_label,
+      @total, @notes, @terms)
   `);
 
-  const result = stmt.run(estimate);
-  const estimateId = result.lastInsertRowid;
+  const result = stmt.run(quote);
+  const quoteId = result.lastInsertRowid;
 
   // Insert items
   const itemStmt = db.prepare(`
-    INSERT INTO estimate_items (estimate_id, description, quantity, rate, amount)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO quote_items (quote_id, description, quantity, rate,
+      discount_type, discount_value, discount_amount, amount)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   items.forEach(item => {
-    itemStmt.run(estimateId, item.description, item.quantity, item.rate, item.amount);
+    itemStmt.run(
+      quoteId,
+      item.description,
+      item.quantity,
+      item.rate,
+      item.discount_type || 'none',
+      item.discount_value || 0,
+      item.discount_amount || 0,
+      item.amount
+    );
   });
 
   return result;
 };
 
-const getAllEstimates = () => {
+const getAllQuotes = () => {
   const db = getDatabase();
   return db.prepare(`
-    SELECT e.*, c.name as client_name, c.email as client_email
-    FROM estimates e
-    LEFT JOIN clients c ON e.client_id = c.id
-    WHERE e.archived = 0
-    ORDER BY e.created_at DESC
+    SELECT q.*, c.name as client_name, c.email as client_email
+    FROM quotes q
+    LEFT JOIN clients c ON q.client_id = c.id
+    WHERE q.archived = 0
+    ORDER BY q.created_at DESC
   `).all();
 };
 
-const getArchivedEstimates = () => {
+const getArchivedQuotes = () => {
   const db = getDatabase();
   return db.prepare(`
-    SELECT e.*, c.name as client_name, c.email as client_email
-    FROM estimates e
-    LEFT JOIN clients c ON e.client_id = c.id
-    WHERE e.archived = 1
-    ORDER BY e.created_at DESC
+    SELECT q.*, c.name as client_name, c.email as client_email
+    FROM quotes q
+    LEFT JOIN clients c ON q.client_id = c.id
+    WHERE q.archived = 1
+    ORDER BY q.created_at DESC
   `).all();
 };
 
-const getEstimate = (id) => {
+const getQuote = (id) => {
   const db = getDatabase();
-  const estimate = db.prepare(`
-    SELECT e.*, c.name as client_name, c.email as client_email, c.phone as client_phone,
+  const quote = db.prepare(`
+    SELECT q.*, c.name as client_name, c.email as client_email, c.phone as client_phone,
            c.address as client_address, c.city as client_city, c.state as client_state, c.zip as client_zip
-    FROM estimates e
-    LEFT JOIN clients c ON e.client_id = c.id
-    WHERE e.id = ?
+    FROM quotes q
+    LEFT JOIN clients c ON q.client_id = c.id
+    WHERE q.id = ?
   `).get(id);
 
-  if (estimate) {
-    estimate.items = db.prepare('SELECT * FROM estimate_items WHERE estimate_id = ?').all(id);
+  if (quote) {
+    quote.items = db.prepare('SELECT * FROM quote_items WHERE quote_id = ?').all(id);
   }
 
-  return estimate;
+  return quote;
 };
 
-const updateEstimate = (id, estimate, items) => {
+const updateQuote = (id, quote, items) => {
   const db = getDatabase();
 
   const stmt = db.prepare(`
-    UPDATE estimates SET
+    UPDATE quotes SET
       client_id = @client_id,
       date = @date,
       expiry_date = @expiry_date,
       status = @status,
       subtotal = @subtotal,
       tax = @tax,
+      discount_type = @discount_type,
+      discount_value = @discount_value,
+      discount_amount = @discount_amount,
+      shipping = @shipping,
+      adjustment = @adjustment,
+      adjustment_label = @adjustment_label,
       total = @total,
       notes = @notes,
       terms = @terms,
@@ -1144,82 +1327,103 @@ const updateEstimate = (id, estimate, items) => {
     WHERE id = @id
   `);
 
-  const result = stmt.run({ ...estimate, id });
+  const result = stmt.run({ ...quote, id });
 
   // Delete existing items and insert new ones
-  db.prepare('DELETE FROM estimate_items WHERE estimate_id = ?').run(id);
+  db.prepare('DELETE FROM quote_items WHERE quote_id = ?').run(id);
 
   const itemStmt = db.prepare(`
-    INSERT INTO estimate_items (estimate_id, description, quantity, rate, amount)
-    VALUES (?, ?, ?, ?, ?)
+    INSERT INTO quote_items (quote_id, description, quantity, rate,
+      discount_type, discount_value, discount_amount, amount)
+    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
   items.forEach(item => {
-    itemStmt.run(id, item.description, item.quantity, item.rate, item.amount);
+    itemStmt.run(
+      id,
+      item.description,
+      item.quantity,
+      item.rate,
+      item.discount_type || 'none',
+      item.discount_value || 0,
+      item.discount_amount || 0,
+      item.amount
+    );
   });
 
   return result;
 };
 
-const deleteEstimate = (id) => {
+const deleteQuote = (id) => {
   const db = getDatabase();
-  return db.prepare('DELETE FROM estimates WHERE id = ?').run(id);
+  return db.prepare('DELETE FROM quotes WHERE id = ?').run(id);
 };
 
-const archiveEstimate = (id) => {
+const archiveQuote = (id) => {
   const db = getDatabase();
-  return db.prepare('UPDATE estimates SET archived = 1 WHERE id = ?').run(id);
+  return db.prepare('UPDATE quotes SET archived = 1 WHERE id = ?').run(id);
 };
 
-const restoreEstimate = (id) => {
+const restoreQuote = (id) => {
   const db = getDatabase();
-  return db.prepare('UPDATE estimates SET archived = 0 WHERE id = ?').run(id);
+  return db.prepare('UPDATE quotes SET archived = 0 WHERE id = ?').run(id);
 };
 
-const convertEstimateToInvoice = (estimateId) => {
+const convertQuoteToInvoice = (quoteId) => {
   const db = getDatabase();
 
-  // Get the estimate
-  const estimate = getEstimate(estimateId);
-  if (!estimate) return null;
+  // Get the quote
+  const quote = getQuote(quoteId);
+  if (!quote) return null;
 
   // Generate new invoice number
   const invoiceNumber = generateInvoiceNumber();
 
-  // Create the invoice from estimate
+  // Get client info to snapshot at time of invoice creation
+  const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(quote.client_id);
+
+  // Create the invoice from quote
   const invoice = {
     invoice_number: invoiceNumber,
-    client_id: estimate.client_id,
+    client_id: quote.client_id,
+    created_from_quote_id: quoteId,
     date: new Date().toISOString().split('T')[0],
     due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
     status: 'pending',
-    subtotal: estimate.subtotal,
-    tax: estimate.tax,
-    discount_type: estimate.discount_type || null,
-    discount_value: estimate.discount_value || 0,
-    discount_amount: estimate.discount_amount || 0,
-    shipping: estimate.shipping || 0,
-    adjustment: estimate.adjustment || 0,
-    adjustment_label: estimate.adjustment_label || null,
-    total: estimate.total,
-    notes: estimate.notes,
-    payment_terms: estimate.terms,
+    subtotal: quote.subtotal,
+    tax: quote.tax,
+    discount_type: quote.discount_type || null,
+    discount_value: quote.discount_value || 0,
+    discount_amount: quote.discount_amount || 0,
+    shipping: quote.shipping || 0,
+    adjustment: quote.adjustment || 0,
+    adjustment_label: quote.adjustment_label || null,
+    total: quote.total,
+    notes: quote.notes,
+    payment_terms: quote.terms,
+    client_name: client?.name || '',
+    client_email: client?.email || '',
+    client_phone: client?.phone || '',
+    client_address: client?.address || '',
+    client_city: client?.city || '',
+    client_state: client?.state || '',
+    client_zip: client?.zip || '',
     archived: 0
   };
 
-  const result = createInvoice(invoice, estimate.items);
+  const result = createInvoice(invoice, quote.items);
   const invoiceId = result.lastInsertRowid;
 
-  // Update estimate to mark as converted
+  // Update quote to mark as converted
   db.prepare(`
-    UPDATE estimates SET
+    UPDATE quotes SET
       status = 'converted',
       converted_to_invoice_id = ?,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(invoiceId, estimateId);
+  `).run(invoiceId, quoteId);
 
-  return { invoiceId, invoiceNumber };
+  return { invoiceId, invoiceNumber, quoteNumber: quote.quote_number };
 };
 
 // Credit Note operations
@@ -1711,17 +1915,17 @@ module.exports = {
   updateRecurringInvoice,
   deleteRecurringInvoice,
   generateInvoiceFromRecurring,
-  // Estimates
-  generateEstimateNumber,
-  createEstimate,
-  getAllEstimates,
-  getArchivedEstimates,
-  getEstimate,
-  updateEstimate,
-  deleteEstimate,
-  archiveEstimate,
-  restoreEstimate,
-  convertEstimateToInvoice,
+  // Quotes
+  generateQuoteNumber,
+  createQuote,
+  getAllQuotes,
+  getArchivedQuotes,
+  getQuote,
+  updateQuote,
+  deleteQuote,
+  archiveQuote,
+  restoreQuote,
+  convertQuoteToInvoice,
   // Credit Notes
   generateCreditNoteNumber,
   createCreditNote,

@@ -3,10 +3,10 @@ import { Plus, Search, Eye, Edit, Trash2, Archive, FileText, User, Filter, Check
 import { useDatabase } from '../hooks/useDatabase';
 import { formatCurrency, formatDate } from '../utils/formatting';
 import EstimateForm from './EstimateForm';
-import EstimatePreview from './EstimatePreview';
+import QuotePreview from './QuotePreview';
 
-function EstimateList() {
-  const [estimates, setEstimates] = useState([]);
+function QuoteList() {
+  const [quotes, setEstimates] = useState([]);
   const [filteredEstimates, setFilteredEstimates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
@@ -19,7 +19,7 @@ function EstimateList() {
   const [showPreview, setShowPreview] = useState(false);
   const [selectedEstimate, setSelectedEstimate] = useState(null);
 
-  const { getAllEstimates, deleteEstimate, archiveEstimate, getAllClients, updateEstimate } = useDatabase();
+  const { getAllQuotes, deleteQuote, archiveQuote, getAllClients, updateEstimate } = useDatabase();
 
   useEffect(() => {
     loadEstimates();
@@ -28,15 +28,15 @@ function EstimateList() {
 
   useEffect(() => {
     filterEstimates();
-  }, [searchTerm, statusFilter, estimates, dateFrom, dateTo, clientFilter]);
+  }, [searchTerm, statusFilter, quotes, dateFrom, dateTo, clientFilter]);
 
   const loadEstimates = async () => {
     try {
       setLoading(true);
-      const data = await getAllEstimates();
+      const data = await getAllQuotes();
       setEstimates(data);
     } catch (error) {
-      console.error('Error loading estimates:', error);
+      console.error('Error loading quotes:', error);
     } finally {
       setLoading(false);
     }
@@ -52,7 +52,7 @@ function EstimateList() {
   };
 
   const filterEstimates = () => {
-    let filtered = [...estimates];
+    let filtered = [...quotes];
 
     // Filter by client dropdown
     if (clientFilter) {
@@ -62,7 +62,7 @@ function EstimateList() {
     // Search filter
     if (searchTerm) {
       filtered = filtered.filter(est =>
-        est.estimate_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        est.quote_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
         est.client_name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
@@ -94,39 +94,39 @@ function EstimateList() {
   const hasActiveFilters = searchTerm || statusFilter !== 'all' || dateFrom || dateTo || clientFilter;
 
   const handleDelete = async (id) => {
-    if (window.confirm('Are you sure you want to delete this estimate?')) {
+    if (window.confirm('Are you sure you want to delete this quote?')) {
       try {
-        await deleteEstimate(id);
+        await deleteQuote(id);
         await loadEstimates();
       } catch (error) {
-        alert('Error deleting estimate: ' + error.message);
+        alert('Error deleting quote: ' + error.message);
       }
     }
   };
 
   const handleArchive = async (id) => {
-    if (window.confirm('Archive this estimate?')) {
+    if (window.confirm('Archive this quote?')) {
       try {
-        await archiveEstimate(id);
+        await archiveQuote(id);
         await loadEstimates();
       } catch (error) {
-        alert('Error archiving estimate: ' + error.message);
+        alert('Error archiving quote: ' + error.message);
       }
     }
   };
 
-  const handleEdit = (estimate) => {
-    // Don't allow editing converted estimates
-    if (estimate.status === 'converted') {
-      alert('Cannot edit a converted estimate. It has been converted to an invoice.');
+  const handleEdit = (quote) => {
+    // Don't allow editing converted quotes
+    if (quote.status === 'converted') {
+      alert('Cannot edit a converted quote. It has been converted to an invoice.');
       return;
     }
-    setSelectedEstimate(estimate);
+    setSelectedEstimate(quote);
     setShowForm(true);
   };
 
-  const handleView = (estimate) => {
-    setSelectedEstimate(estimate);
+  const handleView = (quote) => {
+    setSelectedEstimate(quote);
     setShowPreview(true);
   };
 
@@ -177,11 +177,11 @@ function EstimateList() {
   };
 
   if (showForm) {
-    return <EstimateForm estimate={selectedEstimate} onClose={handleFormClose} />;
+    return <EstimateForm quote={selectedEstimate} onClose={handleFormClose} />;
   }
 
   if (showPreview) {
-    return <EstimatePreview estimate={selectedEstimate} onClose={handlePreviewClose} />;
+    return <QuotePreview quote={selectedEstimate} onClose={handlePreviewClose} />;
   }
 
   return (
@@ -189,15 +189,15 @@ function EstimateList() {
       <div className="mb-6">
         <div className="flex justify-between items-center mb-6">
           <div>
-            <h1 className="text-3xl font-bold text-gray-900">Estimates</h1>
-            <p className="text-gray-500 mt-1">Manage quotes and estimates</p>
+            <h1 className="text-3xl font-bold text-gray-900">Quotes</h1>
+            <p className="text-gray-500 mt-1">Manage quotes and quotes</p>
           </div>
           <button
             onClick={() => setShowForm(true)}
             className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
           >
             <Plus className="w-5 h-5 mr-2" />
-            New Estimate
+            New Quote
           </button>
         </div>
 
@@ -287,7 +287,7 @@ function EstimateList() {
             <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-5 h-5" />
             <input
               type="text"
-              placeholder="Search estimates..."
+              placeholder="Search quotes..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
@@ -326,25 +326,25 @@ function EstimateList() {
 
         {/* Results Summary */}
         <div className="mt-4 text-sm text-gray-600">
-          Showing <strong>{filteredEstimates.length}</strong> of <strong>{estimates.length}</strong> estimates
+          Showing <strong>{filteredEstimates.length}</strong> of <strong>{quotes.length}</strong> quotes
         </div>
       </div>
 
-      {/* Estimates Table */}
+      {/* Quotes Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
         {loading ? (
           <div className="text-center py-12">
-            <p className="text-gray-500">Loading estimates...</p>
+            <p className="text-gray-500">Loading quotes...</p>
           </div>
         ) : filteredEstimates.length === 0 ? (
           <div className="text-center py-12">
             <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
-            <p className="text-gray-500">No estimates found</p>
+            <p className="text-gray-500">No quotes found</p>
             <button
               onClick={() => setShowForm(true)}
               className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
             >
-              Create Your First Estimate
+              Create Your First Quote
             </button>
           </div>
         ) : (
@@ -352,7 +352,7 @@ function EstimateList() {
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Estimate #
+                  Quote #
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Client
@@ -375,54 +375,54 @@ function EstimateList() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredEstimates.map((estimate) => (
-                <tr key={estimate.id} className="hover:bg-gray-50">
+              {filteredEstimates.map((quote) => (
+                <tr key={quote.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {estimate.estimate_number}
+                    {quote.quote_number}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-900">
-                    {estimate.client_name}
+                    {quote.client_name}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    {formatDate(estimate.date)}
+                    {formatDate(quote.date)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm">
                     <div className="flex items-center">
                       <span className={`${
-                        isExpired(estimate.expiry_date) && estimate.status !== 'converted' && estimate.status !== 'approved' ? 'text-red-600 font-semibold' :
-                        isExpiringSoon(estimate.expiry_date) && estimate.status !== 'converted' && estimate.status !== 'approved' ? 'text-orange-600 font-semibold' :
+                        isExpired(quote.expiry_date) && quote.status !== 'converted' && quote.status !== 'approved' ? 'text-red-600 font-semibold' :
+                        isExpiringSoon(quote.expiry_date) && quote.status !== 'converted' && quote.status !== 'approved' ? 'text-orange-600 font-semibold' :
                         'text-gray-500'
                       }`}>
-                        {formatDate(estimate.expiry_date)}
+                        {formatDate(quote.expiry_date)}
                       </span>
-                      {isExpired(estimate.expiry_date) && estimate.status !== 'converted' && estimate.status !== 'approved' && (
+                      {isExpired(quote.expiry_date) && quote.status !== 'converted' && quote.status !== 'approved' && (
                         <AlertCircle className="w-4 h-4 ml-1 text-red-600" title="Expired" />
                       )}
-                      {isExpiringSoon(estimate.expiry_date) && estimate.status !== 'converted' && estimate.status !== 'approved' && (
+                      {isExpiringSoon(quote.expiry_date) && quote.status !== 'converted' && quote.status !== 'approved' && (
                         <AlertCircle className="w-4 h-4 ml-1 text-orange-600" title="Expiring soon" />
                       )}
                     </div>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                    {formatCurrency(estimate.total)}
+                    {formatCurrency(quote.total)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap">
-                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeColor(estimate.status)}`}>
-                      {estimate.status}
+                    <span className={`inline-flex px-2 py-1 text-xs font-semibold rounded-full ${getStatusBadgeColor(quote.status)}`}>
+                      {quote.status}
                     </span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                     <div className="flex justify-end space-x-2">
                       <button
-                        onClick={() => handleView(estimate)}
+                        onClick={() => handleView(quote)}
                         className="text-indigo-600 hover:text-indigo-900"
                         title="View"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-                      {estimate.status !== 'converted' && (
+                      {quote.status !== 'converted' && (
                         <button
-                          onClick={() => handleEdit(estimate)}
+                          onClick={() => handleEdit(quote)}
                           className="text-gray-600 hover:text-gray-900"
                           title="Edit"
                         >
@@ -430,14 +430,14 @@ function EstimateList() {
                         </button>
                       )}
                       <button
-                        onClick={() => handleArchive(estimate.id)}
+                        onClick={() => handleArchive(quote.id)}
                         className="text-yellow-600 hover:text-yellow-900"
                         title="Archive"
                       >
                         <Archive className="w-4 h-4" />
                       </button>
                       <button
-                        onClick={() => handleDelete(estimate.id)}
+                        onClick={() => handleDelete(quote.id)}
                         className="text-red-600 hover:text-red-900"
                         title="Delete"
                       >
@@ -455,4 +455,4 @@ function EstimateList() {
   );
 }
 
-export default EstimateList;
+export default QuoteList;

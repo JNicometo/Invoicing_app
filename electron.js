@@ -756,121 +756,121 @@ ipcMain.handle('db:generateInvoiceFromRecurring', async (event, recurringInvoice
   }
 });
 
-// Estimates
-ipcMain.handle('db:generateEstimateNumber', async () => {
+// Quotes
+ipcMain.handle('db:generateQuoteNumber', async () => {
   try {
     // Always use SQLite for number generation (settings-based)
-    return db.generateEstimateNumber();
+    return db.generateQuoteNumber();
   } catch (error) {
-    console.error('Error generating estimate number:', error);
+    console.error('Error generating quote number:', error);
     throw error;
   }
 });
 
-ipcMain.handle('db:createEstimate', async (event, estimate, items) => {
+ipcMain.handle('db:createQuote', async (event, quote, items) => {
   try {
     if (useSqlServer()) {
       const adapter = getDbAdapter();
-      const result = await adapter.createEstimate(estimate);
-      // Note: estimate items would need to be inserted separately
+      const result = await adapter.createQuote(quote);
+      // Note: quote items would need to be inserted separately
       // For now, use SQLite for full functionality
       return result;
     }
-    return db.createEstimate(estimate, items);
+    return db.createQuote(quote, items);
   } catch (error) {
-    console.error('Error creating estimate:', error);
+    console.error('Error creating quote:', error);
     throw error;
   }
 });
 
-ipcMain.handle('db:getAllEstimates', async () => {
+ipcMain.handle('db:getAllQuotes', async () => {
   try {
     if (useSqlServer()) {
       const adapter = getDbAdapter();
-      return await adapter.getAllEstimates();
+      return await adapter.getAllQuotes();
     }
-    return db.getAllEstimates();
+    return db.getAllQuotes();
   } catch (error) {
-    console.error('Error getting estimates:', error);
+    console.error('Error getting quotes:', error);
     throw error;
   }
 });
 
-ipcMain.handle('db:getArchivedEstimates', async () => {
+ipcMain.handle('db:getArchivedQuotes', async () => {
   try {
     // SQL Server adapter doesn't have this yet, fallback to SQLite
-    return db.getArchivedEstimates();
+    return db.getArchivedQuotes();
   } catch (error) {
-    console.error('Error getting archived estimates:', error);
+    console.error('Error getting archived quotes:', error);
     throw error;
   }
 });
 
-ipcMain.handle('db:getEstimate', async (event, id) => {
+ipcMain.handle('db:getQuote', async (event, id) => {
   try {
     if (useSqlServer()) {
       const adapter = getDbAdapter();
-      return await adapter.getEstimate(id);
+      return await adapter.getQuote(id);
     }
-    return db.getEstimate(id);
+    return db.getQuote(id);
   } catch (error) {
-    console.error('Error getting estimate:', error);
+    console.error('Error getting quote:', error);
     throw error;
   }
 });
 
-ipcMain.handle('db:updateEstimate', async (event, id, estimate, items) => {
+ipcMain.handle('db:updateQuote', async (event, id, quote, items) => {
   try {
     if (useSqlServer()) {
       const adapter = getDbAdapter();
-      return await adapter.updateEstimate(id, estimate);
+      return await adapter.updateQuote(id, quote);
     }
-    return db.updateEstimate(id, estimate, items);
+    return db.updateQuote(id, quote, items);
   } catch (error) {
-    console.error('Error updating estimate:', error);
+    console.error('Error updating quote:', error);
     throw error;
   }
 });
 
-ipcMain.handle('db:deleteEstimate', async (event, id) => {
+ipcMain.handle('db:deleteQuote', async (event, id) => {
   try {
     if (useSqlServer()) {
       const adapter = getDbAdapter();
-      return await adapter.deleteEstimate(id);
+      return await adapter.deleteQuote(id);
     }
-    return db.deleteEstimate(id);
+    return db.deleteQuote(id);
   } catch (error) {
-    console.error('Error deleting estimate:', error);
+    console.error('Error deleting quote:', error);
     throw error;
   }
 });
 
-ipcMain.handle('db:archiveEstimate', async (event, id) => {
+ipcMain.handle('db:archiveQuote', async (event, id) => {
   try {
     // SQL Server adapter doesn't have this yet, fallback to SQLite
-    return db.archiveEstimate(id);
+    return db.archiveQuote(id);
   } catch (error) {
-    console.error('Error archiving estimate:', error);
+    console.error('Error archiving quote:', error);
     throw error;
   }
 });
 
-ipcMain.handle('db:restoreEstimate', async (event, id) => {
+ipcMain.handle('db:restoreQuote', async (event, id) => {
   try {
     // SQL Server adapter doesn't have this yet, fallback to SQLite
-    return db.restoreEstimate(id);
+    return db.restoreQuote(id);
   } catch (error) {
-    console.error('Error restoring estimate:', error);
+    console.error('Error restoring quote:', error);
     throw error;
   }
 });
 
-ipcMain.handle('db:convertEstimateToInvoice', async (event, estimateId) => {
+ipcMain.handle('db:convertQuoteToInvoice', async (event, quoteId) => {
   try {
     // Complex operation - use SQLite for now
-    return db.convertEstimateToInvoice(estimateId);
+    return db.convertQuoteToInvoice(quoteId);
   } catch (error) {
-    console.error('Error converting estimate to invoice:', error);
+    console.error('Error converting quote to invoice:', error);
     throw error;
   }
 });

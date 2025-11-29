@@ -800,35 +800,35 @@ class SQLServerAdapter {
     return this.delete('payments', id);
   }
 
-  // ==================== Estimate Operations ====================
+  // ==================== Quote Operations ====================
 
-  async getAllEstimates() {
+  async getAllQuotes() {
     await this.connect();
     return this.query(`
-      SELECT e.*, c.name as client_name, c.email as client_email
-      FROM estimates e
-      LEFT JOIN clients c ON e.client_id = c.id
-      WHERE e.archived = 0
-      ORDER BY e.created_at DESC
+      SELECT q.*, c.name as client_name, c.email as client_email
+      FROM quotes q
+      LEFT JOIN clients c ON q.client_id = c.id
+      WHERE q.archived = 0
+      ORDER BY q.created_at DESC
     `);
   }
 
-  async getEstimate(id) {
-    return this.getById('estimates', id);
+  async getQuote(id) {
+    return this.getById('quotes', id);
   }
 
-  async createEstimate(estimate) {
-    return this.insert('estimates', estimate);
+  async createQuote(quote) {
+    return this.insert('quotes', quote);
   }
 
-  async updateEstimate(id, estimate) {
-    return this.update('estimates', id, estimate);
+  async updateQuote(id, quote) {
+    return this.update('quotes', id, quote);
   }
 
-  async deleteEstimate(id) {
+  async deleteQuote(id) {
     await this.connect();
-    await this.query(`DELETE FROM estimate_items WHERE estimate_id = ${id}`);
-    return this.delete('estimates', id);
+    await this.query(`DELETE FROM quote_items WHERE quote_id = ${id}`);
+    return this.delete('quotes', id);
   }
 
   // ==================== Credit Note Operations ====================

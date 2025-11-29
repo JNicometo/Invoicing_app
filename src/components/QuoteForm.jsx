@@ -3,16 +3,16 @@ import { X, Plus, Trash2, Save } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { getCurrentDate, calculateDueDate, formatDateInput } from '../utils/formatting';
 
-function EstimateForm({ estimate, onClose }) {
-  const isEdit = !!estimate;
+function QuoteForm({ quote, onClose }) {
+  const isEdit = !!quote;
   const {
     getAllClients,
     getAllSavedItems,
-    createEstimate,
-    updateEstimate,
-    generateEstimateNumber,
+    createQuote,
+    updateQuote,
+    generateQuoteNumber,
     getSettings,
-    getEstimate
+    getQuote
   } = useDatabase();
 
   const [clients, setClients] = useState([]);
@@ -22,7 +22,7 @@ function EstimateForm({ estimate, onClose }) {
   const [errors, setErrors] = useState({});
 
   const [formData, setFormData] = useState({
-    estimate_number: '',
+    quote_number: '',
     client_id: '',
     date: getCurrentDate(),
     expiry_date: calculateDueDate(getCurrentDate(), 30), // Default 30 days from now
@@ -41,12 +41,12 @@ function EstimateForm({ estimate, onClose }) {
 
   useEffect(() => {
     const loadEstimateData = async () => {
-      if (estimate && estimate.id) {
+      if (quote && quote.id) {
         try {
-          const fullEstimate = await getEstimate(estimate.id);
+          const fullEstimate = await getQuote(quote.id);
 
           setFormData({
-            estimate_number: fullEstimate.estimate_number,
+            quote_number: fullEstimate.quote_number,
             client_id: fullEstimate.client_id,
             date: formatDateInput(fullEstimate.date),
             expiry_date: formatDateInput(fullEstimate.expiry_date),
@@ -59,13 +59,13 @@ function EstimateForm({ estimate, onClose }) {
             setItems(fullEstimate.items);
           }
         } catch (error) {
-          console.error('Error loading estimate:', error);
+          console.error('Error loading quote:', error);
         }
       }
     };
 
     loadEstimateData();
-  }, [estimate, getEstimate]);
+  }, [quote, getQuote]);
 
   const loadInitialData = async () => {
     try {
@@ -74,7 +74,7 @@ function EstimateForm({ estimate, onClose }) {
         getAllClients(),
         getAllSavedItems(),
         getSettings(),
-        !isEdit ? generateEstimateNumber() : Promise.resolve(null)
+        !isEdit ? generateQuoteNumber() : Promise.resolve(null)
       ]);
 
       setClients(clientsData);
@@ -84,8 +84,8 @@ function EstimateForm({ estimate, onClose }) {
       if (!isEdit && estimateNum) {
         setFormData(prev => ({
           ...prev,
-          estimate_number: estimateNum,
-          terms: settingsData.payment_terms || 'Estimate valid for 30 days'
+          quote_number: estimateNum,
+          terms: settingsData.payment_terms || 'Quote valid for 30 days'
         }));
       }
     } catch (error) {
@@ -153,8 +153,8 @@ function EstimateForm({ estimate, onClose }) {
   const validateForm = () => {
     const newErrors = {};
 
-    if (!formData.estimate_number) {
-      newErrors.estimate_number = 'Estimate number is required';
+    if (!formData.quote_number) {
+      newErrors.quote_number = 'Quote number is required';
     }
     if (!formData.client_id) {
       newErrors.client_id = 'Client is required';
@@ -197,15 +197,15 @@ function EstimateForm({ estimate, onClose }) {
       const validItems = items.filter(item => item.description.trim());
 
       if (isEdit) {
-        await updateEstimate(estimate.id, estimateData, validItems);
+        await updateQuote(quote.id, estimateData, validItems);
       } else {
-        await createEstimate(estimateData, validItems);
+        await createQuote(estimateData, validItems);
       }
 
       onClose(true);
     } catch (error) {
-      console.error('Error saving estimate:', error);
-      alert('Error saving estimate: ' + error.message);
+      console.error('Error saving quote:', error);
+      alert('Error saving quote: ' + error.message);
     }
   };
 
@@ -226,7 +226,7 @@ function EstimateForm({ estimate, onClose }) {
       <div className="max-w-5xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">
-            {isEdit ? 'Edit Estimate' : 'Create Estimate'}
+            {isEdit ? 'Edit Quote' : 'Create Quote'}
           </h1>
           <button
             onClick={() => onClose(false)}
@@ -241,18 +241,18 @@ function EstimateForm({ estimate, onClose }) {
           <div className="grid grid-cols-2 gap-6 mb-6 pb-6 border-b border-gray-200">
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Estimate Number <span className="text-red-500">*</span>
+                Quote Number <span className="text-red-500">*</span>
               </label>
               <input
                 type="text"
-                name="estimate_number"
-                value={formData.estimate_number}
+                name="quote_number"
+                value={formData.quote_number}
                 onChange={handleInputChange}
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
                 required
               />
-              {errors.estimate_number && (
-                <p className="text-red-500 text-sm mt-1">{errors.estimate_number}</p>
+              {errors.quote_number && (
+                <p className="text-red-500 text-sm mt-1">{errors.quote_number}</p>
               )}
             </div>
 
@@ -298,7 +298,7 @@ function EstimateForm({ estimate, onClose }) {
 
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-2">
-                Expiry Date <span className="text-red-500">*</span>
+                Valid Until <span className="text-red-500">*</span>
               </label>
               <input
                 type="date"
@@ -450,7 +450,7 @@ function EstimateForm({ estimate, onClose }) {
                 onChange={handleInputChange}
                 rows="4"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="Additional notes or details about this estimate..."
+                placeholder="Additional notes or details about this quote..."
               />
             </div>
 
@@ -464,7 +464,7 @@ function EstimateForm({ estimate, onClose }) {
                 onChange={handleInputChange}
                 rows="4"
                 className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="Terms and conditions for this estimate..."
+                placeholder="Terms and conditions for this quote..."
               />
             </div>
           </div>
@@ -483,7 +483,7 @@ function EstimateForm({ estimate, onClose }) {
               className="flex items-center px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
             >
               <Save className="w-4 h-4 mr-2" />
-              {isEdit ? 'Update Estimate' : 'Create Estimate'}
+              {isEdit ? 'Update Quote' : 'Create Quote'}
             </button>
           </div>
         </form>
@@ -492,4 +492,4 @@ function EstimateForm({ estimate, onClose }) {
   );
 }
 
-export default EstimateForm;
+export default QuoteForm;
