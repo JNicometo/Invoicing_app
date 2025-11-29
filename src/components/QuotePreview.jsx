@@ -279,7 +279,7 @@ function QuotePreview({ quote, onClose }) {
               </tr>
             </thead>
             <tbody>
-              ${fullQuote.items.map(item => `
+              ${(fullQuote.items || []).map(item => `
                 <tr>
                   <td>${item.description}</td>
                   <td class="text-center">${item.quantity}</td>
@@ -343,8 +343,13 @@ function QuotePreview({ quote, onClose }) {
   };
 
   const handleOpenEmailModal = () => {
+    if (!fullQuote || !fullQuote.quote_number) {
+      alert('Quote data is not fully loaded. Please wait a moment and try again.');
+      return;
+    }
+
     const subject = `Quote ${fullQuote.quote_number} from ${settings?.company_name || 'Your Company'}`;
-    const body = `Dear ${fullQuote.client_name},\n\nPlease find attached quote ${fullQuote.quote_number} for ${formatCurrency(fullQuote.total)}.\n\nThis quote is valid until ${formatDate(fullQuote.expiry_date)}.\n\nIf you have any questions or would like to proceed, please let us know.\n\nBest regards,\n${settings?.company_name || 'Your Company'}`;
+    const body = `Dear ${fullQuote.client_name || 'Valued Customer'},\n\nPlease find attached quote ${fullQuote.quote_number} for ${formatCurrency(fullQuote.total || 0)}.\n\nThis quote is valid until ${formatDate(fullQuote.expiry_date)}.\n\nIf you have any questions or would like to proceed, please let us know.\n\nBest regards,\n${settings?.company_name || 'Your Company'}`;
 
     setEmailData({
       recipient: fullQuote.client_email || '',
@@ -365,6 +370,11 @@ function QuotePreview({ quote, onClose }) {
 
     if (!settings?.smtp_host || !settings?.smtp_user || !settings?.smtp_password) {
       alert('Email settings are not configured. Please configure SMTP settings in Settings.');
+      return;
+    }
+
+    if (!fullQuote || !fullQuote.quote_number) {
+      alert('Quote data is not fully loaded. Please wait a moment and try again.');
       return;
     }
 
