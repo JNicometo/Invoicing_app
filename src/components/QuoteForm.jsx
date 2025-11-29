@@ -40,23 +40,23 @@ function QuoteForm({ quote, onClose }) {
   }, []);
 
   useEffect(() => {
-    const loadEstimateData = async () => {
+    const loadQuoteData = async () => {
       if (quote && quote.id) {
         try {
-          const fullEstimate = await getQuote(quote.id);
+          const fullQuote = await getQuote(quote.id);
 
           setFormData({
-            quote_number: fullEstimate.quote_number,
-            client_id: fullEstimate.client_id,
-            date: formatDateInput(fullEstimate.date),
-            expiry_date: formatDateInput(fullEstimate.expiry_date),
-            status: fullEstimate.status,
-            notes: fullEstimate.notes || '',
-            terms: fullEstimate.terms || '',
+            quote_number: fullQuote.quote_number,
+            client_id: fullQuote.client_id,
+            date: formatDateInput(fullQuote.date),
+            expiry_date: formatDateInput(fullQuote.expiry_date),
+            status: fullQuote.status,
+            notes: fullQuote.notes || '',
+            terms: fullQuote.terms || '',
           });
 
-          if (fullEstimate.items && fullEstimate.items.length > 0) {
-            setItems(fullEstimate.items);
+          if (fullQuote.items && fullQuote.items.length > 0) {
+            setItems(fullQuote.items);
           }
         } catch (error) {
           console.error('Error loading quote:', error);
@@ -64,13 +64,13 @@ function QuoteForm({ quote, onClose }) {
       }
     };
 
-    loadEstimateData();
+    loadQuoteData();
   }, [quote, getQuote]);
 
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      const [clientsData, savedItemsData, settingsData, estimateNum] = await Promise.all([
+      const [clientsData, savedItemsData, settingsData, quoteNum] = await Promise.all([
         getAllClients(),
         getAllSavedItems(),
         getSettings(),
@@ -81,10 +81,10 @@ function QuoteForm({ quote, onClose }) {
       setSavedItems(savedItemsData);
       setSettings(settingsData);
 
-      if (!isEdit && estimateNum) {
+      if (!isEdit && quoteNum) {
         setFormData(prev => ({
           ...prev,
-          quote_number: estimateNum,
+          quote_number: quoteNum,
           terms: settingsData.payment_terms || 'Quote valid for 30 days'
         }));
       }
@@ -186,7 +186,7 @@ function QuoteForm({ quote, onClose }) {
 
     try {
       const { subtotal, tax, total } = calculateTotals();
-      const estimateData = {
+      const quoteData = {
         ...formData,
         subtotal,
         tax,
@@ -197,9 +197,9 @@ function QuoteForm({ quote, onClose }) {
       const validItems = items.filter(item => item.description.trim());
 
       if (isEdit) {
-        await updateQuote(quote.id, estimateData, validItems);
+        await updateQuote(quote.id, quoteData, validItems);
       } else {
-        await createQuote(estimateData, validItems);
+        await createQuote(quoteData, validItems);
       }
 
       onClose(true);
