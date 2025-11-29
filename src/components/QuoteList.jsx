@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Plus, Search, Eye, Edit, Trash2, Archive, FileText, User, Filter, CheckCircle2, Clock, XCircle, RefreshCcw, X, AlertCircle } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { formatCurrency, formatDate } from '../utils/formatting';
-import EstimateForm from './EstimateForm';
+import QuoteForm from './QuoteForm';
 import QuotePreview from './QuotePreview';
 
 function QuoteList() {
-  const [quotes, setEstimates] = useState([]);
-  const [filteredEstimates, setFilteredEstimates] = useState([]);
+  const [quotes, setQuotes] = useState([]);
+  const [filteredQuotes, setFilteredEstimates] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState('all');
@@ -17,7 +17,7 @@ function QuoteList() {
   const [clients, setClients] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [selectedEstimate, setSelectedEstimate] = useState(null);
+  const [selectedQuote, setSelectedEstimate] = useState(null);
 
   const { getAllQuotes, deleteQuote, archiveQuote, getAllClients, updateEstimate } = useDatabase();
 
@@ -34,7 +34,7 @@ function QuoteList() {
     try {
       setLoading(true);
       const data = await getAllQuotes();
-      setEstimates(data);
+      setQuotes(data);
     } catch (error) {
       console.error('Error loading quotes:', error);
     } finally {
@@ -177,11 +177,11 @@ function QuoteList() {
   };
 
   if (showForm) {
-    return <EstimateForm quote={selectedEstimate} onClose={handleFormClose} />;
+    return <QuoteForm quote={selectedQuote} onClose={handleFormClose} />;
   }
 
   if (showPreview) {
-    return <QuotePreview quote={selectedEstimate} onClose={handlePreviewClose} />;
+    return <QuotePreview quote={selectedQuote} onClose={handlePreviewClose} />;
   }
 
   return (
@@ -326,7 +326,7 @@ function QuoteList() {
 
         {/* Results Summary */}
         <div className="mt-4 text-sm text-gray-600">
-          Showing <strong>{filteredEstimates.length}</strong> of <strong>{quotes.length}</strong> quotes
+          Showing <strong>{filteredQuotes.length}</strong> of <strong>{quotes.length}</strong> quotes
         </div>
       </div>
 
@@ -336,7 +336,7 @@ function QuoteList() {
           <div className="text-center py-12">
             <p className="text-gray-500">Loading quotes...</p>
           </div>
-        ) : filteredEstimates.length === 0 ? (
+        ) : filteredQuotes.length === 0 ? (
           <div className="text-center py-12">
             <FileText className="w-16 h-16 text-gray-300 mx-auto mb-4" />
             <p className="text-gray-500">No quotes found</p>
@@ -375,7 +375,7 @@ function QuoteList() {
               </tr>
             </thead>
             <tbody className="divide-y divide-gray-200">
-              {filteredEstimates.map((quote) => (
+              {filteredQuotes.map((quote) => (
                 <tr key={quote.id} className="hover:bg-gray-50">
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {quote.quote_number}
