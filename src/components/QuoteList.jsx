@@ -1,36 +1,46 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Search, Eye, Edit, Trash2, Archive, FileText, User, Filter, CheckCircle2, Clock, XCircle, RefreshCcw, X, AlertCircle } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, Search, Eye, Edit, Trash2, Archive, FileText, User, CheckCircle2, Clock, AlertTriangle, X } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
-import { formatCurrency, formatDate } from '../utils/formatting';
+import { formatCurrency, formatDate, getStatusBadgeColor } from '../utils/formatting';
 import QuoteForm from './QuoteForm';
 import QuotePreview from './QuotePreview';
 
-function QuoteList() {
+function QuoteList({ selectedClientId, selectedStatusFilter, onClearFilter }) {
   const [quotes, setQuotes] = useState([]);
-  const [filteredQuotes, setFilteredEstimates] = useState([]);
+  const [filteredQuotes, setFilteredQuotes] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
-  const [statusFilter, setStatusFilter] = useState('all');
+  const [statusFilter, setStatusFilter] = useState(selectedStatusFilter || 'all');
   const [dateFrom, setDateFrom] = useState('');
   const [dateTo, setDateTo] = useState('');
   const [clientFilter, setClientFilter] = useState('');
   const [clients, setClients] = useState([]);
   const [showForm, setShowForm] = useState(false);
   const [showPreview, setShowPreview] = useState(false);
-  const [selectedQuote, setSelectedEstimate] = useState(null);
+  const [selectedQuote, setSelectedQuote] = useState(null);
+  const [clientName, setClientName] = useState('');
+  const [selectedQuotes, setSelectedQuotes] = useState([]);
 
-  const { getAllQuotes, deleteQuote, archiveQuote, getAllClients, updateEstimate } = useDatabase();
-
+  // Update status filter when prop changes
   useEffect(() => {
-    loadEstimates();
-    loadClients();
-  }, []);
+    if (selectedStatusFilter) {
+      setStatusFilter(selectedStatusFilter);
+    }
+  }, [selectedStatusFilter]);
 
-  useEffect(() => {
-    filterEstimates();
-  }, [searchTerm, statusFilter, quotes, dateFrom, dateTo, clientFilter]);
+  const {
+    getAllQuotes,
+    deleteQuote,
+    archiveQuote,
+    getClient,
+    getAllClients,
+    // Batch operations not yet implemented for quotes
+    // batchUpdateQuoteStatus,
+    // batchArchiveQuotes,
+    // batchDeleteQuotes
+  } = useDatabase();
 
-  const loadEstimates = async () => {
+  const loadQuotes = useCallback(async () => {
     try {
       setLoading(true);
       const data = await getAllQuotes();
@@ -40,48 +50,84 @@ function QuoteList() {
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAllQuotes]);
 
-  const loadClients = async () => {
+  const loadClients = useCallback(async () => {
     try {
       const data = await getAllClients();
       setClients(data);
     } catch (error) {
       console.error('Error loading clients:', error);
     }
-  };
+  }, [getAllClients]);
 
-  const filterEstimates = () => {
+  const loadClientName = useCallback(async () => {
+    if (selectedClientId) {
+      try {
+        const client = await getClient(selectedClientId);
+        setClientName(client?.name || '');
+      } catch (error) {
+        console.error('Error loading client:', error);
+      }
+    }
+  }, [selectedClientId, getClient]);
+
+  const filterQuotes = useCallback(() => {
     let filtered = [...quotes];
+
+    // Filter by selected client (from Dashboard)
+    if (selectedClientId) {
+      filtered = filtered.filter(inv => inv.client_id === selectedClientId);
+    }
 
     // Filter by client dropdown
     if (clientFilter) {
-      filtered = filtered.filter(est => est.client_id === parseInt(clientFilter));
+      filtered = filtered.filter(inv => inv.client_id === parseInt(clientFilter));
     }
 
     // Search filter
     if (searchTerm) {
-      filtered = filtered.filter(est =>
-        est.quote_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        est.client_name.toLowerCase().includes(searchTerm.toLowerCase())
+      filtered = filtered.filter(inv =>
+        inv.quote_number.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        inv.client_name.toLowerCase().includes(searchTerm.toLowerCase())
       );
     }
 
     // Status filter
     if (statusFilter !== 'all') {
-      filtered = filtered.filter(est => est.status === statusFilter);
+      if (statusFilter === 'unpaid') {
+        // Unpaid includes both pending and overdue
+        filtered = filtered.filter(inv => inv.status === 'pending' || inv.status === 'overdue');
+      } else {
+        filtered = filtered.filter(inv => inv.status === statusFilter);
+      }
     }
 
     // Date range filter
     if (dateFrom) {
-      filtered = filtered.filter(est => new Date(est.date) >= new Date(dateFrom));
+      filtered = filtered.filter(inv => new Date(inv.date) >= new Date(dateFrom));
     }
     if (dateTo) {
-      filtered = filtered.filter(est => new Date(est.date) <= new Date(dateTo));
+      filtered = filtered.filter(inv => new Date(inv.date) <= new Date(dateTo));
     }
 
-    setFilteredEstimates(filtered);
-  };
+    setFilteredQuotes(filtered);
+  }, [quotes, selectedClientId, clientFilter, searchTerm, statusFilter, dateFrom, dateTo]);
+
+  useEffect(() => {
+    loadQuotes();
+    loadClients();
+  }, [loadQuotes, loadClients]);
+
+  useEffect(() => {
+    if (selectedClientId) {
+      loadClientName();
+    }
+  }, [selectedClientId, loadClientName]);
+
+  useEffect(() => {
+    filterQuotes();
+  }, [filterQuotes]);
 
   const clearAllFilters = () => {
     setSearchTerm('');
@@ -89,26 +135,30 @@ function QuoteList() {
     setDateFrom('');
     setDateTo('');
     setClientFilter('');
+    if (onClearFilter) {
+      onClearFilter();
+    }
   };
 
-  const hasActiveFilters = searchTerm || statusFilter !== 'all' || dateFrom || dateTo || clientFilter;
+  const hasActiveFilters = searchTerm || statusFilter !== 'all' || dateFrom || dateTo || clientFilter || selectedClientId;
 
   const handleDelete = async (id) => {
     if (window.confirm('Are you sure you want to delete this quote?')) {
       try {
         await deleteQuote(id);
-        await loadEstimates();
+        await loadQuotes();
       } catch (error) {
         alert('Error deleting quote: ' + error.message);
       }
     }
   };
 
+
   const handleArchive = async (id) => {
     if (window.confirm('Archive this quote?')) {
       try {
         await archiveQuote(id);
-        await loadEstimates();
+        await loadQuotes();
       } catch (error) {
         alert('Error archiving quote: ' + error.message);
       }
@@ -116,64 +166,85 @@ function QuoteList() {
   };
 
   const handleEdit = (quote) => {
-    // Don't allow editing converted quotes
-    if (quote.status === 'converted') {
-      alert('Cannot edit a converted quote. It has been converted to an invoice.');
-      return;
-    }
-    setSelectedEstimate(quote);
+    setSelectedQuote(quote);
     setShowForm(true);
   };
 
   const handleView = (quote) => {
-    setSelectedEstimate(quote);
+    setSelectedQuote(quote);
     setShowPreview(true);
   };
 
   const handleFormClose = async (reload) => {
     setShowForm(false);
-    setSelectedEstimate(null);
+    setSelectedQuote(null);
     if (reload) {
-      await loadEstimates();
+      await loadQuotes();
     }
   };
 
-  const handlePreviewClose = async (reload) => {
+  const handlePreviewClose = () => {
     setShowPreview(false);
-    setSelectedEstimate(null);
-    if (reload) {
-      await loadEstimates();
+    setSelectedQuote(null);
+  };
+
+  const handleToggleInvoice = (id) => {
+    setSelectedQuotes(prev =>
+      prev.includes(id) ? prev.filter(i => i !== id) : [...prev, id]
+    );
+  };
+
+  const handleToggleAll = () => {
+    if (selectedQuotes.length === filteredQuotes.length) {
+      setSelectedQuotes([]);
+    } else {
+      setSelectedQuotes(filteredQuotes.map(inv => inv.id));
     }
   };
 
-  const getStatusBadgeColor = (status) => {
-    switch (status) {
-      case 'draft':
-        return 'bg-gray-100 text-gray-800';
-      case 'sent':
-        return 'bg-blue-100 text-blue-800';
-      case 'approved':
-        return 'bg-green-100 text-green-800';
-      case 'declined':
-        return 'bg-red-100 text-red-800';
-      case 'converted':
-        return 'bg-purple-100 text-purple-800';
-      default:
-        return 'bg-gray-100 text-gray-800';
-    }
+  const handleBulkMarkPaid = async () => {
+    if (selectedQuotes.length === 0) return;
+    alert('Bulk operations for quotes are not yet available. Please update quotes individually.');
+    // Batch operations not yet implemented
+    // if (window.confirm(`Mark ${selectedQuotes.length} quote(s) as paid?`)) {
+    //   try {
+    //     await batchUpdateQuoteStatus(selectedQuotes, 'paid');
+    //     setSelectedQuotes([]);
+    //     await loadQuotes();
+    //   } catch (error) {
+    //     alert('Error updating quotes: ' + error.message);
+    //   }
+    // }
   };
 
-  const isExpiringSoon = (expiryDate) => {
-    const today = new Date();
-    const expiry = new Date(expiryDate);
-    const daysUntilExpiry = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24));
-    return daysUntilExpiry <= 7 && daysUntilExpiry >= 0;
+  const handleBulkArchive = async () => {
+    if (selectedQuotes.length === 0) return;
+    alert('Bulk operations for quotes are not yet available. Please archive quotes individually.');
+    // Batch operations not yet implemented
+    // if (window.confirm(`Archive ${selectedQuotes.length} quote(s)?`)) {
+    //   try {
+    //     await batchArchiveQuotes(selectedQuotes);
+    //     setSelectedQuotes([]);
+    //     await loadQuotes();
+    //   } catch (error) {
+    //     alert('Error archiving quotes: ' + error.message);
+    //   }
+    // }
   };
 
-  const isExpired = (expiryDate) => {
-    const today = new Date();
-    const expiry = new Date(expiryDate);
-    return expiry < today;
+  const handleBulkDelete = async () => {
+    if (selectedQuotes.length === 0) return;
+    alert('Bulk operations for quotes are not yet available. Please delete quotes individually.');
+    // Batch operations not yet implemented
+    // if (window.confirm(`Delete ${selectedQuotes.length} quote(s) permanently? This cannot be undone.`)) {
+    //   try {
+    //     await batchDeleteQuotes(selectedQuotes);
+    //     setSelectedQuotes([]);
+    //     await loadQuotes();
+    //   } catch (error) {
+    //     alert('Error deleting quotes: ' + error.message);
+    //   }
+    // }
   };
 
   if (showForm) {
@@ -190,16 +261,35 @@ function QuoteList() {
         <div className="flex justify-between items-center mb-6">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Quotes</h1>
-            <p className="text-gray-500 mt-1">Manage quotes and quotes</p>
+            <p className="text-gray-500 mt-1">Manage all your quotes</p>
           </div>
           <button
             onClick={() => setShowForm(true)}
-            className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 transition-colors"
+            className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
           >
             <Plus className="w-5 h-5 mr-2" />
             New Quote
           </button>
         </div>
+
+        {/* Client Filter Banner */}
+        {selectedClientId && clientName && (
+          <div className="mb-4 p-4 bg-blue-50 border border-blue-200 rounded-lg flex items-center justify-between">
+            <div className="flex items-center">
+              <User className="w-5 h-5 mr-2 text-blue-600" />
+              <span className="text-sm text-blue-900">
+                Showing quotes for <strong>{clientName}</strong>
+              </span>
+            </div>
+            <button
+              onClick={onClearFilter}
+              className="text-blue-600 hover:text-blue-900 text-sm font-medium flex items-center"
+            >
+              Clear filter
+              <span className="ml-1 text-lg">×</span>
+            </button>
+          </div>
+        )}
 
         {/* Quick Status Filters */}
         <div className="flex flex-wrap gap-3 mb-4">
@@ -215,59 +305,37 @@ function QuoteList() {
             All
           </button>
           <button
-            onClick={() => setStatusFilter('draft')}
+            onClick={() => setStatusFilter('unpaid')}
             className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              statusFilter === 'draft'
-                ? 'bg-gray-600 text-white shadow-md'
-                : 'bg-white text-gray-700 border border-gray-300 hover:bg-gray-50'
-            }`}
-          >
-            <Edit className="w-4 h-4 inline mr-1.5" />
-            Draft
-          </button>
-          <button
-            onClick={() => setStatusFilter('sent')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              statusFilter === 'sent'
-                ? 'bg-blue-600 text-white shadow-md'
-                : 'bg-white text-blue-700 border border-blue-300 hover:bg-blue-50'
+              statusFilter === 'unpaid'
+                ? 'bg-yellow-600 text-white shadow-md'
+                : 'bg-white text-yellow-700 border border-yellow-300 hover:bg-yellow-50'
             }`}
           >
             <Clock className="w-4 h-4 inline mr-1.5" />
-            Sent
+            Unpaid
           </button>
           <button
-            onClick={() => setStatusFilter('approved')}
+            onClick={() => setStatusFilter('paid')}
             className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              statusFilter === 'approved'
+              statusFilter === 'paid'
                 ? 'bg-green-600 text-white shadow-md'
                 : 'bg-white text-green-700 border border-green-300 hover:bg-green-50'
             }`}
           >
             <CheckCircle2 className="w-4 h-4 inline mr-1.5" />
-            Approved
+            Paid
           </button>
           <button
-            onClick={() => setStatusFilter('declined')}
+            onClick={() => setStatusFilter('overdue')}
             className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              statusFilter === 'declined'
+              statusFilter === 'overdue'
                 ? 'bg-red-600 text-white shadow-md'
                 : 'bg-white text-red-700 border border-red-300 hover:bg-red-50'
             }`}
           >
-            <XCircle className="w-4 h-4 inline mr-1.5" />
-            Declined
-          </button>
-          <button
-            onClick={() => setStatusFilter('converted')}
-            className={`px-4 py-2 rounded-lg font-medium transition-all ${
-              statusFilter === 'converted'
-                ? 'bg-purple-600 text-white shadow-md'
-                : 'bg-white text-purple-700 border border-purple-300 hover:bg-purple-50'
-            }`}
-          >
-            <RefreshCcw className="w-4 h-4 inline mr-1.5" />
-            Converted
+            <AlertTriangle className="w-4 h-4 inline mr-1.5" />
+            Overdue
           </button>
 
           {hasActiveFilters && (
@@ -290,14 +358,14 @@ function QuoteList() {
               placeholder="Search quotes..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+              className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
             />
           </div>
 
           <select
             value={clientFilter}
             onChange={(e) => setClientFilter(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           >
             <option value="">All Clients</option>
             {clients.map(client => (
@@ -312,7 +380,7 @@ function QuoteList() {
             placeholder="From Date"
             value={dateFrom}
             onChange={(e) => setDateFrom(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
 
           <input
@@ -320,7 +388,7 @@ function QuoteList() {
             placeholder="To Date"
             value={dateTo}
             onChange={(e) => setDateTo(e.target.value)}
-            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+            className="px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
           />
         </div>
 
@@ -329,6 +397,46 @@ function QuoteList() {
           Showing <strong>{filteredQuotes.length}</strong> of <strong>{quotes.length}</strong> quotes
         </div>
       </div>
+
+      {/* Bulk Actions Bar */}
+      {selectedQuotes.length > 0 && (
+        <div className="mb-4 bg-blue-50 border border-blue-200 rounded-lg p-4 flex items-center justify-between">
+          <div className="flex items-center">
+            <span className="text-sm font-medium text-blue-900">
+              {selectedQuotes.length} quote{selectedQuotes.length > 1 ? 's' : ''} selected
+            </span>
+          </div>
+          <div className="flex space-x-2">
+            <button
+              onClick={handleBulkMarkPaid}
+              className="px-4 py-2 bg-green-600 text-white text-sm font-medium rounded-lg hover:bg-green-700 transition-colors flex items-center"
+            >
+              <CheckCircle2 className="w-4 h-4 mr-1.5" />
+              Mark as Paid
+            </button>
+            <button
+              onClick={handleBulkArchive}
+              className="px-4 py-2 bg-gray-600 text-white text-sm font-medium rounded-lg hover:bg-gray-700 transition-colors flex items-center"
+            >
+              <Archive className="w-4 h-4 mr-1.5" />
+              Archive
+            </button>
+            <button
+              onClick={handleBulkDelete}
+              className="px-4 py-2 bg-red-600 text-white text-sm font-medium rounded-lg hover:bg-red-700 transition-colors flex items-center"
+            >
+              <Trash2 className="w-4 h-4 mr-1.5" />
+              Delete
+            </button>
+            <button
+              onClick={() => setSelectedQuotes([])}
+              className="px-4 py-2 bg-white text-gray-700 text-sm font-medium rounded-lg border border-gray-300 hover:bg-gray-50 transition-colors"
+            >
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
 
       {/* Quotes Table */}
       <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
@@ -342,7 +450,7 @@ function QuoteList() {
             <p className="text-gray-500">No quotes found</p>
             <button
               onClick={() => setShowForm(true)}
-              className="mt-4 px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               Create Your First Quote
             </button>
@@ -351,6 +459,14 @@ function QuoteList() {
           <table className="w-full">
             <thead className="bg-gray-50 border-b border-gray-200">
               <tr>
+                <th className="px-6 py-3 text-left">
+                  <input
+                    type="checkbox"
+                    checked={selectedQuotes.length === filteredQuotes.length && filteredQuotes.length > 0}
+                    onChange={handleToggleAll}
+                    className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                  />
+                </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Quote #
                 </th>
@@ -361,7 +477,7 @@ function QuoteList() {
                   Date
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                  Expiry Date
+                  Valid Until
                 </th>
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Amount
@@ -376,7 +492,15 @@ function QuoteList() {
             </thead>
             <tbody className="divide-y divide-gray-200">
               {filteredQuotes.map((quote) => (
-                <tr key={quote.id} className="hover:bg-gray-50">
+                <tr key={quote.id} className={`hover:bg-gray-50 ${selectedQuotes.includes(quote.id) ? 'bg-blue-50' : ''}`}>
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      checked={selectedQuotes.includes(quote.id)}
+                      onChange={() => handleToggleInvoice(quote.id)}
+                      className="w-4 h-4 text-blue-600 rounded focus:ring-2 focus:ring-blue-500"
+                    />
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {quote.quote_number}
                   </td>
@@ -386,22 +510,8 @@ function QuoteList() {
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {formatDate(quote.date)}
                   </td>
-                  <td className="px-6 py-4 whitespace-nowrap text-sm">
-                    <div className="flex items-center">
-                      <span className={`${
-                        isExpired(quote.expiry_date) && quote.status !== 'converted' && quote.status !== 'approved' ? 'text-red-600 font-semibold' :
-                        isExpiringSoon(quote.expiry_date) && quote.status !== 'converted' && quote.status !== 'approved' ? 'text-orange-600 font-semibold' :
-                        'text-gray-500'
-                      }`}>
-                        {formatDate(quote.expiry_date)}
-                      </span>
-                      {isExpired(quote.expiry_date) && quote.status !== 'converted' && quote.status !== 'approved' && (
-                        <AlertCircle className="w-4 h-4 ml-1 text-red-600" title="Expired" />
-                      )}
-                      {isExpiringSoon(quote.expiry_date) && quote.status !== 'converted' && quote.status !== 'approved' && (
-                        <AlertCircle className="w-4 h-4 ml-1 text-orange-600" title="Expiring soon" />
-                      )}
-                    </div>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    {formatDate(quote.expiry_date)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
                     {formatCurrency(quote.total)}
@@ -415,20 +525,18 @@ function QuoteList() {
                     <div className="flex justify-end space-x-2">
                       <button
                         onClick={() => handleView(quote)}
-                        className="text-indigo-600 hover:text-indigo-900"
+                        className="text-blue-600 hover:text-blue-900"
                         title="View"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
-                      {quote.status !== 'converted' && (
-                        <button
-                          onClick={() => handleEdit(quote)}
-                          className="text-gray-600 hover:text-gray-900"
-                          title="Edit"
-                        >
-                          <Edit className="w-4 h-4" />
-                        </button>
-                      )}
+                      <button
+                        onClick={() => handleEdit(quote)}
+                        className="text-gray-600 hover:text-gray-900"
+                        title="Edit"
+                      >
+                        <Edit className="w-4 h-4" />
+                      </button>
                       <button
                         onClick={() => handleArchive(quote.id)}
                         className="text-yellow-600 hover:text-yellow-900"

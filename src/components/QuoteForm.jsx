@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Plus, Trash2, Save } from 'lucide-react';
+import { X, Plus, Trash2, Save, Search } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { getCurrentDate, calculateDueDate, formatDateInput } from '../utils/formatting';
+import { validateInvoice as validateQuote } from '../utils/validation';
 
 function QuoteForm({ quote, onClose }) {
   const isEdit = !!quote;
@@ -12,7 +13,11 @@ function QuoteForm({ quote, onClose }) {
     updateQuote,
     generateQuoteNumber,
     getSettings,
-    getQuote
+    getQuote,
+    getClientByCustomerNumber,
+    getSavedItemByItemNumber,
+    createClient,
+    createSavedItem
   } = useDatabase();
 
   const [clients, setClients] = useState([]);
@@ -25,15 +30,49 @@ function QuoteForm({ quote, onClose }) {
     quote_number: '',
     client_id: '',
     date: getCurrentDate(),
-    expiry_date: calculateDueDate(getCurrentDate(), 30), // Default 30 days from now
+    expiry_date: calculateDueDate(getCurrentDate(), 30),
     status: 'draft',
     notes: '',
     terms: '',
+    discount_type: 'none',
+    discount_value: 0,
+    shipping: 0,
+    adjustment: 0,
+    adjustment_label: '',
   });
 
   const [items, setItems] = useState([
-    { description: '', quantity: 1, rate: 0, amount: 0 }
+    { item_number: '', description: '', quantity: 1, rate: 0, discount_type: 'none', discount_value: 0, amount: 0 }
   ]);
+
+  const [customerNumberSearch, setCustomerNumberSearch] = useState('');
+  const [showItemSearchModal, setShowItemSearchModal] = useState(false);
+  const [currentItemIndex, setCurrentItemIndex] = useState(null);
+
+  // Quick create modals
+  const [showCreateCustomerModal, setShowCreateCustomerModal] = useState(false);
+  const [showCreateItemModal, setShowCreateItemModal] = useState(false);
+  const [pendingCustomerNumber, setPendingCustomerNumber] = useState('');
+  const [pendingItemNumber, setPendingItemNumber] = useState('');
+  const [pendingItemIndex, setPendingItemIndex] = useState(null);
+
+  const [newCustomerData, setNewCustomerData] = useState({
+    customer_number: '',
+    name: '',
+    email: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    zip: ''
+  });
+
+  const [newItemData, setNewItemData] = useState({
+    item_number: '',
+    description: '',
+    rate: 0,
+    category: 'General'
+  });
 
   useEffect(() => {
     loadInitialData();
@@ -43,6 +82,7 @@ function QuoteForm({ quote, onClose }) {
     const loadQuoteData = async () => {
       if (quote && quote.id) {
         try {
+          // Fetch full quote with items using the hook
           const fullQuote = await getQuote(quote.id);
 
           setFormData({
@@ -53,6 +93,11 @@ function QuoteForm({ quote, onClose }) {
             status: fullQuote.status,
             notes: fullQuote.notes || '',
             terms: fullQuote.terms || '',
+            discount_type: fullQuote.discount_type || 'none',
+            discount_value: fullQuote.discount_value || 0,
+            shipping: fullQuote.shipping || 0,
+            adjustment: fullQuote.adjustment || 0,
+            adjustment_label: fullQuote.adjustment_label || '',
           });
 
           if (fullQuote.items && fullQuote.items.length > 0) {
@@ -60,6 +105,20 @@ function QuoteForm({ quote, onClose }) {
           }
         } catch (error) {
           console.error('Error loading quote:', error);
+        }
+      } else if (quote) {
+        // If quote object is passed but no id (shouldn't happen)
+        setFormData({
+          quote_number: quote.quote_number,
+          client_id: quote.client_id,
+          date: formatDateInput(quote.date),
+          expiry_date: formatDateInput(quote.expiry_date),
+          status: quote.status,
+          notes: quote.notes || '',
+          terms: quote.terms || '',
+        });
+        if (quote.items && quote.items.length > 0) {
+          setItems(quote.items);
         }
       }
     };
@@ -85,7 +144,7 @@ function QuoteForm({ quote, onClose }) {
         setFormData(prev => ({
           ...prev,
           quote_number: quoteNum,
-          terms: settingsData.payment_terms || 'Quote valid for 30 days'
+          terms: settingsData.terms || ''
         }));
       }
     } catch (error) {
@@ -96,16 +155,59 @@ function QuoteForm({ quote, onClose }) {
     }
   };
 
-  const calculateItemAmount = (quantity, rate) => {
-    return parseFloat(quantity || 0) * parseFloat(rate || 0);
+  const calculateItemAmount = (item) => {
+    const quantity = parseFloat(item.quantity || 0);
+    const rate = parseFloat(item.rate || 0);
+    const lineTotal = quantity * rate;
+
+    // Apply line-item discount
+    let discountAmount = 0;
+    if (item.discount_type === 'percentage') {
+      discountAmount = (lineTotal * parseFloat(item.discount_value || 0)) / 100;
+    } else if (item.discount_type === 'fixed') {
+      discountAmount = parseFloat(item.discount_value || 0);
+    }
+
+    return lineTotal - discountAmount;
   };
 
   const calculateTotals = () => {
+    // Calculate subtotal from all line items (already discounted at item level)
     const subtotal = items.reduce((sum, item) => sum + (parseFloat(item.amount) || 0), 0);
+
+    // Apply quote-level discount
+    let quoteDiscount = 0;
+    if (formData.discount_type === 'percentage') {
+      quoteDiscount = (subtotal * parseFloat(formData.discount_value || 0)) / 100;
+    } else if (formData.discount_type === 'fixed') {
+      quoteDiscount = parseFloat(formData.discount_value || 0);
+    }
+
+    const afterDiscount = subtotal - quoteDiscount;
+
+    // Add shipping
+    const shipping = parseFloat(formData.shipping || 0);
+
+    // Calculate tax on (subtotal - discount + shipping)
+    const taxableAmount = afterDiscount + shipping;
     const taxRate = parseFloat(settings?.tax_rate || 0) / 100;
-    const tax = subtotal * taxRate;
-    const total = subtotal + tax;
-    return { subtotal, tax, total };
+    const tax = taxableAmount * taxRate;
+
+    // Add adjustment (can be positive or negative)
+    const adjustment = parseFloat(formData.adjustment || 0);
+
+    // Final total
+    const total = taxableAmount + tax + adjustment;
+
+    return {
+      subtotal,
+      quoteDiscount,
+      afterDiscount,
+      shipping,
+      tax,
+      adjustment,
+      total
+    };
   };
 
   const handleInputChange = (e) => {
@@ -120,18 +222,16 @@ function QuoteForm({ quote, onClose }) {
     const newItems = [...items];
     newItems[index][field] = value;
 
-    if (field === 'quantity' || field === 'rate') {
-      newItems[index].amount = calculateItemAmount(
-        newItems[index].quantity,
-        newItems[index].rate
-      );
+    // Recalculate amount when quantity, rate, or discount changes
+    if (field === 'quantity' || field === 'rate' || field === 'discount_type' || field === 'discount_value') {
+      newItems[index].amount = calculateItemAmount(newItems[index]);
     }
 
     setItems(newItems);
   };
 
   const handleAddItem = () => {
-    setItems([...items, { description: '', quantity: 1, rate: 0, amount: 0 }]);
+    setItems([...items, { item_number: '', description: '', quantity: 1, rate: 0, discount_type: 'none', discount_value: 0, amount: 0 }]);
   };
 
   const handleRemoveItem = (index) => {
@@ -145,61 +245,192 @@ function QuoteForm({ quote, onClose }) {
 
     const savedItem = savedItems.find(item => item.id === parseInt(savedItemId));
     if (savedItem) {
-      handleItemChange(index, 'description', savedItem.description);
-      handleItemChange(index, 'rate', savedItem.rate);
+      const newItems = [...items];
+      newItems[index].description = savedItem.description;
+      newItems[index].rate = savedItem.rate;
+      newItems[index].amount = calculateItemAmount(newItems[index]);
+      setItems(newItems);
     }
   };
 
-  const validateForm = () => {
-    const newErrors = {};
-
-    if (!formData.quote_number) {
-      newErrors.quote_number = 'Quote number is required';
-    }
-    if (!formData.client_id) {
-      newErrors.client_id = 'Client is required';
-    }
-    if (!formData.date) {
-      newErrors.date = 'Date is required';
-    }
-    if (!formData.expiry_date) {
-      newErrors.expiry_date = 'Expiry date is required';
+  const handleSearchCustomerNumber = async () => {
+    if (!customerNumberSearch.trim()) {
+      alert('Please enter a customer number');
+      return;
     }
 
-    // Validate items
-    const validItems = items.filter(item => item.description.trim());
-    if (validItems.length === 0) {
-      newErrors.items = 'At least one item is required';
+    try {
+      const client = await getClientByCustomerNumber(customerNumberSearch.trim());
+      if (client) {
+        setFormData(prev => ({ ...prev, client_id: client.id }));
+        setCustomerNumberSearch('');
+      } else {
+        // Customer not found - offer to create
+        setPendingCustomerNumber(customerNumberSearch.trim());
+        setNewCustomerData({
+          customer_number: customerNumberSearch.trim(),
+          name: '',
+          email: '',
+          phone: '',
+          address: '',
+          city: '',
+          state: '',
+          zip: ''
+        });
+        setShowCreateCustomerModal(true);
+      }
+    } catch (error) {
+      console.error('Error searching for customer:', error);
+      alert('Error searching for customer: ' + error.message);
+    }
+  };
+
+  const handleCreateCustomer = async () => {
+    // Validate required fields
+    if (!newCustomerData.name || !newCustomerData.email) {
+      alert('Please fill in Name and Email (required fields)');
+      return;
     }
 
-    setErrors(newErrors);
-    return Object.keys(newErrors).length === 0;
+    try {
+      const newClient = await createClient(newCustomerData);
+
+      // Refresh clients list
+      const clientsData = await getAllClients();
+      setClients(clientsData);
+
+      // Auto-select the new client
+      setFormData(prev => ({ ...prev, client_id: newClient.id }));
+
+      // Clear search and close modal
+      setCustomerNumberSearch('');
+      setShowCreateCustomerModal(false);
+      setPendingCustomerNumber('');
+
+      alert('Customer created successfully!');
+    } catch (error) {
+      console.error('Error creating customer:', error);
+      alert('Error creating customer: ' + error.message);
+    }
+  };
+
+  const handleItemNumberBlur = async (index) => {
+    const itemNumber = items[index].item_number;
+    if (!itemNumber || !itemNumber.trim()) {
+      return; // No item number entered, do nothing
+    }
+
+    try {
+      const savedItem = await getSavedItemByItemNumber(itemNumber.trim());
+      if (savedItem) {
+        const newItems = [...items];
+        newItems[index].description = savedItem.description;
+        newItems[index].rate = savedItem.rate;
+        newItems[index].amount = calculateItemAmount(newItems[index]);
+        setItems(newItems);
+      } else {
+        // Item not found and has description - offer to save as new item
+        if (items[index].description && items[index].description.trim()) {
+          setPendingItemNumber(itemNumber.trim());
+          setPendingItemIndex(index);
+          setNewItemData({
+            item_number: itemNumber.trim(),
+            description: items[index].description,
+            rate: parseFloat(items[index].rate) || 0,
+            category: 'General'
+          });
+          setShowCreateItemModal(true);
+        }
+      }
+    } catch (error) {
+      console.error('Error searching for item:', error);
+    }
+  };
+
+  const handleCreateItem = async () => {
+    // Validate required fields
+    if (!newItemData.description || !newItemData.rate) {
+      alert('Please fill in Description and Rate (required fields)');
+      return;
+    }
+
+    try {
+      await createSavedItem(newItemData);
+
+      // Refresh saved items list
+      const itemsData = await getAllSavedItems();
+      setSavedItems(itemsData);
+
+      // Close modal
+      setShowCreateItemModal(false);
+      setPendingItemNumber('');
+      setPendingItemIndex(null);
+
+      alert('Item saved successfully! You can now use it in future quotes.');
+    } catch (error) {
+      console.error('Error creating item:', error);
+      alert('Error creating item: ' + error.message);
+    }
+  };
+
+  const handleOpenItemSearch = (index) => {
+    setCurrentItemIndex(index);
+    setShowItemSearchModal(true);
+  };
+
+  const handleSelectSavedItem = (savedItem) => {
+    if (currentItemIndex !== null) {
+      const newItems = [...items];
+      newItems[currentItemIndex].item_number = savedItem.item_number || '';
+      newItems[currentItemIndex].description = savedItem.description;
+      newItems[currentItemIndex].rate = savedItem.rate;
+      newItems[currentItemIndex].amount = calculateItemAmount(newItems[currentItemIndex]);
+      setItems(newItems);
+    }
+    setShowItemSearchModal(false);
+    setCurrentItemIndex(null);
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!validateForm()) {
+    const validation = validateQuote(formData, items);
+    if (!validation.isValid) {
+      setErrors(validation.errors);
       alert('Please fix the errors in the form');
       return;
     }
 
     try {
-      const { subtotal, tax, total } = calculateTotals();
+      const totals = calculateTotals();
       const quoteData = {
         ...formData,
-        subtotal,
-        tax,
-        total,
+        subtotal: totals.subtotal,
+        tax: totals.tax,
+        discount_type: formData.discount_type || 'none',
+        discount_value: parseFloat(formData.discount_value || 0),
+        discount_amount: totals.quoteDiscount,
+        shipping: parseFloat(formData.shipping || 0),
+        adjustment: parseFloat(formData.adjustment || 0),
+        adjustment_label: formData.adjustment_label || '',
+        total: totals.total,
       };
 
-      // Filter out empty items
-      const validItems = items.filter(item => item.description.trim());
+      // Prepare items with discount fields
+      const itemsData = items.map(item => ({
+        ...item,
+        discount_type: item.discount_type || 'none',
+        discount_value: parseFloat(item.discount_value || 0),
+        discount_amount: item.discount_type !== 'none' ?
+          (item.discount_type === 'percentage' ?
+            (item.quantity * item.rate * item.discount_value / 100) :
+            item.discount_value) : 0,
+      }));
 
       if (isEdit) {
-        await updateQuote(quote.id, quoteData, validItems);
+        await updateQuote(quote.id, quoteData, itemsData);
       } else {
-        await createQuote(quoteData, validItems);
+        await createQuote(quoteData, itemsData);
       }
 
       onClose(true);
@@ -208,6 +439,8 @@ function QuoteForm({ quote, onClose }) {
       alert('Error saving quote: ' + error.message);
     }
   };
+
+  const totals = calculateTotals();
 
   if (loading) {
     return (
@@ -219,14 +452,12 @@ function QuoteForm({ quote, onClose }) {
     );
   }
 
-  const { subtotal, tax, total } = calculateTotals();
-
   return (
     <div className="p-8">
       <div className="max-w-5xl mx-auto">
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-gray-900">
-            {isEdit ? 'Edit Quote' : 'Create Quote'}
+            {isEdit ? 'Edit Quote' : 'New Quote'}
           </h1>
           <button
             onClick={() => onClose(false)}
@@ -236,241 +467,337 @@ function QuoteForm({ quote, onClose }) {
           </button>
         </div>
 
-        <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
-          {/* Header Section */}
-          <div className="grid grid-cols-2 gap-6 mb-6 pb-6 border-b border-gray-200">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Quote Number <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="text"
-                name="quote_number"
-                value={formData.quote_number}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                required
-              />
-              {errors.quote_number && (
-                <p className="text-red-500 text-sm mt-1">{errors.quote_number}</p>
-              )}
-            </div>
+        <form onSubmit={handleSubmit}>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Quote Details</h2>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Client <span className="text-red-500">*</span>
-              </label>
-              <select
-                name="client_id"
-                value={formData.client_id}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                required
-              >
-                <option value="">Select a client</option>
-                {clients.map(client => (
-                  <option key={client.id} value={client.id}>
-                    {client.name} ({client.email})
-                  </option>
-                ))}
-              </select>
-              {errors.client_id && (
-                <p className="text-red-500 text-sm mt-1">{errors.client_id}</p>
-              )}
-            </div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Quote Number *
+                </label>
+                <input
+                  type="text"
+                  name="quote_number"
+                  value={formData.quote_number}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+                {errors.quote_number && (
+                  <p className="text-red-500 text-xs mt-1">{errors.quote_number}</p>
+                )}
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Date <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                name="date"
-                value={formData.date}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                required
-              />
-              {errors.date && (
-                <p className="text-red-500 text-sm mt-1">{errors.date}</p>
-              )}
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Client *
+                </label>
+                <div className="flex gap-2">
+                  <select
+                    name="client_id"
+                    value={formData.client_id}
+                    onChange={handleInputChange}
+                    className="flex-1 px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                    required
+                  >
+                    <option value="">Select a client</option>
+                    {clients.map(client => (
+                      <option key={client.id} value={client.id}>
+                        {client.name}
+                      </option>
+                    ))}
+                  </select>
+                  <div className="flex gap-1">
+                    <input
+                      type="text"
+                      placeholder="Customer #"
+                      value={customerNumberSearch}
+                      onChange={(e) => setCustomerNumberSearch(e.target.value)}
+                      onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleSearchCustomerNumber())}
+                      className="w-32 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm font-mono"
+                    />
+                    <button
+                      type="button"
+                      onClick={handleSearchCustomerNumber}
+                      className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg hover:bg-gray-200"
+                      title="Search by customer number"
+                    >
+                      <Search className="w-4 h-4 text-gray-600" />
+                    </button>
+                  </div>
+                </div>
+                {errors.client_id && (
+                  <p className="text-red-500 text-xs mt-1">{errors.client_id}</p>
+                )}
+              </div>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Valid Until <span className="text-red-500">*</span>
-              </label>
-              <input
-                type="date"
-                name="expiry_date"
-                value={formData.expiry_date}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                required
-              />
-              {errors.expiry_date && (
-                <p className="text-red-500 text-sm mt-1">{errors.expiry_date}</p>
-              )}
-            </div>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Date *
+                </label>
+                <input
+                  type="date"
+                  name="date"
+                  value={formData.date}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
 
-            <div className="col-span-2">
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Status
-              </label>
-              <select
-                name="status"
-                value={formData.status}
-                onChange={handleInputChange}
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-              >
-                <option value="draft">Draft</option>
-                <option value="sent">Sent</option>
-                <option value="approved">Approved</option>
-                <option value="declined">Declined</option>
-              </select>
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Valid Until *
+                </label>
+                <input
+                  type="date"
+                  name="expiry_date"
+                  value={formData.expiry_date}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Status
+                </label>
+                <select
+                  name="status"
+                  value={formData.status}
+                  onChange={handleInputChange}
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                >
+                  <option value="draft">Draft</option>
+                  <option value="pending">Pending</option>
+                  <option value="paid">Paid</option>
+                  <option value="overdue">Overdue</option>
+                </select>
+              </div>
             </div>
           </div>
 
           {/* Line Items */}
-          <div className="mb-6">
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <div className="flex justify-between items-center mb-4">
-              <h2 className="text-xl font-semibold text-gray-900">Line Items</h2>
+              <h2 className="text-lg font-semibold text-gray-900">Line Items</h2>
               <button
                 type="button"
                 onClick={handleAddItem}
-                className="flex items-center px-3 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+                className="flex items-center px-3 py-1 text-sm bg-blue-600 text-white rounded-lg hover:bg-blue-700"
               >
                 <Plus className="w-4 h-4 mr-1" />
                 Add Item
               </button>
             </div>
 
-            {errors.items && (
-              <p className="text-red-500 text-sm mb-2">{errors.items}</p>
-            )}
-
             <div className="space-y-3">
               {items.map((item, index) => (
-                <div key={index} className="grid grid-cols-12 gap-3 items-start p-3 bg-gray-50 rounded-lg">
-                  <div className="col-span-5">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Description</label>
-                    <textarea
-                      value={item.description}
-                      onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                      rows="2"
-                      placeholder="Item description"
-                    />
-                    <select
-                      onChange={(e) => handleSavedItemSelect(index, e.target.value)}
-                      className="w-full mt-1 px-3 py-1 border border-gray-300 rounded text-xs"
-                    >
-                      <option value="">Load from saved items...</option>
-                      {savedItems.map(savedItem => (
-                        <option key={savedItem.id} value={savedItem.id}>
-                          {savedItem.description} - ${savedItem.rate}
-                        </option>
-                      ))}
-                    </select>
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Qty</label>
-                    <input
-                      type="number"
-                      value={item.quantity}
-                      onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Rate</label>
-                    <input
-                      type="number"
-                      value={item.rate}
-                      onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
-                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent text-sm"
-                      min="0"
-                      step="0.01"
-                    />
-                  </div>
-
-                  <div className="col-span-2">
-                    <label className="block text-xs font-medium text-gray-600 mb-1">Amount</label>
-                    <div className="px-3 py-2 bg-gray-100 border border-gray-300 rounded-lg text-sm font-semibold">
-                      ${item.amount.toFixed(2)}
-                    </div>
-                  </div>
-
-                  <div className="col-span-1 flex items-end">
-                    <button
-                      type="button"
-                      onClick={() => handleRemoveItem(index)}
-                      className="p-2 text-red-600 hover:text-red-900 hover:bg-red-50 rounded"
-                      disabled={items.length === 1}
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  </div>
+                <div key={index} className="flex gap-3 items-start">
+                  <input
+                    type="text"
+                    placeholder="Item #"
+                    value={item.item_number || ''}
+                    onChange={(e) => handleItemChange(index, 'item_number', e.target.value)}
+                    onBlur={() => handleItemNumberBlur(index)}
+                    onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), handleItemNumberBlur(index))}
+                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm font-mono"
+                    title="Enter item number and press Enter or Tab to auto-fill"
+                  />
+                  <input
+                    type="text"
+                    placeholder="Description"
+                    value={item.description}
+                    onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                    className="flex-1 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                    required
+                  />
+                  <input
+                    type="number"
+                    placeholder="Qty"
+                    value={item.quantity}
+                    onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                    className="w-20 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                    min="0"
+                    step="0.01"
+                    required
+                  />
+                  <input
+                    type="number"
+                    placeholder="Rate"
+                    value={item.rate}
+                    onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
+                    className="w-24 px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 text-sm"
+                    min="0"
+                    step="0.01"
+                    required
+                  />
+                  <input
+                    type="text"
+                    value={`$${item.amount.toFixed(2)}`}
+                    readOnly
+                    className="w-28 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => handleOpenItemSearch(index)}
+                    className="text-gray-600 hover:text-gray-900 p-2"
+                    title="Browse saved items"
+                  >
+                    <Search className="w-4 h-4" />
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => handleRemoveItem(index)}
+                    className="text-red-600 hover:text-red-900 p-2"
+                    disabled={items.length === 1}
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
                 </div>
               ))}
             </div>
-          </div>
 
-          {/* Totals */}
-          <div className="flex justify-end mb-6">
-            <div className="w-80 space-y-2 p-4 bg-gray-50 rounded-lg">
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Subtotal:</span>
-                <span className="font-medium">${subtotal.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-600">Tax ({settings?.tax_rate || 0}%):</span>
-                <span className="font-medium">${tax.toFixed(2)}</span>
-              </div>
-              <div className="flex justify-between text-lg font-bold pt-2 border-t border-gray-300">
-                <span>Total:</span>
-                <span className="text-indigo-600">${total.toFixed(2)}</span>
+            {/* Totals */}
+            <div className="mt-6 border-t pt-4">
+              <div className="flex justify-end">
+                <div className="w-96 space-y-3">
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Subtotal:</span>
+                    <span className="font-medium">${totals.subtotal.toFixed(2)}</span>
+                  </div>
+
+                  {/* Quote-Level Discount */}
+                  <div className="border-t pt-2">
+                    <div className="flex items-center gap-2 mb-2">
+                      <label className="text-sm font-medium text-gray-700">Discount:</label>
+                      <select
+                        value={formData.discount_type}
+                        onChange={(e) => setFormData(prev => ({ ...prev, discount_type: e.target.value, discount_value: e.target.value === 'none' ? 0 : prev.discount_value }))}
+                        className="px-2 py-1 border border-gray-300 rounded text-sm"
+                      >
+                        <option value="none">None</option>
+                        <option value="percentage">Percentage</option>
+                        <option value="fixed">Fixed Amount</option>
+                      </select>
+                      {formData.discount_type !== 'none' && (
+                        <input
+                          type="number"
+                          value={formData.discount_value}
+                          onChange={(e) => setFormData(prev => ({ ...prev, discount_value: e.target.value }))}
+                          className="w-24 px-2 py-1 border border-gray-300 rounded text-sm"
+                          min="0"
+                          step="0.01"
+                          placeholder={formData.discount_type === 'percentage' ? '%' : '$'}
+                        />
+                      )}
+                    </div>
+                    {totals.quoteDiscount > 0 && (
+                      <div className="flex justify-between text-sm text-red-600">
+                        <span>Discount Amount:</span>
+                        <span>-${totals.quoteDiscount.toFixed(2)}</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Shipping */}
+                  <div>
+                    <div className="flex items-center justify-between">
+                      <label className="text-sm font-medium text-gray-700">Shipping:</label>
+                      <input
+                        type="number"
+                        value={formData.shipping}
+                        onChange={(e) => setFormData(prev => ({ ...prev, shipping: e.target.value }))}
+                        className="w-32 px-2 py-1 border border-gray-300 rounded text-sm"
+                        min="0"
+                        step="0.01"
+                        placeholder="0.00"
+                      />
+                    </div>
+                  </div>
+
+                  <div className="flex justify-between text-sm">
+                    <span className="text-gray-600">Tax ({settings?.tax_rate || 0}%):</span>
+                    <span className="font-medium">${totals.tax.toFixed(2)}</span>
+                  </div>
+
+                  {/* Adjustment */}
+                  <div className="border-t pt-2">
+                    <div className="flex items-center gap-2 mb-2">
+                      <input
+                        type="text"
+                        value={formData.adjustment_label}
+                        onChange={(e) => setFormData(prev => ({ ...prev, adjustment_label: e.target.value }))}
+                        className="flex-1 px-2 py-1 border border-gray-300 rounded text-sm"
+                        placeholder="Adjustment label"
+                      />
+                      <input
+                        type="number"
+                        value={formData.adjustment}
+                        onChange={(e) => setFormData(prev => ({ ...prev, adjustment: e.target.value }))}
+                        className="w-32 px-2 py-1 border border-gray-300 rounded text-sm"
+                        step="0.01"
+                        placeholder="±0.00"
+                      />
+                    </div>
+                    {formData.adjustment !== 0 && formData.adjustment !== '' && (
+                      <div className="flex justify-between text-sm">
+                        <span className="text-gray-600">{formData.adjustment_label || 'Adjustment'}:</span>
+                        <span className={parseFloat(formData.adjustment) < 0 ? 'text-red-600' : 'text-green-600'}>
+                          {parseFloat(formData.adjustment) >= 0 ? '+' : ''}${parseFloat(formData.adjustment).toFixed(2)}
+                        </span>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="flex justify-between text-lg font-bold border-t pt-2">
+                    <span>Total:</span>
+                    <span>${totals.total.toFixed(2)}</span>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
 
           {/* Notes and Terms */}
-          <div className="grid grid-cols-2 gap-6 mb-6">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Notes
-              </label>
-              <textarea
-                name="notes"
-                value={formData.notes}
-                onChange={handleInputChange}
-                rows="4"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="Additional notes or details about this quote..."
-              />
-            </div>
+          <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">Additional Information</h2>
 
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-2">
-                Terms & Conditions
-              </label>
-              <textarea
-                name="terms"
-                value={formData.terms}
-                onChange={handleInputChange}
-                rows="4"
-                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
-                placeholder="Terms and conditions for this quote..."
-              />
+            <div className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Notes
+                </label>
+                <textarea
+                  name="notes"
+                  value={formData.notes}
+                  onChange={handleInputChange}
+                  rows="3"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Any additional notes..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">
+                  Terms
+                </label>
+                <textarea
+                  name="terms"
+                  value={formData.terms}
+                  onChange={handleInputChange}
+                  rows="2"
+                  className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                  placeholder="Payment terms and conditions..."
+                />
+              </div>
             </div>
           </div>
 
-          {/* Form Actions */}
-          <div className="flex justify-end space-x-3 pt-6 border-t border-gray-200">
+          {/* Actions */}
+          <div className="flex justify-end space-x-3">
             <button
               type="button"
               onClick={() => onClose(false)}
@@ -480,13 +807,343 @@ function QuoteForm({ quote, onClose }) {
             </button>
             <button
               type="submit"
-              className="flex items-center px-6 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700"
+              className="flex items-center px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
             >
               <Save className="w-4 h-4 mr-2" />
               {isEdit ? 'Update Quote' : 'Create Quote'}
             </button>
           </div>
         </form>
+
+        {/* Item Search Modal */}
+        {showItemSearchModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[80vh] flex flex-col">
+              <div className="p-6 border-b border-gray-200 flex justify-between items-center">
+                <h2 className="text-2xl font-bold text-gray-900">Select Saved Item</h2>
+                <button
+                  onClick={() => setShowItemSearchModal(false)}
+                  className="text-gray-400 hover:text-gray-600"
+                >
+                  <X className="w-6 h-6" />
+                </button>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                {savedItems.length === 0 ? (
+                  <p className="text-gray-500 text-center py-8">No saved items available</p>
+                ) : (
+                  <div className="space-y-2">
+                    {savedItems.map((savedItem) => (
+                      <button
+                        key={savedItem.id}
+                        onClick={() => handleSelectSavedItem(savedItem)}
+                        className="w-full text-left px-4 py-3 border border-gray-300 rounded-lg hover:bg-blue-50 hover:border-blue-500 transition-colors"
+                      >
+                        <div className="flex justify-between items-start">
+                          <div className="flex-1">
+                            {savedItem.item_number && (
+                              <div className="text-xs font-mono text-gray-500 mb-1">
+                                {savedItem.item_number}
+                              </div>
+                            )}
+                            <div className="font-medium text-gray-900">{savedItem.description}</div>
+                            <div className="text-sm text-gray-500 mt-1">
+                              <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-medium bg-blue-100 text-blue-800">
+                                {savedItem.category}
+                              </span>
+                            </div>
+                          </div>
+                          <div className="text-lg font-bold text-gray-900 ml-4">
+                            ${savedItem.rate.toFixed(2)}
+                          </div>
+                        </div>
+                      </button>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Create Customer Modal */}
+        {showCreateCustomerModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-2xl w-full mx-4 max-h-[90vh] flex flex-col">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Customer Not Found</h2>
+                    <p className="text-sm text-gray-600 mt-1">
+                      No customer found with number "{pendingCustomerNumber}". Would you like to create a new customer?
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowCreateCustomerModal(false);
+                      setPendingCustomerNumber('');
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="space-y-4">
+                  <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+                    <p className="text-sm text-yellow-800">
+                      ⚠️ This will create a new customer and save it to your database for future use.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Customer Number
+                    </label>
+                    <input
+                      type="text"
+                      value={newCustomerData.customer_number}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, customer_number: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg font-mono"
+                      placeholder="e.g., CUST-001"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Name <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newCustomerData.name}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, name: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg"
+                      placeholder="Customer name"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Email <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={newCustomerData.email}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, email: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg"
+                      placeholder="customer@example.com"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Phone
+                    </label>
+                    <input
+                      type="tel"
+                      value={newCustomerData.phone}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, phone: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg"
+                      placeholder="(555) 555-5555"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Address
+                    </label>
+                    <input
+                      type="text"
+                      value={newCustomerData.address}
+                      onChange={(e) => setNewCustomerData({ ...newCustomerData, address: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg"
+                      placeholder="123 Main St"
+                    />
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        City
+                      </label>
+                      <input
+                        type="text"
+                        value={newCustomerData.city}
+                        onChange={(e) => setNewCustomerData({ ...newCustomerData, city: e.target.value })}
+                        className="w-full px-4 py-2 border rounded-lg"
+                        placeholder="City"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        State
+                      </label>
+                      <input
+                        type="text"
+                        value={newCustomerData.state}
+                        onChange={(e) => setNewCustomerData({ ...newCustomerData, state: e.target.value })}
+                        className="w-full px-4 py-2 border rounded-lg"
+                        placeholder="ST"
+                      />
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        ZIP
+                      </label>
+                      <input
+                        type="text"
+                        value={newCustomerData.zip}
+                        onChange={(e) => setNewCustomerData({ ...newCustomerData, zip: e.target.value })}
+                        className="w-full px-4 py-2 border rounded-lg"
+                        placeholder="12345"
+                      />
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowCreateCustomerModal(false);
+                    setPendingCustomerNumber('');
+                  }}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleCreateCustomer}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Create Customer
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Create Item Modal */}
+        {showCreateItemModal && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
+            <div className="bg-white rounded-lg shadow-xl max-w-xl w-full mx-4 max-h-[90vh] flex flex-col">
+              <div className="p-6 border-b border-gray-200">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h2 className="text-xl font-bold text-gray-900">Save This Item?</h2>
+                    <p className="text-sm text-gray-600 mt-1">
+                      Item number "{pendingItemNumber}" doesn't exist. Would you like to save it for future quotes?
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowCreateItemModal(false);
+                      setPendingItemNumber('');
+                      setPendingItemIndex(null);
+                    }}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    <X className="w-6 h-6" />
+                  </button>
+                </div>
+              </div>
+
+              <div className="flex-1 overflow-y-auto p-6">
+                <div className="space-y-4">
+                  <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+                    <p className="text-sm text-blue-800">
+                      💡 Saving this item will allow you to quickly add it to future quotes using the item number.
+                    </p>
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Item Number
+                    </label>
+                    <input
+                      type="text"
+                      value={newItemData.item_number}
+                      onChange={(e) => setNewItemData({ ...newItemData, item_number: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg font-mono"
+                      placeholder="e.g., ITEM-001, SRV-001"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Description <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="text"
+                      value={newItemData.description}
+                      onChange={(e) => setNewItemData({ ...newItemData, description: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg"
+                      placeholder="What is this item/service?"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Rate <span className="text-red-500">*</span>
+                    </label>
+                    <input
+                      type="number"
+                      step="0.01"
+                      value={newItemData.rate}
+                      onChange={(e) => setNewItemData({ ...newItemData, rate: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg"
+                      placeholder="0.00"
+                      required
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">
+                      Category
+                    </label>
+                    <select
+                      value={newItemData.category}
+                      onChange={(e) => setNewItemData({ ...newItemData, category: e.target.value })}
+                      className="w-full px-4 py-2 border rounded-lg"
+                    >
+                      <option value="General">General</option>
+                      <option value="Service">Service</option>
+                      <option value="Product">Product</option>
+                      <option value="Consulting">Consulting</option>
+                      <option value="Development">Development</option>
+                      <option value="Design">Design</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6 border-t border-gray-200 flex justify-end space-x-3">
+                <button
+                  onClick={() => {
+                    setShowCreateItemModal(false);
+                    setPendingItemNumber('');
+                    setPendingItemIndex(null);
+                  }}
+                  className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
+                >
+                  Skip
+                </button>
+                <button
+                  onClick={handleCreateItem}
+                  className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                >
+                  Save Item
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
     </div>
   );
