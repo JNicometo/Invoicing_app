@@ -275,6 +275,116 @@ const runMigrations = () => {
       console.log('✓ All invoice client snapshot columns already exist');
     }
 
+    // Add enhanced client snapshot columns (billing, shipping, tax_id) to invoices table
+    console.log('Checking for enhanced client snapshot columns in invoices...');
+    const enhancedClientColumns = [
+      { name: 'billing_address', type: 'TEXT', default: "''" },
+      { name: 'billing_city', type: 'TEXT', default: "''" },
+      { name: 'billing_state', type: 'TEXT', default: "''" },
+      { name: 'billing_zip', type: 'TEXT', default: "''" },
+      { name: 'shipping_address', type: 'TEXT', default: "''" },
+      { name: 'shipping_city', type: 'TEXT', default: "''" },
+      { name: 'shipping_state', type: 'TEXT', default: "''" },
+      { name: 'shipping_zip', type: 'TEXT', default: "''" },
+      { name: 'tax_id', type: 'TEXT', default: "''" }
+    ];
+
+    let enhancedInvoiceSnapshotAdded = 0;
+    enhancedClientColumns.forEach(column => {
+      if (!invoiceColumnNames.includes(column.name)) {
+        console.log(`Adding ${column.name} column to invoices table...`);
+        db.exec(`ALTER TABLE invoices ADD COLUMN ${column.name} ${column.type} DEFAULT ${column.default}`);
+        enhancedInvoiceSnapshotAdded++;
+      }
+    });
+
+    if (enhancedInvoiceSnapshotAdded > 0) {
+      console.log(`✓ Added ${enhancedInvoiceSnapshotAdded} enhanced client snapshot columns to invoices table`);
+    } else {
+      console.log('✓ All enhanced invoice client snapshot columns already exist');
+    }
+
+    // Add client snapshot columns to quotes table
+    console.log('Checking for quote client snapshot columns...');
+    const quoteColumns = db.pragma('table_info(quotes)');
+    const quoteColumnNames = quoteColumns.map(col => col.name);
+
+    const quoteSnapshotColumns = [
+      { name: 'client_name', type: 'TEXT', default: "''" },
+      { name: 'client_email', type: 'TEXT', default: "''" },
+      { name: 'client_phone', type: 'TEXT', default: "''" },
+      { name: 'client_address', type: 'TEXT', default: "''" },
+      { name: 'client_city', type: 'TEXT', default: "''" },
+      { name: 'client_state', type: 'TEXT', default: "''" },
+      { name: 'client_zip', type: 'TEXT', default: "''" },
+      { name: 'billing_address', type: 'TEXT', default: "''" },
+      { name: 'billing_city', type: 'TEXT', default: "''" },
+      { name: 'billing_state', type: 'TEXT', default: "''" },
+      { name: 'billing_zip', type: 'TEXT', default: "''" },
+      { name: 'shipping_address', type: 'TEXT', default: "''" },
+      { name: 'shipping_city', type: 'TEXT', default: "''" },
+      { name: 'shipping_state', type: 'TEXT', default: "''" },
+      { name: 'shipping_zip', type: 'TEXT', default: "''" },
+      { name: 'tax_id', type: 'TEXT', default: "''" }
+    ];
+
+    let quoteSnapshotAdded = 0;
+    quoteSnapshotColumns.forEach(column => {
+      if (!quoteColumnNames.includes(column.name)) {
+        console.log(`Adding ${column.name} column to quotes table...`);
+        db.exec(`ALTER TABLE quotes ADD COLUMN ${column.name} ${column.type} DEFAULT ${column.default}`);
+        quoteSnapshotAdded++;
+      }
+    });
+
+    if (quoteSnapshotAdded > 0) {
+      console.log(`✓ Added ${quoteSnapshotAdded} client snapshot columns to quotes table`);
+    } else {
+      console.log('✓ All quote client snapshot columns already exist');
+    }
+
+    // Add item detail columns (sku, unit_of_measure) to invoice_items table
+    console.log('Checking for item detail columns in invoice_items...');
+    const itemDetailColumns = [
+      { name: 'sku', type: 'TEXT', default: "''" },
+      { name: 'unit_of_measure', type: 'TEXT', default: "'Each'" }
+    ];
+
+    let invoiceItemDetailsAdded = 0;
+    itemDetailColumns.forEach(column => {
+      if (!itemColumnNames.includes(column.name)) {
+        console.log(`Adding ${column.name} column to invoice_items table...`);
+        db.exec(`ALTER TABLE invoice_items ADD COLUMN ${column.name} ${column.type} DEFAULT ${column.default}`);
+        invoiceItemDetailsAdded++;
+      }
+    });
+
+    if (invoiceItemDetailsAdded > 0) {
+      console.log(`✓ Added ${invoiceItemDetailsAdded} item detail columns to invoice_items table`);
+    } else {
+      console.log('✓ All invoice item detail columns already exist');
+    }
+
+    // Add item detail columns (sku, unit_of_measure) to quote_items table
+    console.log('Checking for item detail columns in quote_items...');
+    const quoteItemColumns = db.pragma('table_info(quote_items)');
+    const quoteItemColumnNames = quoteItemColumns.map(col => col.name);
+
+    let quoteItemDetailsAdded = 0;
+    itemDetailColumns.forEach(column => {
+      if (!quoteItemColumnNames.includes(column.name)) {
+        console.log(`Adding ${column.name} column to quote_items table...`);
+        db.exec(`ALTER TABLE quote_items ADD COLUMN ${column.name} ${column.type} DEFAULT ${column.default}`);
+        quoteItemDetailsAdded++;
+      }
+    });
+
+    if (quoteItemDetailsAdded > 0) {
+      console.log(`✓ Added ${quoteItemDetailsAdded} item detail columns to quote_items table`);
+    } else {
+      console.log('✓ All quote item detail columns already exist');
+    }
+
     // Add discount and adjustment columns to invoices table (legacy check)
     console.log('Checking for invoice discount/adjustment columns...');
     const invoiceNewColumns = [
