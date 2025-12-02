@@ -328,10 +328,22 @@ function InvoicePreview({ invoice, onClose }) {
             <div class="bill-to">
               <h3>BILL TO:</h3>
               <p><strong>${fullInvoice?.client_name || 'Client Name'}</strong></p>
-              ${fullInvoice?.client_email ? `<p>${fullInvoice.client_email}</p>` : ''}
-              ${fullInvoice?.client_phone ? `<p>${fullInvoice.client_phone}</p>` : ''}
-              ${fullInvoice?.client_address ? `<p>${fullInvoice.client_address}</p>` : ''}
-              ${fullInvoice?.client_city ? `<p>${fullInvoice.client_city}, ${fullInvoice.client_state || ''} ${fullInvoice.client_zip || ''}</p>` : ''}
+              ${settings?.show_client_email_on_invoice && fullInvoice?.client_email ? `<p>${fullInvoice.client_email}</p>` : ''}
+              ${settings?.show_client_phone_on_invoice && fullInvoice?.client_phone ? `<p>${fullInvoice.client_phone}</p>` : ''}
+              ${settings?.show_client_billing_address_on_invoice && fullInvoice?.billing_address ? `
+                <p><em>Billing Address:</em></p>
+                <p>${fullInvoice.billing_address}</p>
+                ${fullInvoice?.billing_city ? `<p>${fullInvoice.billing_city}, ${fullInvoice.billing_state || ''} ${fullInvoice.billing_zip || ''}</p>` : ''}
+              ` : `
+                ${fullInvoice?.client_address ? `<p>${fullInvoice.client_address}</p>` : ''}
+                ${fullInvoice?.client_city ? `<p>${fullInvoice.client_city}, ${fullInvoice.client_state || ''} ${fullInvoice.client_zip || ''}</p>` : ''}
+              `}
+              ${settings?.show_client_shipping_address_on_invoice && fullInvoice?.shipping_address ? `
+                <p><em>Shipping Address:</em></p>
+                <p>${fullInvoice.shipping_address}</p>
+                ${fullInvoice?.shipping_city ? `<p>${fullInvoice.shipping_city}, ${fullInvoice.shipping_state || ''} ${fullInvoice.shipping_zip || ''}</p>` : ''}
+              ` : ''}
+              ${settings?.show_client_tax_id_on_invoice && fullInvoice?.tax_id ? `<p><em>Tax ID:</em> ${fullInvoice.tax_id}</p>` : ''}
             </div>
             <div class="invoice-details">
               <p><strong>Invoice Date:</strong> ${formatDate(fullInvoice?.date || '')}</p>
@@ -343,8 +355,10 @@ function InvoicePreview({ invoice, onClose }) {
           <table>
             <thead>
               <tr>
+                ${settings?.show_item_sku_on_invoice ? '<th>SKU</th>' : ''}
                 <th>Description</th>
                 <th class="text-center">Qty</th>
+                ${settings?.show_item_unit_on_invoice ? '<th class="text-center">Unit</th>' : ''}
                 <th class="text-right">Rate</th>
                 <th class="text-right">Amount</th>
               </tr>
@@ -352,8 +366,10 @@ function InvoicePreview({ invoice, onClose }) {
             <tbody>
               ${(fullInvoice.items || []).map(item => `
                 <tr>
+                  ${settings?.show_item_sku_on_invoice ? `<td>${item.sku || '-'}</td>` : ''}
                   <td>${item.description}</td>
                   <td class="text-center">${item.quantity}</td>
+                  ${settings?.show_item_unit_on_invoice ? `<td class="text-center">${item.unit_of_measure || 'Each'}</td>` : ''}
                   <td class="text-right">${formatCurrency(item.rate)}</td>
                   <td class="text-right"><strong>${formatCurrency(item.amount)}</strong></td>
                 </tr>

@@ -148,6 +148,15 @@ const runMigrations = () => {
       { name: 'show_tax_breakdown', type: 'INTEGER', default: '1' },
       { name: 'show_payment_terms', type: 'INTEGER', default: '1' },
 
+      // Invoice Field Display Options
+      { name: 'show_client_email_on_invoice', type: 'INTEGER', default: '1' },
+      { name: 'show_client_phone_on_invoice', type: 'INTEGER', default: '1' },
+      { name: 'show_client_billing_address_on_invoice', type: 'INTEGER', default: '0' },
+      { name: 'show_client_shipping_address_on_invoice', type: 'INTEGER', default: '0' },
+      { name: 'show_client_tax_id_on_invoice', type: 'INTEGER', default: '0' },
+      { name: 'show_item_sku_on_invoice', type: 'INTEGER', default: '0' },
+      { name: 'show_item_unit_on_invoice', type: 'INTEGER', default: '1' },
+
       // Theme - Colors
       { name: 'primary_color', type: 'TEXT', default: "'#3B82F6'" },
       { name: 'secondary_color', type: 'TEXT', default: "'#8B5CF6'" },
@@ -684,6 +693,13 @@ const updateSettings = (settings) => {
       show_customer_numbers = @show_customer_numbers,
       show_tax_breakdown = @show_tax_breakdown,
       show_payment_terms = @show_payment_terms,
+      show_client_email_on_invoice = @show_client_email_on_invoice,
+      show_client_phone_on_invoice = @show_client_phone_on_invoice,
+      show_client_billing_address_on_invoice = @show_client_billing_address_on_invoice,
+      show_client_shipping_address_on_invoice = @show_client_shipping_address_on_invoice,
+      show_client_tax_id_on_invoice = @show_client_tax_id_on_invoice,
+      show_item_sku_on_invoice = @show_item_sku_on_invoice,
+      show_item_unit_on_invoice = @show_item_unit_on_invoice,
       theme = @theme,
       primary_color = @primary_color,
       secondary_color = @secondary_color,
