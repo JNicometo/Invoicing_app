@@ -33,6 +33,40 @@ CREATE TABLE IF NOT EXISTS clients (
   state TEXT DEFAULT '',
   zip TEXT DEFAULT '',
   notes TEXT DEFAULT '',
+  -- Credit Management
+  credit_limit REAL DEFAULT 0,
+  current_credit REAL DEFAULT 0,
+  payment_terms TEXT DEFAULT 'NET 30',
+  tax_exempt INTEGER DEFAULT 0,
+  tax_id TEXT DEFAULT '',
+  -- Additional Business Information
+  website TEXT DEFAULT '',
+  industry TEXT DEFAULT '',
+  company_size TEXT DEFAULT '',
+  account_status TEXT DEFAULT 'Active',
+  billing_email TEXT DEFAULT '',
+  billing_address TEXT DEFAULT '',
+  billing_city TEXT DEFAULT '',
+  billing_state TEXT DEFAULT '',
+  billing_zip TEXT DEFAULT '',
+  shipping_address TEXT DEFAULT '',
+  shipping_city TEXT DEFAULT '',
+  shipping_state TEXT DEFAULT '',
+  shipping_zip TEXT DEFAULT '',
+  -- Contact Information
+  contact_person TEXT DEFAULT '',
+  contact_title TEXT DEFAULT '',
+  secondary_contact TEXT DEFAULT '',
+  secondary_email TEXT DEFAULT '',
+  secondary_phone TEXT DEFAULT '',
+  -- Account Management
+  account_manager TEXT DEFAULT '',
+  preferred_payment_method TEXT DEFAULT '',
+  default_discount_rate REAL DEFAULT 0,
+  currency TEXT DEFAULT 'USD',
+  language TEXT DEFAULT 'en',
+  tags TEXT DEFAULT '',
+  -- Timestamps
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );

@@ -37,8 +37,45 @@ function ClientManagement({ onNavigateToInvoices }) {
     city: '',
     state: '',
     zip: '',
-    notes: ''
+    notes: '',
+    // Credit Management
+    credit_limit: 0,
+    current_credit: 0,
+    payment_terms: 'NET 30',
+    tax_exempt: 0,
+    tax_id: '',
+    // Business Information
+    website: '',
+    industry: '',
+    company_size: '',
+    account_status: 'Active',
+    // Billing Address
+    billing_email: '',
+    billing_address: '',
+    billing_city: '',
+    billing_state: '',
+    billing_zip: '',
+    // Shipping Address
+    shipping_address: '',
+    shipping_city: '',
+    shipping_state: '',
+    shipping_zip: '',
+    // Contact Information
+    contact_person: '',
+    contact_title: '',
+    secondary_contact: '',
+    secondary_email: '',
+    secondary_phone: '',
+    // Account Management
+    account_manager: '',
+    preferred_payment_method: '',
+    default_discount_rate: 0,
+    currency: 'USD',
+    language: 'en',
+    tags: ''
   });
+
+  const [activeTab, setActiveTab] = useState('basic');
 
   useEffect(() => {
     loadClients();
@@ -93,7 +130,42 @@ function ClientManagement({ onNavigateToInvoices }) {
         city: client.city || '',
         state: client.state || '',
         zip: client.zip || '',
-        notes: client.notes || ''
+        notes: client.notes || '',
+        // Credit Management
+        credit_limit: client.credit_limit || 0,
+        current_credit: client.current_credit || 0,
+        payment_terms: client.payment_terms || 'NET 30',
+        tax_exempt: client.tax_exempt || 0,
+        tax_id: client.tax_id || '',
+        // Business Information
+        website: client.website || '',
+        industry: client.industry || '',
+        company_size: client.company_size || '',
+        account_status: client.account_status || 'Active',
+        // Billing Address
+        billing_email: client.billing_email || '',
+        billing_address: client.billing_address || '',
+        billing_city: client.billing_city || '',
+        billing_state: client.billing_state || '',
+        billing_zip: client.billing_zip || '',
+        // Shipping Address
+        shipping_address: client.shipping_address || '',
+        shipping_city: client.shipping_city || '',
+        shipping_state: client.shipping_state || '',
+        shipping_zip: client.shipping_zip || '',
+        // Contact Information
+        contact_person: client.contact_person || '',
+        contact_title: client.contact_title || '',
+        secondary_contact: client.secondary_contact || '',
+        secondary_email: client.secondary_email || '',
+        secondary_phone: client.secondary_phone || '',
+        // Account Management
+        account_manager: client.account_manager || '',
+        preferred_payment_method: client.preferred_payment_method || '',
+        default_discount_rate: client.default_discount_rate || 0,
+        currency: client.currency || 'USD',
+        language: client.language || 'en',
+        tags: client.tags || ''
       });
     } else {
       setEditingClient(null);
@@ -106,10 +178,46 @@ function ClientManagement({ onNavigateToInvoices }) {
         city: '',
         state: '',
         zip: '',
-        notes: ''
+        notes: '',
+        // Credit Management
+        credit_limit: 0,
+        current_credit: 0,
+        payment_terms: 'NET 30',
+        tax_exempt: 0,
+        tax_id: '',
+        // Business Information
+        website: '',
+        industry: '',
+        company_size: '',
+        account_status: 'Active',
+        // Billing Address
+        billing_email: '',
+        billing_address: '',
+        billing_city: '',
+        billing_state: '',
+        billing_zip: '',
+        // Shipping Address
+        shipping_address: '',
+        shipping_city: '',
+        shipping_state: '',
+        shipping_zip: '',
+        // Contact Information
+        contact_person: '',
+        contact_title: '',
+        secondary_contact: '',
+        secondary_email: '',
+        secondary_phone: '',
+        // Account Management
+        account_manager: '',
+        preferred_payment_method: '',
+        default_discount_rate: 0,
+        currency: 'USD',
+        language: 'en',
+        tags: ''
       });
     }
     setErrors({});
+    setActiveTab('basic');
     setShowModal(true);
   };
 
@@ -414,6 +522,9 @@ function ClientManagement({ onNavigateToInvoices }) {
                 <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Outstanding
                 </th>
+                <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                  Credit
+                </th>
                 <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase tracking-wider">
                   Actions
                 </th>
@@ -465,6 +576,18 @@ function ClientManagement({ onNavigateToInvoices }) {
                     <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-orange-600">
                       {formatCurrency(stats.total_outstanding || 0)}
                     </td>
+                    <td className="px-6 py-4 whitespace-nowrap">
+                      <div className="text-sm">
+                        <div className={`font-medium ${(client.current_credit || 0) > 0 ? 'text-green-600' : 'text-gray-400'}`}>
+                          {formatCurrency(client.current_credit || 0)}
+                        </div>
+                        {(client.credit_limit || 0) > 0 && (
+                          <div className="text-xs text-gray-500">
+                            of {formatCurrency(client.credit_limit)}
+                          </div>
+                        )}
+                      </div>
+                    </td>
                     <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                       <div className="flex justify-end space-x-3" onClick={(e) => e.stopPropagation()}>
                         <button
@@ -504,136 +627,673 @@ function ClientManagement({ onNavigateToInvoices }) {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Customer Number
-                  </label>
-                  <input
-                    type="text"
-                    name="customer_number"
-                    value={formData.customer_number}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
-                    placeholder="e.g., C-001, CUST-001, etc."
-                  />
-                  {errors.customer_number && <p className="text-red-500 text-xs mt-1">{errors.customer_number}</p>}
-                  <p className="text-xs text-gray-500 mt-1">Optional: Used for quick searching</p>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Name *
-                  </label>
-                  <input
-                    type="text"
-                    name="name"
-                    value={formData.name}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                  {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Email *
-                  </label>
-                  <input
-                    type="email"
-                    name="email"
-                    value={formData.email}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    required
-                  />
-                  {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Phone
-                  </label>
-                  <input
-                    type="tel"
-                    name="phone"
-                    value={formData.phone}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Address
-                  </label>
-                  <input
-                    type="text"
-                    name="address"
-                    value={formData.address}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    City
-                  </label>
-                  <input
-                    type="text"
-                    name="city"
-                    value={formData.city}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
-
-                <div className="grid grid-cols-2 gap-4">
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      State
-                    </label>
-                    <input
-                      type="text"
-                      name="state"
-                      value={formData.state}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">
-                      ZIP
-                    </label>
-                    <input
-                      type="text"
-                      name="zip"
-                      value={formData.zip}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-
-                <div className="md:col-span-2">
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Notes
-                  </label>
-                  <textarea
-                    name="notes"
-                    value={formData.notes}
-                    onChange={handleInputChange}
-                    rows="3"
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                  />
-                </div>
+            <form onSubmit={handleSubmit}>
+              {/* Tabs */}
+              <div className="border-b border-gray-200">
+                <nav className="flex -mb-px">
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('basic')}
+                    className={`px-6 py-3 text-sm font-medium border-b-2 ${
+                      activeTab === 'basic'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    Basic Info
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('credit')}
+                    className={`px-6 py-3 text-sm font-medium border-b-2 ${
+                      activeTab === 'credit'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    Credit & Billing
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('shipping')}
+                    className={`px-6 py-3 text-sm font-medium border-b-2 ${
+                      activeTab === 'shipping'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    Shipping & Contacts
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveTab('account')}
+                    className={`px-6 py-3 text-sm font-medium border-b-2 ${
+                      activeTab === 'account'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    Account Management
+                  </button>
+                </nav>
               </div>
 
-              <div className="flex justify-end space-x-3 mt-6">
+              <div className="p-6 max-h-[60vh] overflow-y-auto">
+                {/* Basic Info Tab */}
+                {activeTab === 'basic' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Customer Number
+                      </label>
+                      <input
+                        type="text"
+                        name="customer_number"
+                        value={formData.customer_number}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                        placeholder="e.g., C-001, CUST-001, etc."
+                      />
+                      {errors.customer_number && <p className="text-red-500 text-xs mt-1">{errors.customer_number}</p>}
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Name *
+                      </label>
+                      <input
+                        type="text"
+                        name="name"
+                        value={formData.name}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                      />
+                      {errors.name && <p className="text-red-500 text-xs mt-1">{errors.name}</p>}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Email *
+                      </label>
+                      <input
+                        type="email"
+                        name="email"
+                        value={formData.email}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        required
+                      />
+                      {errors.email && <p className="text-red-500 text-xs mt-1">{errors.email}</p>}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Phone
+                      </label>
+                      <input
+                        type="tel"
+                        name="phone"
+                        value={formData.phone}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Website
+                      </label>
+                      <input
+                        type="url"
+                        name="website"
+                        value={formData.website}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="https://"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Industry
+                      </label>
+                      <input
+                        type="text"
+                        name="industry"
+                        value={formData.industry}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="e.g., Retail, Technology"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Address
+                      </label>
+                      <input
+                        type="text"
+                        name="address"
+                        value={formData.address}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        City
+                      </label>
+                      <input
+                        type="text"
+                        name="city"
+                        value={formData.city}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+
+                    <div className="grid grid-cols-2 gap-4">
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          State
+                        </label>
+                        <input
+                          type="text"
+                          name="state"
+                          value={formData.state}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-gray-700 mb-1">
+                          ZIP
+                        </label>
+                        <input
+                          type="text"
+                          name="zip"
+                          value={formData.zip}
+                          onChange={handleInputChange}
+                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Notes
+                      </label>
+                      <textarea
+                        name="notes"
+                        value={formData.notes}
+                        onChange={handleInputChange}
+                        rows="3"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Credit & Billing Tab */}
+                {activeTab === 'credit' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2 bg-blue-50 border border-blue-200 rounded-lg p-4 mb-2">
+                      <h3 className="font-semibold text-blue-900 mb-1">Credit Management</h3>
+                      <p className="text-sm text-blue-700">Set credit limits and track customer credit balances</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Credit Limit
+                      </label>
+                      <input
+                        type="number"
+                        name="credit_limit"
+                        value={formData.credit_limit}
+                        onChange={handleInputChange}
+                        step="0.01"
+                        min="0"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="0.00"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Maximum credit allowed</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Current Credit Balance
+                      </label>
+                      <input
+                        type="number"
+                        name="current_credit"
+                        value={formData.current_credit}
+                        onChange={handleInputChange}
+                        step="0.01"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="0.00"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Available credit</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Payment Terms
+                      </label>
+                      <select
+                        name="payment_terms"
+                        value={formData.payment_terms}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="NET 15">NET 15</option>
+                        <option value="NET 30">NET 30</option>
+                        <option value="NET 45">NET 45</option>
+                        <option value="NET 60">NET 60</option>
+                        <option value="NET 90">NET 90</option>
+                        <option value="Due on Receipt">Due on Receipt</option>
+                        <option value="Prepaid">Prepaid</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Account Status
+                      </label>
+                      <select
+                        name="account_status"
+                        value={formData.account_status}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="Active">Active</option>
+                        <option value="On Hold">On Hold</option>
+                        <option value="Inactive">Inactive</option>
+                        <option value="Suspended">Suspended</option>
+                      </select>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="flex items-center space-x-2">
+                        <input
+                          type="checkbox"
+                          name="tax_exempt"
+                          checked={formData.tax_exempt === 1}
+                          onChange={(e) => handleInputChange({target: {name: 'tax_exempt', value: e.target.checked ? 1 : 0}})}
+                          className="w-4 h-4 text-blue-600 border-gray-300 rounded focus:ring-blue-500"
+                        />
+                        <span className="text-sm font-medium text-gray-700">Tax Exempt</span>
+                      </label>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tax ID / EIN
+                      </label>
+                      <input
+                        type="text"
+                        name="tax_id"
+                        value={formData.tax_id}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="XX-XXXXXXX"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Default Discount Rate (%)
+                      </label>
+                      <input
+                        type="number"
+                        name="default_discount_rate"
+                        value={formData.default_discount_rate}
+                        onChange={handleInputChange}
+                        step="0.01"
+                        min="0"
+                        max="100"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="0.00"
+                      />
+                    </div>
+
+                    <div className="md:col-span-2 mt-4 bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-gray-900 mb-3">Billing Address</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Billing Email
+                          </label>
+                          <input
+                            type="email"
+                            name="billing_email"
+                            value={formData.billing_email}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="billing@company.com"
+                          />
+                          <p className="text-xs text-gray-500 mt-1">If different from primary email</p>
+                        </div>
+
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Street Address
+                          </label>
+                          <input
+                            type="text"
+                            name="billing_address"
+                            value={formData.billing_address}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            City
+                          </label>
+                          <input
+                            type="text"
+                            name="billing_city"
+                            value={formData.billing_city}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              State
+                            </label>
+                            <input
+                              type="text"
+                              name="billing_state"
+                              value={formData.billing_state}
+                              onChange={handleInputChange}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              ZIP
+                            </label>
+                            <input
+                              type="text"
+                              name="billing_zip"
+                              value={formData.billing_zip}
+                              onChange={handleInputChange}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Shipping & Contacts Tab */}
+                {activeTab === 'shipping' && (
+                  <div className="grid grid-cols-1 gap-6">
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-gray-900 mb-3">Shipping Address</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Street Address
+                          </label>
+                          <input
+                            type="text"
+                            name="shipping_address"
+                            value={formData.shipping_address}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            City
+                          </label>
+                          <input
+                            type="text"
+                            name="shipping_city"
+                            value={formData.shipping_city}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              State
+                            </label>
+                            <input
+                              type="text"
+                              name="shipping_state"
+                              value={formData.shipping_state}
+                              onChange={handleInputChange}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">
+                              ZIP
+                            </label>
+                            <input
+                              type="text"
+                              name="shipping_zip"
+                              value={formData.shipping_zip}
+                              onChange={handleInputChange}
+                              className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-gray-900 mb-3">Primary Contact</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Contact Person
+                          </label>
+                          <input
+                            type="text"
+                            name="contact_person"
+                            value={formData.contact_person}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="John Doe"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Title
+                          </label>
+                          <input
+                            type="text"
+                            name="contact_title"
+                            value={formData.contact_title}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                            placeholder="Purchasing Manager"
+                          />
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="bg-gray-50 border border-gray-200 rounded-lg p-4">
+                      <h3 className="font-semibold text-gray-900 mb-3">Secondary Contact</h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="md:col-span-2">
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Name
+                          </label>
+                          <input
+                            type="text"
+                            name="secondary_contact"
+                            value={formData.secondary_contact}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Email
+                          </label>
+                          <input
+                            type="email"
+                            name="secondary_email"
+                            value={formData.secondary_email}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+
+                        <div>
+                          <label className="block text-sm font-medium text-gray-700 mb-1">
+                            Phone
+                          </label>
+                          <input
+                            type="tel"
+                            name="secondary_phone"
+                            value={formData.secondary_phone}
+                            onChange={handleInputChange}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          />
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+
+                {/* Account Management Tab */}
+                {activeTab === 'account' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Account Manager
+                      </label>
+                      <input
+                        type="text"
+                        name="account_manager"
+                        value={formData.account_manager}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Sales rep name"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Preferred Payment Method
+                      </label>
+                      <select
+                        name="preferred_payment_method"
+                        value={formData.preferred_payment_method}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">Select...</option>
+                        <option value="Check">Check</option>
+                        <option value="Credit Card">Credit Card</option>
+                        <option value="ACH">ACH / Bank Transfer</option>
+                        <option value="Wire Transfer">Wire Transfer</option>
+                        <option value="Cash">Cash</option>
+                        <option value="Other">Other</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Company Size
+                      </label>
+                      <select
+                        name="company_size"
+                        value={formData.company_size}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="">Select...</option>
+                        <option value="1-10">1-10 employees</option>
+                        <option value="11-50">11-50 employees</option>
+                        <option value="51-200">51-200 employees</option>
+                        <option value="201-500">201-500 employees</option>
+                        <option value="501-1000">501-1000 employees</option>
+                        <option value="1000+">1000+ employees</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Currency
+                      </label>
+                      <select
+                        name="currency"
+                        value={formData.currency}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="USD">USD - US Dollar</option>
+                        <option value="EUR">EUR - Euro</option>
+                        <option value="GBP">GBP - British Pound</option>
+                        <option value="CAD">CAD - Canadian Dollar</option>
+                        <option value="AUD">AUD - Australian Dollar</option>
+                        <option value="JPY">JPY - Japanese Yen</option>
+                        <option value="CNY">CNY - Chinese Yuan</option>
+                        <option value="INR">INR - Indian Rupee</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Language
+                      </label>
+                      <select
+                        name="language"
+                        value={formData.language}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="en">English</option>
+                        <option value="es">Spanish</option>
+                        <option value="fr">French</option>
+                        <option value="de">German</option>
+                        <option value="it">Italian</option>
+                        <option value="pt">Portuguese</option>
+                        <option value="zh">Chinese</option>
+                        <option value="ja">Japanese</option>
+                      </select>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Tags
+                      </label>
+                      <input
+                        type="text"
+                        name="tags"
+                        value={formData.tags}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="vip, wholesale, retail (comma-separated)"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Comma-separated tags for categorization</p>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="flex justify-end space-x-3 p-6 border-t border-gray-200">
                 <button
                   type="button"
                   onClick={handleCloseModal}
