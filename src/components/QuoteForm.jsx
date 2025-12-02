@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Plus, Trash2, Save, Search } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { getCurrentDate, calculateDueDate, formatDateInput } from '../utils/formatting';
@@ -54,7 +54,6 @@ function QuoteForm({ quote, onClose }) {
   const [showCreateItemModal, setShowCreateItemModal] = useState(false);
   const [pendingCustomerNumber, setPendingCustomerNumber] = useState('');
   const [pendingItemNumber, setPendingItemNumber] = useState('');
-  const [pendingItemIndex, setPendingItemIndex] = useState(null);
 
   const [newCustomerData, setNewCustomerData] = useState({
     customer_number: '',
@@ -74,9 +73,38 @@ function QuoteForm({ quote, onClose }) {
     category: 'General'
   });
 
+  const loadInitialData = useCallback(async () => {
+    try {
+      setLoading(true);
+      const [clientsData, savedItemsData, settingsData, quoteNum] = await Promise.all([
+        getAllClients(),
+        getAllSavedItems(),
+        getSettings(),
+        !isEdit ? generateQuoteNumber() : Promise.resolve(null)
+      ]);
+
+      setClients(clientsData);
+      setSavedItems(savedItemsData);
+      setSettings(settingsData);
+
+      if (!isEdit && quoteNum) {
+        setFormData(prev => ({
+          ...prev,
+          quote_number: quoteNum,
+          terms: settingsData.terms || ''
+        }));
+      }
+    } catch (error) {
+      console.error('Error loading data:', error);
+      alert('Error loading data: ' + error.message);
+    } finally {
+      setLoading(false);
+    }
+  }, [getAllClients, getAllSavedItems, getSettings, generateQuoteNumber, isEdit]);
+
   useEffect(() => {
     loadInitialData();
-  }, []);
+  }, [loadInitialData]);
 
   useEffect(() => {
     const loadQuoteData = async () => {
@@ -125,35 +153,6 @@ function QuoteForm({ quote, onClose }) {
 
     loadQuoteData();
   }, [quote, getQuote]);
-
-  const loadInitialData = async () => {
-    try {
-      setLoading(true);
-      const [clientsData, savedItemsData, settingsData, quoteNum] = await Promise.all([
-        getAllClients(),
-        getAllSavedItems(),
-        getSettings(),
-        !isEdit ? generateQuoteNumber() : Promise.resolve(null)
-      ]);
-
-      setClients(clientsData);
-      setSavedItems(savedItemsData);
-      setSettings(settingsData);
-
-      if (!isEdit && quoteNum) {
-        setFormData(prev => ({
-          ...prev,
-          quote_number: quoteNum,
-          terms: settingsData.terms || ''
-        }));
-      }
-    } catch (error) {
-      console.error('Error loading data:', error);
-      alert('Error loading data: ' + error.message);
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const calculateItemAmount = (item) => {
     const quantity = parseFloat(item.quantity || 0);
@@ -240,19 +239,6 @@ function QuoteForm({ quote, onClose }) {
     }
   };
 
-  const handleSavedItemSelect = (index, savedItemId) => {
-    if (!savedItemId) return;
-
-    const savedItem = savedItems.find(item => item.id === parseInt(savedItemId));
-    if (savedItem) {
-      const newItems = [...items];
-      newItems[index].description = savedItem.description;
-      newItems[index].rate = savedItem.rate;
-      newItems[index].amount = calculateItemAmount(newItems[index]);
-      setItems(newItems);
-    }
-  };
-
   const handleSearchCustomerNumber = async () => {
     if (!customerNumberSearch.trim()) {
       alert('Please enter a customer number');
@@ -332,7 +318,6 @@ function QuoteForm({ quote, onClose }) {
         // Item not found and has description - offer to save as new item
         if (items[index].description && items[index].description.trim()) {
           setPendingItemNumber(itemNumber.trim());
-          setPendingItemIndex(index);
           setNewItemData({
             item_number: itemNumber.trim(),
             description: items[index].description,
@@ -364,7 +349,6 @@ function QuoteForm({ quote, onClose }) {
       // Close modal
       setShowCreateItemModal(false);
       setPendingItemNumber('');
-      setPendingItemIndex(null);
 
       alert('Item saved successfully! You can now use it in future quotes.');
     } catch (error) {
@@ -397,7 +381,17 @@ function QuoteForm({ quote, onClose }) {
     const validation = validateQuote(formData, items);
     if (!validation.isValid) {
       setErrors(validation.errors);
-      alert('Please fix the errors in the form');
+
+      // Build a detailed error message
+      const errorMessages = [];
+      if (validation.errors.quote_number) errorMessages.push(`• ${validation.errors.quote_number}`);
+      if (validation.errors.client_id) errorMessages.push(`• ${validation.errors.client_id}`);
+      if (validation.errors.date) errorMessages.push(`• ${validation.errors.date}`);
+      if (validation.errors.expiry_date) errorMessages.push(`• Valid until date is required`);
+      if (validation.errors.items) errorMessages.push(`• ${validation.errors.items}`);
+      if (validation.errors.itemErrors) errorMessages.push(`• Some line items have validation errors`);
+
+      alert('Please fix the following errors:\n\n' + errorMessages.join('\n'));
       return;
     }
 
@@ -1044,7 +1038,6 @@ function QuoteForm({ quote, onClose }) {
                     onClick={() => {
                       setShowCreateItemModal(false);
                       setPendingItemNumber('');
-                      setPendingItemIndex(null);
                     }}
                     className="text-gray-400 hover:text-gray-600"
                   >
@@ -1128,7 +1121,6 @@ function QuoteForm({ quote, onClose }) {
                   onClick={() => {
                     setShowCreateItemModal(false);
                     setPendingItemNumber('');
-                    setPendingItemIndex(null);
                   }}
                   className="px-4 py-2 border border-gray-300 text-gray-700 rounded-lg hover:bg-gray-50"
                 >

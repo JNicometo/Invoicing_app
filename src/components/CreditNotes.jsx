@@ -1,6 +1,7 @@
-import React, { useState, useEffect } from 'react';
-import { Plus, Edit, Trash2, FileText, DollarSign, Calendar, User, X, Search } from 'lucide-react';
+import React, { useState, useEffect, useCallback } from 'react';
+import { Plus, Edit, Trash2, FileText, DollarSign, Calendar, X, Search } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
+import { validateCreditNote } from '../utils/validation';
 
 function CreditNotes() {
   const {
@@ -19,12 +20,11 @@ function CreditNotes() {
 
   const [creditNotes, setCreditNotes] = useState([]);
   const [invoices, setInvoices] = useState([]);
-  const [clients, setClients] = useState([]);
-  const [savedItems, setSavedItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
+  const [errors, setErrors] = useState({});
 
   // Invoice search states
   const [invoiceSearch, setInvoiceSearch] = useState('');
@@ -45,32 +45,29 @@ function CreditNotes() {
     { description: '', quantity: 1, rate: 0, amount: 0 }
   ]);
 
-  useEffect(() => {
-    loadData();
-  }, []);
-
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     try {
       setLoading(true);
-      const [notesData, invoicesData, clientsData, itemsData] = await Promise.all([
+      const [notesData, invoicesData] = await Promise.all([
         getAllCreditNotes(),
-        getAllInvoices(),
-        getAllClients(),
-        getAllSavedItems()
+        getAllInvoices()
       ]);
       setCreditNotes(notesData);
       setInvoices(invoicesData);
-      setClients(clientsData);
-      setSavedItems(itemsData);
     } catch (error) {
       console.error('Error loading data:', error);
       alert('Error loading data: ' + error.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [getAllCreditNotes, getAllInvoices]);
+
+  useEffect(() => {
+    loadData();
+  }, [loadData]);
 
   const handleOpenForm = async (note = null) => {
+    setErrors({}); // Clear errors when opening form
     if (note) {
       setEditingNote(note);
       setFormData({
@@ -109,6 +106,11 @@ function CreditNotes() {
   const handleInputChange = (e) => {
     const { name, value } = e.target;
     setFormData(prev => ({ ...prev, [name]: value }));
+
+    // Clear error for this field when user makes changes
+    if (errors[name]) {
+      setErrors(prev => ({ ...prev, [name]: '' }));
+    }
 
     // Auto-select client when invoice is selected
     if (name === 'invoice_id' && value) {
@@ -201,14 +203,21 @@ function CreditNotes() {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    if (!formData.invoice_id || !formData.client_id) {
-      alert('Please select an invoice and client');
-      return;
-    }
-
     const validItems = items.filter(item => item.description.trim());
-    if (validItems.length === 0) {
-      alert('Please add at least one item');
+
+    const validation = validateCreditNote(formData, validItems);
+    if (!validation.isValid) {
+      setErrors(validation.errors);
+
+      // Build a detailed error message
+      const errorMessages = [];
+      if (validation.errors.invoice_id) errorMessages.push(`• ${validation.errors.invoice_id}`);
+      if (validation.errors.client_id) errorMessages.push(`• ${validation.errors.client_id}`);
+      if (validation.errors.date) errorMessages.push(`• ${validation.errors.date}`);
+      if (validation.errors.items) errorMessages.push(`• ${validation.errors.items}`);
+      if (validation.errors.itemErrors) errorMessages.push(`• Some line items have validation errors`);
+
+      alert('Please fix the following errors:\n\n' + errorMessages.join('\n'));
       return;
     }
 
