@@ -277,7 +277,7 @@ const runMigrations = () => {
 
     // Add enhanced client snapshot columns (billing, shipping, tax_id) to invoices table
     console.log('Checking for enhanced client snapshot columns in invoices...');
-    const enhancedClientColumns = [
+    const enhancedInvoiceColumns = [
       { name: 'billing_address', type: 'TEXT', default: "''" },
       { name: 'billing_city', type: 'TEXT', default: "''" },
       { name: 'billing_state', type: 'TEXT', default: "''" },
@@ -290,7 +290,7 @@ const runMigrations = () => {
     ];
 
     let enhancedInvoiceSnapshotAdded = 0;
-    enhancedClientColumns.forEach(column => {
+    enhancedInvoiceColumns.forEach(column => {
       if (!invoiceColumnNames.includes(column.name)) {
         console.log(`Adding ${column.name} column to invoices table...`);
         db.exec(`ALTER TABLE invoices ADD COLUMN ${column.name} ${column.type} DEFAULT ${column.default}`);
