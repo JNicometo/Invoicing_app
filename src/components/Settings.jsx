@@ -83,6 +83,15 @@ function Settings() {
     show_tax_breakdown: true,
     show_payment_terms: true,
 
+    // Invoice Field Display Options
+    show_client_email_on_invoice: true,
+    show_client_phone_on_invoice: true,
+    show_client_billing_address_on_invoice: false,
+    show_client_shipping_address_on_invoice: false,
+    show_client_tax_id_on_invoice: false,
+    show_item_sku_on_invoice: false,
+    show_item_unit_on_invoice: true,
+
     // Theme - Basic
     theme: 'blue',
 
@@ -220,6 +229,15 @@ function Settings() {
           show_customer_numbers: data.show_customer_numbers !== undefined ? data.show_customer_numbers : true,
           show_tax_breakdown: data.show_tax_breakdown !== undefined ? data.show_tax_breakdown : true,
           show_payment_terms: data.show_payment_terms !== undefined ? data.show_payment_terms : true,
+
+          // Invoice Field Display Options
+          show_client_email_on_invoice: data.show_client_email_on_invoice !== undefined ? data.show_client_email_on_invoice : true,
+          show_client_phone_on_invoice: data.show_client_phone_on_invoice !== undefined ? data.show_client_phone_on_invoice : true,
+          show_client_billing_address_on_invoice: data.show_client_billing_address_on_invoice !== undefined ? data.show_client_billing_address_on_invoice : false,
+          show_client_shipping_address_on_invoice: data.show_client_shipping_address_on_invoice !== undefined ? data.show_client_shipping_address_on_invoice : false,
+          show_client_tax_id_on_invoice: data.show_client_tax_id_on_invoice !== undefined ? data.show_client_tax_id_on_invoice : false,
+          show_item_sku_on_invoice: data.show_item_sku_on_invoice !== undefined ? data.show_item_sku_on_invoice : false,
+          show_item_unit_on_invoice: data.show_item_unit_on_invoice !== undefined ? data.show_item_unit_on_invoice : true,
 
           // Theme - Basic
           theme: data.theme || 'blue',
@@ -1551,6 +1569,145 @@ function Settings() {
                         />
                         <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
                       </label>
+                    </div>
+                  </div>
+
+                  {/* Client Information Section */}
+                  <div className="mt-8">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Client Information on Invoice</h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Choose which client fields appear on your invoices
+                    </p>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">Show Client Email</p>
+                          <p className="text-sm text-gray-500">Display client email address on invoices</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="show_client_email_on_invoice"
+                            checked={formData.show_client_email_on_invoice}
+                            onChange={(e) => setFormData(prev => ({ ...prev, show_client_email_on_invoice: e.target.checked }))}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">Show Client Phone</p>
+                          <p className="text-sm text-gray-500">Display client phone number on invoices</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="show_client_phone_on_invoice"
+                            checked={formData.show_client_phone_on_invoice}
+                            onChange={(e) => setFormData(prev => ({ ...prev, show_client_phone_on_invoice: e.target.checked }))}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">Show Billing Address</p>
+                          <p className="text-sm text-gray-500">Display separate billing address if different from main address</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="show_client_billing_address_on_invoice"
+                            checked={formData.show_client_billing_address_on_invoice}
+                            onChange={(e) => setFormData(prev => ({ ...prev, show_client_billing_address_on_invoice: e.target.checked }))}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">Show Shipping Address</p>
+                          <p className="text-sm text-gray-500">Display shipping address on invoices</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="show_client_shipping_address_on_invoice"
+                            checked={formData.show_client_shipping_address_on_invoice}
+                            onChange={(e) => setFormData(prev => ({ ...prev, show_client_shipping_address_on_invoice: e.target.checked }))}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">Show Client Tax ID</p>
+                          <p className="text-sm text-gray-500">Display client tax identification number on invoices</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="show_client_tax_id_on_invoice"
+                            checked={formData.show_client_tax_id_on_invoice}
+                            onChange={(e) => setFormData(prev => ({ ...prev, show_client_tax_id_on_invoice: e.target.checked }))}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Item Information Section */}
+                  <div className="mt-8">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4">Item Information on Invoice</h3>
+                    <p className="text-sm text-gray-600 mb-4">
+                      Choose which item fields appear in your invoice line items
+                    </p>
+
+                    <div className="space-y-4">
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">Show Item SKU</p>
+                          <p className="text-sm text-gray-500">Display SKU/product code in invoice line items</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="show_item_sku_on_invoice"
+                            checked={formData.show_item_sku_on_invoice}
+                            onChange={(e) => setFormData(prev => ({ ...prev, show_item_sku_on_invoice: e.target.checked }))}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
+
+                      <div className="flex items-center justify-between p-4 bg-gray-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-gray-900">Show Unit of Measure</p>
+                          <p className="text-sm text-gray-500">Display unit type (Each, Hour, etc.) in invoice line items</p>
+                        </div>
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            name="show_item_unit_on_invoice"
+                            checked={formData.show_item_unit_on_invoice}
+                            onChange={(e) => setFormData(prev => ({ ...prev, show_item_unit_on_invoice: e.target.checked }))}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </div>
                     </div>
                   </div>
                 </div>
