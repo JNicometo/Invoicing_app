@@ -7,6 +7,10 @@ function CreditNotes() {
     getAllCreditNotes,
     getAllInvoices,
     getAllClients,
+    getAllSavedItems,
+    getSavedItemByItemNumber,
+    getInvoice,
+    updateInvoice,
     createCreditNote,
     updateCreditNote,
     deleteCreditNote,
@@ -16,10 +20,16 @@ function CreditNotes() {
   const [creditNotes, setCreditNotes] = useState([]);
   const [invoices, setInvoices] = useState([]);
   const [clients, setClients] = useState([]);
+  const [savedItems, setSavedItems] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showForm, setShowForm] = useState(false);
   const [editingNote, setEditingNote] = useState(null);
   const [filterStatus, setFilterStatus] = useState('all');
+
+  // Invoice search states
+  const [invoiceSearch, setInvoiceSearch] = useState('');
+  const [showInvoiceSearchResults, setShowInvoiceSearchResults] = useState(false);
+  const [selectedInvoiceData, setSelectedInvoiceData] = useState(null);
 
   const [formData, setFormData] = useState({
     credit_note_number: '',
@@ -42,14 +52,16 @@ function CreditNotes() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [notesData, invoicesData, clientsData] = await Promise.all([
+      const [notesData, invoicesData, clientsData, itemsData] = await Promise.all([
         getAllCreditNotes(),
         getAllInvoices(),
-        getAllClients()
+        getAllClients(),
+        getAllSavedItems()
       ]);
       setCreditNotes(notesData);
       setInvoices(invoicesData);
       setClients(clientsData);
+      setSavedItems(itemsData);
     } catch (error) {
       console.error('Error loading data:', error);
       alert('Error loading data: ' + error.message);
@@ -103,6 +115,57 @@ function CreditNotes() {
       const invoice = invoices.find(inv => inv.id === parseInt(value));
       if (invoice) {
         setFormData(prev => ({ ...prev, client_id: invoice.client_id }));
+      }
+    }
+  };
+
+  // Handle invoice search
+  const handleInvoiceSearch = (value) => {
+    setInvoiceSearch(value);
+    setShowInvoiceSearchResults(value.length > 0);
+  };
+
+  // Select invoice from search results
+  const handleSelectInvoice = async (invoice) => {
+    try {
+      // Get full invoice details with items
+      const fullInvoice = await getInvoice(invoice.id);
+
+      setFormData(prev => ({
+        ...prev,
+        invoice_id: invoice.id,
+        client_id: invoice.client_id
+      }));
+
+      setSelectedInvoiceData(fullInvoice);
+      setInvoiceSearch(invoice.invoice_number);
+      setShowInvoiceSearchResults(false);
+    } catch (error) {
+      console.error('Error loading invoice:', error);
+      alert('Error loading invoice: ' + error.message);
+    }
+  };
+
+  // Handle item number search for line items
+  const handleItemNumberChange = async (index, itemNumber) => {
+    const newItems = [...items];
+    newItems[index].item_number = itemNumber;
+    setItems(newItems);
+
+    if (itemNumber && itemNumber.trim()) {
+      try {
+        const savedItem = await getSavedItemByItemNumber(itemNumber);
+        if (savedItem) {
+          newItems[index] = {
+            ...newItems[index],
+            description: savedItem.description,
+            rate: savedItem.rate,
+            amount: newItems[index].quantity * savedItem.rate
+          };
+          setItems(newItems);
+        }
+      } catch (error) {
+        // Item not found, user can enter manually
       }
     }
   };
@@ -164,11 +227,42 @@ function CreditNotes() {
         await createCreditNote(noteData, validItems);
       }
 
+      // Update invoice if credit note status is "applied"
+      if (formData.status === 'applied' && formData.invoice_id) {
+        await updateInvoiceWithCreditNote(formData.invoice_id, total);
+      }
+
       await loadData();
       handleCloseForm();
     } catch (error) {
       console.error('Error saving credit note:', error);
       alert('Error saving credit note: ' + error.message);
+    }
+  };
+
+  // Update invoice when credit note is applied
+  const updateInvoiceWithCreditNote = async (invoiceId, creditAmount) => {
+    try {
+      const invoice = await getInvoice(invoiceId);
+      if (!invoice) return;
+
+      // Calculate new invoice total after credit
+      const newTotal = Math.max(0, invoice.total - creditAmount);
+
+      // Update invoice with new total and add note about credit
+      const updatedInvoice = {
+        ...invoice,
+        total: newTotal,
+        notes: invoice.notes
+          ? `${invoice.notes}\n\nCredit Note Applied: -$${creditAmount.toFixed(2)}`
+          : `Credit Note Applied: -$${creditAmount.toFixed(2)}`
+      };
+
+      await updateInvoice(invoiceId, updatedInvoice, invoice.items);
+      console.log(`Invoice ${invoice.invoice_number} updated with credit of $${creditAmount.toFixed(2)}`);
+    } catch (error) {
+      console.error('Error updating invoice:', error);
+      // Don't fail the credit note creation, just log the error
     }
   };
 
@@ -404,24 +498,73 @@ function CreditNotes() {
                     />
                   </div>
 
-                  <div>
+                  <div className="relative">
                     <label className="block text-sm font-medium text-gray-700 mb-1">
-                      Invoice *
+                      Invoice Number * (Type to search)
                     </label>
-                    <select
-                      name="invoice_id"
-                      value={formData.invoice_id}
-                      onChange={handleInputChange}
-                      className="w-full px-4 py-2 border border-gray-300 rounded-lg"
-                      required
-                    >
-                      <option value="">Select invoice</option>
-                      {invoices.map(inv => (
-                        <option key={inv.id} value={inv.id}>
-                          {inv.invoice_number} - {inv.client_name} (${inv.total.toFixed(2)})
-                        </option>
-                      ))}
-                    </select>
+                    <div className="relative">
+                      <input
+                        type="text"
+                        value={invoiceSearch}
+                        onChange={(e) => handleInvoiceSearch(e.target.value)}
+                        onFocus={() => setShowInvoiceSearchResults(invoiceSearch.length > 0)}
+                        placeholder="Type invoice number (e.g., INV-0001)"
+                        className="w-full px-4 py-2 pr-10 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
+                        required
+                      />
+                      <Search className="absolute right-3 top-2.5 w-5 h-5 text-gray-400" />
+                    </div>
+
+                    {/* Invoice Search Results Dropdown */}
+                    {showInvoiceSearchResults && (
+                      <div className="absolute z-10 w-full mt-1 bg-white border border-gray-300 rounded-lg shadow-lg max-h-60 overflow-y-auto">
+                        {invoices
+                          .filter(inv =>
+                            inv.invoice_number.toLowerCase().includes(invoiceSearch.toLowerCase()) ||
+                            inv.client_name?.toLowerCase().includes(invoiceSearch.toLowerCase())
+                          )
+                          .slice(0, 10)
+                          .map(inv => (
+                            <button
+                              key={inv.id}
+                              type="button"
+                              onClick={() => handleSelectInvoice(inv)}
+                              className="w-full px-4 py-3 text-left hover:bg-blue-50 border-b border-gray-100 last:border-b-0"
+                            >
+                              <div className="flex justify-between items-start">
+                                <div>
+                                  <div className="font-medium text-gray-900">{inv.invoice_number}</div>
+                                  <div className="text-sm text-gray-600">{inv.client_name}</div>
+                                </div>
+                                <div className="text-right">
+                                  <div className="font-medium text-gray-900">${inv.total.toFixed(2)}</div>
+                                  <div className="text-xs text-gray-500">{inv.status}</div>
+                                </div>
+                              </div>
+                            </button>
+                          ))}
+                        {invoices.filter(inv =>
+                          inv.invoice_number.toLowerCase().includes(invoiceSearch.toLowerCase()) ||
+                          inv.client_name?.toLowerCase().includes(invoiceSearch.toLowerCase())
+                        ).length === 0 && (
+                          <div className="px-4 py-3 text-sm text-gray-500">
+                            No invoices found matching "{invoiceSearch}"
+                          </div>
+                        )}
+                      </div>
+                    )}
+
+                    {/* Selected Invoice Display */}
+                    {selectedInvoiceData && (
+                      <div className="mt-2 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+                        <div className="text-sm">
+                          <div className="font-medium text-blue-900">Selected: {selectedInvoiceData.invoice_number}</div>
+                          <div className="text-blue-700">
+                            Client: {selectedInvoiceData.client_name} | Total: ${selectedInvoiceData.total.toFixed(2)}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
 
                   <div>
@@ -472,49 +615,59 @@ function CreditNotes() {
 
                   <div className="space-y-3">
                     {items.map((item, index) => (
-                      <div key={index} className="flex gap-3 items-start">
-                        <input
-                          type="text"
-                          placeholder="Description"
-                          value={item.description}
-                          onChange={(e) => handleItemChange(index, 'description', e.target.value)}
-                          className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                          required
-                        />
-                        <input
-                          type="number"
-                          placeholder="Qty"
-                          value={item.quantity}
-                          onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
-                          className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                          min="0"
-                          step="0.01"
-                          required
-                        />
-                        <input
-                          type="number"
-                          placeholder="Rate"
-                          value={item.rate}
-                          onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
-                          className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm"
-                          min="0"
-                          step="0.01"
-                          required
-                        />
-                        <input
-                          type="text"
-                          value={`$${item.amount.toFixed(2)}`}
-                          readOnly
-                          className="w-28 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm"
-                        />
-                        <button
-                          type="button"
-                          onClick={() => handleRemoveItem(index)}
-                          className="text-red-600 hover:text-red-900 p-2"
-                          disabled={items.length === 1}
-                        >
-                          <Trash2 className="w-4 h-4" />
-                        </button>
+                      <div key={index} className="space-y-2">
+                        <div className="flex gap-3 items-start">
+                          <input
+                            type="text"
+                            placeholder="Item # (optional)"
+                            value={item.item_number || ''}
+                            onChange={(e) => handleItemNumberChange(index, e.target.value)}
+                            className="w-32 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            title="Enter item number to auto-fill details"
+                          />
+                          <input
+                            type="text"
+                            placeholder="Description"
+                            value={item.description}
+                            onChange={(e) => handleItemChange(index, 'description', e.target.value)}
+                            className="flex-1 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            required
+                          />
+                          <input
+                            type="number"
+                            placeholder="Qty"
+                            value={item.quantity}
+                            onChange={(e) => handleItemChange(index, 'quantity', e.target.value)}
+                            className="w-20 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            min="0"
+                            step="0.01"
+                            required
+                          />
+                          <input
+                            type="number"
+                            placeholder="Rate"
+                            value={item.rate}
+                            onChange={(e) => handleItemChange(index, 'rate', e.target.value)}
+                            className="w-24 px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            min="0"
+                            step="0.01"
+                            required
+                          />
+                          <input
+                            type="text"
+                            value={`$${item.amount.toFixed(2)}`}
+                            readOnly
+                            className="w-28 px-3 py-2 border border-gray-300 rounded-lg bg-gray-50 text-sm"
+                          />
+                          <button
+                            type="button"
+                            onClick={() => handleRemoveItem(index)}
+                            className="text-red-600 hover:text-red-900 p-2"
+                            disabled={items.length === 1}
+                          >
+                            <Trash2 className="w-4 h-4" />
+                          </button>
+                        </div>
                       </div>
                     ))}
                   </div>
