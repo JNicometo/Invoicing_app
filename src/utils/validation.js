@@ -127,3 +127,52 @@ export const validateSettings = (settings) => {
     errors
   };
 };
+
+export const validateCreditNote = (creditNote, items) => {
+  const errors = {};
+
+  if (!validateRequired(creditNote.credit_note_number)) {
+    errors.credit_note_number = 'Credit note number is required';
+  }
+
+  if (!validateRequired(creditNote.invoice_id)) {
+    errors.invoice_id = 'Please select an invoice';
+  }
+
+  if (!validateRequired(creditNote.client_id)) {
+    errors.client_id = 'Please select a client';
+  }
+
+  if (!validateRequired(creditNote.date)) {
+    errors.date = 'Date is required';
+  }
+
+  if (!items || items.length === 0) {
+    errors.items = 'At least one line item is required';
+  } else {
+    const itemErrors = [];
+    items.forEach((item, index) => {
+      const itemError = {};
+      if (!validateRequired(item.description)) {
+        itemError.description = 'Description is required';
+      }
+      if (!validatePositiveNumber(item.quantity)) {
+        itemError.quantity = 'Quantity must be a positive number';
+      }
+      if (!validatePositiveNumber(item.rate)) {
+        itemError.rate = 'Rate must be a positive number';
+      }
+      if (Object.keys(itemError).length > 0) {
+        itemErrors[index] = itemError;
+      }
+    });
+    if (itemErrors.length > 0) {
+      errors.itemErrors = itemErrors;
+    }
+  }
+
+  return {
+    isValid: Object.keys(errors).length === 0,
+    errors
+  };
+};

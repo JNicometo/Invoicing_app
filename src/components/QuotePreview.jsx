@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { X, Printer, Download, Mail, DollarSign, CreditCard, Trash2 } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { formatCurrency, formatDate } from '../utils/formatting';
@@ -38,11 +38,7 @@ function QuotePreview({ quote, onClose }) {
   const [processingCardPayment, setProcessingCardPayment] = useState(false);
   const { getQuote, getSettings, savePDF, sendInvoiceEmail, createPayment, getPaymentsByQuote, deletePayment } = useDatabase();
 
-  useEffect(() => {
-    loadQuoteData();
-  }, [quote]);
-
-  const loadQuoteData = async () => {
+  const loadQuoteData = useCallback(async () => {
     try {
       setLoading(true);
       const [quoteData, settingsData] = await Promise.all([
@@ -53,14 +49,21 @@ function QuotePreview({ quote, onClose }) {
       setSettings(settingsData);
 
       // Load payments
-      await loadPayments(quote.id);
+      const paymentsData = await getPaymentsByQuote(quote.id);
+      setPayments(paymentsData || []);
+      const total = (paymentsData || []).reduce((sum, p) => sum + p.amount, 0);
+      setTotalPaid(total);
     } catch (error) {
       console.error('Error loading quote:', error);
       alert('Error loading quote: ' + error.message);
     } finally {
       setLoading(false);
     }
-  };
+  }, [quote.id, getQuote, getSettings, getPaymentsByQuote]);
+
+  useEffect(() => {
+    loadQuoteData();
+  }, [loadQuoteData]);
 
   const loadPayments = async (invoiceId) => {
     try {
