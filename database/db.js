@@ -505,6 +505,62 @@ const runMigrations = () => {
       }
     }
 
+    // Add enhanced client fields for credit management and customization
+    console.log('Checking for enhanced client fields...');
+    const existingClientColumns = db.pragma('table_info(clients)');
+    const existingClientColumnNames = existingClientColumns.map(col => col.name);
+
+    const enhancedClientColumns = [
+      // Credit Management
+      { name: 'credit_limit', type: 'REAL', default: '0' },
+      { name: 'current_credit', type: 'REAL', default: '0' },
+      { name: 'payment_terms', type: 'TEXT', default: "'NET 30'" },
+      { name: 'tax_exempt', type: 'INTEGER', default: '0' },
+      { name: 'tax_id', type: 'TEXT', default: "''" },
+      // Additional Business Information
+      { name: 'website', type: 'TEXT', default: "''" },
+      { name: 'industry', type: 'TEXT', default: "''" },
+      { name: 'company_size', type: 'TEXT', default: "''" },
+      { name: 'account_status', type: 'TEXT', default: "'Active'" },
+      { name: 'billing_email', type: 'TEXT', default: "''" },
+      { name: 'billing_address', type: 'TEXT', default: "''" },
+      { name: 'billing_city', type: 'TEXT', default: "''" },
+      { name: 'billing_state', type: 'TEXT', default: "''" },
+      { name: 'billing_zip', type: 'TEXT', default: "''" },
+      { name: 'shipping_address', type: 'TEXT', default: "''" },
+      { name: 'shipping_city', type: 'TEXT', default: "''" },
+      { name: 'shipping_state', type: 'TEXT', default: "''" },
+      { name: 'shipping_zip', type: 'TEXT', default: "''" },
+      // Contact Information
+      { name: 'contact_person', type: 'TEXT', default: "''" },
+      { name: 'contact_title', type: 'TEXT', default: "''" },
+      { name: 'secondary_contact', type: 'TEXT', default: "''" },
+      { name: 'secondary_email', type: 'TEXT', default: "''" },
+      { name: 'secondary_phone', type: 'TEXT', default: "''" },
+      // Account Management
+      { name: 'account_manager', type: 'TEXT', default: "''" },
+      { name: 'preferred_payment_method', type: 'TEXT', default: "''" },
+      { name: 'default_discount_rate', type: 'REAL', default: '0' },
+      { name: 'currency', type: 'TEXT', default: "'USD'" },
+      { name: 'language', type: 'TEXT', default: "'en'" },
+      { name: 'tags', type: 'TEXT', default: "''" }
+    ];
+
+    let clientColumnsAdded = 0;
+    enhancedClientColumns.forEach(column => {
+      if (!existingClientColumnNames.includes(column.name)) {
+        console.log(`Adding ${column.name} column to clients table...`);
+        db.exec(`ALTER TABLE clients ADD COLUMN ${column.name} ${column.type} DEFAULT ${column.default}`);
+        clientColumnsAdded++;
+      }
+    });
+
+    if (clientColumnsAdded > 0) {
+      console.log(`✓ Added ${clientColumnsAdded} enhanced columns to clients table`);
+    } else {
+      console.log('✓ All enhanced client columns already exist');
+    }
+
     console.log('Migrations completed successfully');
   } catch (error) {
     console.error('Migration error:', error);
