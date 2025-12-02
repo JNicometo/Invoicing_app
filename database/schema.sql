@@ -135,7 +135,6 @@ CREATE TABLE IF NOT EXISTS invoice_items (
 -- Saved items table for reusable line items
 CREATE TABLE IF NOT EXISTS saved_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  item_number TEXT,
   description TEXT NOT NULL,
   rate REAL DEFAULT 0,
   category TEXT DEFAULT 'General',

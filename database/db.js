@@ -718,6 +718,21 @@ const runMigrations = () => {
       console.log('✓ All enhanced saved item columns already exist');
     }
 
+    // Migrate item_number to sku if sku is empty
+    console.log('Migrating item_number to sku...');
+    if (existingItemColumnNames.includes('item_number')) {
+      const itemsWithItemNumber = db.prepare('SELECT id, item_number, sku FROM saved_items WHERE item_number IS NOT NULL AND item_number != "" AND (sku IS NULL OR sku = "")').all();
+      if (itemsWithItemNumber.length > 0) {
+        const updateStmt = db.prepare('UPDATE saved_items SET sku = ? WHERE id = ?');
+        itemsWithItemNumber.forEach(item => {
+          updateStmt.run(item.item_number, item.id);
+        });
+        console.log(`✓ Migrated ${itemsWithItemNumber.length} item_number values to sku`);
+      } else {
+        console.log('✓ No item_number values need migration to sku');
+      }
+    }
+
     console.log('Migrations completed successfully');
   } catch (error) {
     console.error('Migration error:', error);
@@ -1153,8 +1168,20 @@ const getSavedItem = (id) => {
 const createSavedItem = (item) => {
   const db = getDatabase();
   const stmt = db.prepare(`
-    INSERT INTO saved_items (item_number, description, rate, category)
-    VALUES (@item_number, @description, @rate, @category)
+    INSERT INTO saved_items (
+      description, rate, category,
+      sku, barcode, unit_of_measure,
+      cost_price, markup_percentage,
+      stock_quantity, reorder_level, low_stock_alert,
+      taxable, is_active, notes
+    )
+    VALUES (
+      @description, @rate, @category,
+      @sku, @barcode, @unit_of_measure,
+      @cost_price, @markup_percentage,
+      @stock_quantity, @reorder_level, @low_stock_alert,
+      @taxable, @is_active, @notes
+    )
   `);
   return stmt.run(item);
 };
@@ -1163,10 +1190,20 @@ const updateSavedItem = (id, item) => {
   const db = getDatabase();
   const stmt = db.prepare(`
     UPDATE saved_items SET
-      item_number = @item_number,
       description = @description,
       rate = @rate,
       category = @category,
+      sku = @sku,
+      barcode = @barcode,
+      unit_of_measure = @unit_of_measure,
+      cost_price = @cost_price,
+      markup_percentage = @markup_percentage,
+      stock_quantity = @stock_quantity,
+      reorder_level = @reorder_level,
+      low_stock_alert = @low_stock_alert,
+      taxable = @taxable,
+      is_active = @is_active,
+      notes = @notes,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = @id
   `);
@@ -1178,9 +1215,9 @@ const deleteSavedItem = (id) => {
   return db.prepare('DELETE FROM saved_items WHERE id = ?').run(id);
 };
 
-const getSavedItemByItemNumber = (itemNumber) => {
+const getSavedItemBySku = (sku) => {
   const db = getDatabase();
-  return db.prepare('SELECT * FROM saved_items WHERE item_number = ?').get(itemNumber);
+  return db.prepare('SELECT * FROM saved_items WHERE sku = ?').get(sku);
 };
 
 // Dashboard stats
@@ -2118,7 +2155,7 @@ module.exports = {
   generateInvoiceNumber,
   getAllSavedItems,
   getSavedItem,
-  getSavedItemByItemNumber,
+  getSavedItemBySku,
   createSavedItem,
   updateSavedItem,
   deleteSavedItem,

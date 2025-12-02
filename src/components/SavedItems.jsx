@@ -24,7 +24,6 @@ function SavedItems() {
   const { getAllSavedItems, createSavedItem, updateSavedItem, deleteSavedItem } = useDatabase();
 
   const [formData, setFormData] = useState({
-    item_number: '',
     description: '',
     rate: '',
     category: 'General',
@@ -87,12 +86,11 @@ function SavedItems() {
     if (item) {
       setEditingItem(item);
       setFormData({
-        item_number: item.item_number || '',
         description: item.description,
         rate: item.rate.toString(),
         category: item.category,
         // Product Details
-        sku: item.sku || '',
+        sku: item.sku || item.item_number || '',
         barcode: item.barcode || '',
         unit_of_measure: item.unit_of_measure || 'Each',
         // Pricing
@@ -110,7 +108,6 @@ function SavedItems() {
     } else {
       setEditingItem(null);
       setFormData({
-        item_number: '',
         description: '',
         rate: '',
         category: 'General',
@@ -139,7 +136,6 @@ function SavedItems() {
     setShowForm(false);
     setEditingItem(null);
     setFormData({
-      item_number: '',
       description: '',
       rate: '',
       category: 'General',
@@ -188,7 +184,6 @@ function SavedItems() {
 
     try {
       const itemData = {
-        item_number: formData.item_number || null,
         description: formData.description,
         rate: parseFloat(formData.rate),
         category: formData.category,
@@ -578,21 +573,6 @@ function SavedItems() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Item Number
-                      </label>
-                      <input
-                        type="text"
-                        name="item_number"
-                        value={formData.item_number}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
-                        placeholder="e.g., ITEM-001"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Optional: Used for quick searching</p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         SKU
                       </label>
                       <input
@@ -603,6 +583,7 @@ function SavedItems() {
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="e.g., SKU-12345"
                       />
+                      <p className="text-xs text-gray-500 mt-1">Optional: Used for quick searching</p>
                     </div>
 
                     <div>
