@@ -693,10 +693,6 @@ const runMigrations = () => {
       // Pricing
       { name: 'cost_price', type: 'REAL', default: '0' },
       { name: 'markup_percentage', type: 'REAL', default: '0' },
-      // Inventory
-      { name: 'stock_quantity', type: 'REAL', default: '0' },
-      { name: 'reorder_level', type: 'REAL', default: '0' },
-      { name: 'low_stock_alert', type: 'INTEGER', default: '0' },
       // Settings
       { name: 'taxable', type: 'INTEGER', default: '1' },
       { name: 'is_active', type: 'INTEGER', default: '1' },
@@ -1172,14 +1168,12 @@ const createSavedItem = (item) => {
       description, rate, category,
       sku, barcode, unit_of_measure,
       cost_price, markup_percentage,
-      stock_quantity, reorder_level, low_stock_alert,
       taxable, is_active, notes
     )
     VALUES (
       @description, @rate, @category,
       @sku, @barcode, @unit_of_measure,
       @cost_price, @markup_percentage,
-      @stock_quantity, @reorder_level, @low_stock_alert,
       @taxable, @is_active, @notes
     )
   `);
@@ -1198,9 +1192,6 @@ const updateSavedItem = (id, item) => {
       unit_of_measure = @unit_of_measure,
       cost_price = @cost_price,
       markup_percentage = @markup_percentage,
-      stock_quantity = @stock_quantity,
-      reorder_level = @reorder_level,
-      low_stock_alert = @low_stock_alert,
       taxable = @taxable,
       is_active = @is_active,
       notes = @notes,

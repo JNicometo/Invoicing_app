@@ -342,20 +342,28 @@ class SQLServerAdapter {
     try {
       console.log('Checking for missing columns in SQL Server...');
 
-      // Add client snapshot columns to invoices table if they don't exist
-      const clientSnapshotColumns = [
-        { name: 'client_name', type: 'VARCHAR(255)', default: "''" },
-        { name: 'client_email', type: 'VARCHAR(255)', default: "''" },
-        { name: 'client_phone', type: 'VARCHAR(255)', default: "''" },
-        { name: 'client_address', type: 'VARCHAR(255)', default: "''" },
-        { name: 'client_city', type: 'VARCHAR(255)', default: "''" },
-        { name: 'client_state', type: 'VARCHAR(255)', default: "''" },
-        { name: 'client_zip', type: 'VARCHAR(255)', default: "''" }
+      // Enhanced client snapshot columns for invoices
+      const invoiceClientColumns = [
+        { name: 'client_name', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'client_email', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'client_phone', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'client_address', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'client_city', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'client_state', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'client_zip', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'billing_address', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'billing_city', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'billing_state', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'billing_zip', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'shipping_address', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'shipping_city', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'shipping_state', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'shipping_zip', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'tax_id', type: 'NVARCHAR(255)', default: "''" }
       ];
 
-      for (const column of clientSnapshotColumns) {
+      for (const column of invoiceClientColumns) {
         try {
-          // Check if column exists
           const checkQuery = `
             SELECT COUNT(*) as count
             FROM INFORMATION_SCHEMA.COLUMNS
@@ -365,15 +373,193 @@ class SQLServerAdapter {
           const result = await this.query(checkQuery);
 
           if (result[0].count === 0) {
-            // Column doesn't exist, add it
             const alterQuery = `ALTER TABLE invoices ADD ${column.name} ${column.type} DEFAULT ${column.default}`;
             await this.query(alterQuery);
             console.log(`✓ Added ${column.name} column to invoices table`);
           }
         } catch (error) {
-          console.error(`Error adding column ${column.name}:`, error.message);
+          console.error(`Error adding column ${column.name} to invoices:`, error.message);
         }
       }
+
+      // All client snapshot columns for quotes
+      const quoteClientColumns = [
+        { name: 'client_name', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'client_email', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'client_phone', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'client_address', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'client_city', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'client_state', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'client_zip', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'billing_address', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'billing_city', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'billing_state', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'billing_zip', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'shipping_address', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'shipping_city', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'shipping_state', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'shipping_zip', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'tax_id', type: 'NVARCHAR(255)', default: "''" }
+      ];
+
+      for (const column of quoteClientColumns) {
+        try {
+          const checkQuery = `
+            SELECT COUNT(*) as count
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = 'quotes'
+            AND COLUMN_NAME = '${column.name}'
+          `;
+          const result = await this.query(checkQuery);
+
+          if (result[0].count === 0) {
+            const alterQuery = `ALTER TABLE quotes ADD ${column.name} ${column.type} DEFAULT ${column.default}`;
+            await this.query(alterQuery);
+            console.log(`✓ Added ${column.name} column to quotes table`);
+          }
+        } catch (error) {
+          console.error(`Error adding column ${column.name} to quotes:`, error.message);
+        }
+      }
+
+      // Item detail columns for invoice_items
+      const invoiceItemColumns = [
+        { name: 'sku', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'unit_of_measure', type: 'NVARCHAR(255)', default: "'Each'" }
+      ];
+
+      for (const column of invoiceItemColumns) {
+        try {
+          const checkQuery = `
+            SELECT COUNT(*) as count
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = 'invoice_items'
+            AND COLUMN_NAME = '${column.name}'
+          `;
+          const result = await this.query(checkQuery);
+
+          if (result[0].count === 0) {
+            const alterQuery = `ALTER TABLE invoice_items ADD ${column.name} ${column.type} DEFAULT ${column.default}`;
+            await this.query(alterQuery);
+            console.log(`✓ Added ${column.name} column to invoice_items table`);
+          }
+        } catch (error) {
+          console.error(`Error adding column ${column.name} to invoice_items:`, error.message);
+        }
+      }
+
+      // Item detail columns for quote_items
+      const quoteItemColumns = [
+        { name: 'sku', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'unit_of_measure', type: 'NVARCHAR(255)', default: "'Each'" }
+      ];
+
+      for (const column of quoteItemColumns) {
+        try {
+          const checkQuery = `
+            SELECT COUNT(*) as count
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = 'quote_items'
+            AND COLUMN_NAME = '${column.name}'
+          `;
+          const result = await this.query(checkQuery);
+
+          if (result[0].count === 0) {
+            const alterQuery = `ALTER TABLE quote_items ADD ${column.name} ${column.type} DEFAULT ${column.default}`;
+            await this.query(alterQuery);
+            console.log(`✓ Added ${column.name} column to quote_items table`);
+          }
+        } catch (error) {
+          console.error(`Error adding column ${column.name} to quote_items:`, error.message);
+        }
+      }
+
+      // Enhanced client fields
+      const clientEnhancedColumns = [
+        { name: 'credit_limit', type: 'DECIMAL(10,2)', default: '0' },
+        { name: 'current_credit', type: 'DECIMAL(10,2)', default: '0' },
+        { name: 'payment_terms', type: 'NVARCHAR(255)', default: "'NET 30'" },
+        { name: 'tax_exempt', type: 'INT', default: '0' },
+        { name: 'tax_id', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'website', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'industry', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'company_size', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'account_status', type: 'NVARCHAR(255)', default: "'Active'" },
+        { name: 'billing_email', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'billing_address', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'billing_city', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'billing_state', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'billing_zip', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'shipping_address', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'shipping_city', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'shipping_state', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'shipping_zip', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'contact_person', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'contact_title', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'secondary_contact', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'secondary_email', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'secondary_phone', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'account_manager', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'preferred_payment_method', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'default_discount_rate', type: 'DECIMAL(10,2)', default: '0' },
+        { name: 'currency', type: 'NVARCHAR(255)', default: "'USD'" },
+        { name: 'language', type: 'NVARCHAR(255)', default: "'en'" },
+        { name: 'tags', type: 'NVARCHAR(255)', default: "''" }
+      ];
+
+      for (const column of clientEnhancedColumns) {
+        try {
+          const checkQuery = `
+            SELECT COUNT(*) as count
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = 'clients'
+            AND COLUMN_NAME = '${column.name}'
+          `;
+          const result = await this.query(checkQuery);
+
+          if (result[0].count === 0) {
+            const alterQuery = `ALTER TABLE clients ADD ${column.name} ${column.type} DEFAULT ${column.default}`;
+            await this.query(alterQuery);
+            console.log(`✓ Added ${column.name} column to clients table`);
+          }
+        } catch (error) {
+          console.error(`Error adding column ${column.name} to clients:`, error.message);
+        }
+      }
+
+      // Enhanced saved_items fields (WITHOUT inventory management)
+      const savedItemEnhancedColumns = [
+        { name: 'sku', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'barcode', type: 'NVARCHAR(255)', default: "''" },
+        { name: 'unit_of_measure', type: 'NVARCHAR(255)', default: "'Each'" },
+        { name: 'cost_price', type: 'DECIMAL(10,2)', default: '0' },
+        { name: 'markup_percentage', type: 'DECIMAL(10,2)', default: '0' },
+        { name: 'taxable', type: 'INT', default: '1' },
+        { name: 'is_active', type: 'INT', default: '1' },
+        { name: 'notes', type: 'NVARCHAR(MAX)', default: "''" }
+      ];
+
+      for (const column of savedItemEnhancedColumns) {
+        try {
+          const checkQuery = `
+            SELECT COUNT(*) as count
+            FROM INFORMATION_SCHEMA.COLUMNS
+            WHERE TABLE_NAME = 'saved_items'
+            AND COLUMN_NAME = '${column.name}'
+          `;
+          const result = await this.query(checkQuery);
+
+          if (result[0].count === 0) {
+            const alterQuery = `ALTER TABLE saved_items ADD ${column.name} ${column.type} DEFAULT ${column.default}`;
+            await this.query(alterQuery);
+            console.log(`✓ Added ${column.name} column to saved_items table`);
+          }
+        } catch (error) {
+          console.error(`Error adding column ${column.name} to saved_items:`, error.message);
+        }
+      }
+
+      console.log('✓ Finished checking for missing columns');
     } catch (error) {
       console.error('Error in addMissingColumns:', error.message);
     }
