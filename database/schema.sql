@@ -127,6 +127,22 @@ CREATE TABLE IF NOT EXISTS saved_items (
   description TEXT NOT NULL,
   rate REAL DEFAULT 0,
   category TEXT DEFAULT 'General',
+  -- Product Details
+  sku TEXT DEFAULT '',
+  barcode TEXT DEFAULT '',
+  unit_of_measure TEXT DEFAULT 'Each',
+  -- Pricing
+  cost_price REAL DEFAULT 0,
+  markup_percentage REAL DEFAULT 0,
+  -- Inventory
+  stock_quantity REAL DEFAULT 0,
+  reorder_level REAL DEFAULT 0,
+  low_stock_alert INTEGER DEFAULT 0,
+  -- Settings
+  taxable INTEGER DEFAULT 1,
+  is_active INTEGER DEFAULT 1,
+  notes TEXT DEFAULT '',
+  -- Timestamps
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );

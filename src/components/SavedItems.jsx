@@ -19,6 +19,7 @@ function SavedItems() {
   const [csvData, setCsvData] = useState([]);
   const [csvErrors, setCsvErrors] = useState([]);
   const [importing, setImporting] = useState(false);
+  const [activeSection, setActiveSection] = useState('basic');
 
   const { getAllSavedItems, createSavedItem, updateSavedItem, deleteSavedItem } = useDatabase();
 
@@ -26,7 +27,22 @@ function SavedItems() {
     item_number: '',
     description: '',
     rate: '',
-    category: 'General'
+    category: 'General',
+    // Product Details
+    sku: '',
+    barcode: '',
+    unit_of_measure: 'Each',
+    // Pricing
+    cost_price: '',
+    markup_percentage: '',
+    // Inventory
+    stock_quantity: '',
+    reorder_level: '',
+    low_stock_alert: false,
+    // Settings
+    taxable: true,
+    is_active: true,
+    notes: ''
   });
 
   const categories = ['General', 'Consulting', 'Development', 'Design', 'Marketing', 'Support', 'Other'];
@@ -74,7 +90,22 @@ function SavedItems() {
         item_number: item.item_number || '',
         description: item.description,
         rate: item.rate.toString(),
-        category: item.category
+        category: item.category,
+        // Product Details
+        sku: item.sku || '',
+        barcode: item.barcode || '',
+        unit_of_measure: item.unit_of_measure || 'Each',
+        // Pricing
+        cost_price: item.cost_price ? item.cost_price.toString() : '',
+        markup_percentage: item.markup_percentage ? item.markup_percentage.toString() : '',
+        // Inventory
+        stock_quantity: item.stock_quantity ? item.stock_quantity.toString() : '',
+        reorder_level: item.reorder_level ? item.reorder_level.toString() : '',
+        low_stock_alert: item.low_stock_alert === 1,
+        // Settings
+        taxable: item.taxable !== 0,
+        is_active: item.is_active !== 0,
+        notes: item.notes || ''
       });
     } else {
       setEditingItem(null);
@@ -82,7 +113,22 @@ function SavedItems() {
         item_number: '',
         description: '',
         rate: '',
-        category: 'General'
+        category: 'General',
+        // Product Details
+        sku: '',
+        barcode: '',
+        unit_of_measure: 'Each',
+        // Pricing
+        cost_price: '',
+        markup_percentage: '',
+        // Inventory
+        stock_quantity: '',
+        reorder_level: '',
+        low_stock_alert: false,
+        // Settings
+        taxable: true,
+        is_active: true,
+        notes: ''
       });
     }
     setErrors({});
@@ -96,14 +142,32 @@ function SavedItems() {
       item_number: '',
       description: '',
       rate: '',
-      category: 'General'
+      category: 'General',
+      // Product Details
+      sku: '',
+      barcode: '',
+      unit_of_measure: 'Each',
+      // Pricing
+      cost_price: '',
+      markup_percentage: '',
+      // Inventory
+      stock_quantity: '',
+      reorder_level: '',
+      low_stock_alert: false,
+      // Settings
+      taxable: true,
+      is_active: true,
+      notes: ''
     });
     setErrors({});
   };
 
   const handleInputChange = (e) => {
-    const { name, value } = e.target;
-    setFormData(prev => ({ ...prev, [name]: value }));
+    const { name, value, type, checked } = e.target;
+    setFormData(prev => ({
+      ...prev,
+      [name]: type === 'checkbox' ? checked : value
+    }));
     if (errors[name]) {
       setErrors(prev => ({ ...prev, [name]: '' }));
     }
@@ -127,7 +191,22 @@ function SavedItems() {
         item_number: formData.item_number || null,
         description: formData.description,
         rate: parseFloat(formData.rate),
-        category: formData.category
+        category: formData.category,
+        // Product Details
+        sku: formData.sku || '',
+        barcode: formData.barcode || '',
+        unit_of_measure: formData.unit_of_measure || 'Each',
+        // Pricing
+        cost_price: formData.cost_price ? parseFloat(formData.cost_price) : 0,
+        markup_percentage: formData.markup_percentage ? parseFloat(formData.markup_percentage) : 0,
+        // Inventory
+        stock_quantity: formData.stock_quantity ? parseFloat(formData.stock_quantity) : 0,
+        reorder_level: formData.reorder_level ? parseFloat(formData.reorder_level) : 0,
+        low_stock_alert: formData.low_stock_alert ? 1 : 0,
+        // Settings
+        taxable: formData.taxable ? 1 : 0,
+        is_active: formData.is_active ? 1 : 0,
+        notes: formData.notes || ''
       };
 
       if (editingItem) {
@@ -436,7 +515,7 @@ function SavedItems() {
       {/* Form Modal */}
       {showForm && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg shadow-xl max-w-md w-full">
+          <div className="bg-white rounded-lg shadow-xl max-w-3xl w-full">
             <div className="p-6 border-b border-gray-200 flex justify-between items-center">
               <h2 className="text-2xl font-bold text-gray-900">
                 {editingItem ? 'Edit Saved Item' : 'New Saved Item'}
@@ -446,84 +525,314 @@ function SavedItems() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-6">
-              <div className="space-y-4">
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Item Number
-                  </label>
-                  <input
-                    type="text"
-                    name="item_number"
-                    value={formData.item_number}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
-                    placeholder="e.g., ITEM-001, DEV-001, etc."
-                  />
-                  {errors.item_number && (
-                    <p className="text-red-500 text-xs mt-1">{errors.item_number}</p>
-                  )}
-                  <p className="text-xs text-gray-500 mt-1">Optional: Used for quick searching</p>
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Description *
-                  </label>
-                  <input
-                    type="text"
-                    name="description"
-                    value={formData.description}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                    placeholder="e.g., Web Development - Hourly"
-                    required
-                  />
-                  {errors.description && (
-                    <p className="text-red-500 text-xs mt-1">{errors.description}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Rate *
-                  </label>
-                  <div className="relative">
-                    <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
-                      $
-                    </span>
-                    <input
-                      type="number"
-                      name="rate"
-                      value={formData.rate}
-                      onChange={handleInputChange}
-                      className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                      placeholder="0.00"
-                      step="0.01"
-                      min="0"
-                      required
-                    />
-                  </div>
-                  {errors.rate && (
-                    <p className="text-red-500 text-xs mt-1">{errors.rate}</p>
-                  )}
-                </div>
-
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Category
-                  </label>
-                  <select
-                    name="category"
-                    value={formData.category}
-                    onChange={handleInputChange}
-                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+            <form onSubmit={handleSubmit}>
+              {/* Section Tabs */}
+              <div className="border-b border-gray-200">
+                <nav className="flex -mb-px">
+                  <button
+                    type="button"
+                    onClick={() => setActiveSection('basic')}
+                    className={`px-6 py-3 text-sm font-medium border-b-2 ${
+                      activeSection === 'basic'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
                   >
-                    {categories.map(cat => (
-                      <option key={cat} value={cat}>{cat}</option>
-                    ))}
-                  </select>
-                </div>
+                    Basic Info
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setActiveSection('inventory')}
+                    className={`px-6 py-3 text-sm font-medium border-b-2 ${
+                      activeSection === 'inventory'
+                        ? 'border-blue-600 text-blue-600'
+                        : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+                    }`}
+                  >
+                    Pricing & Inventory
+                  </button>
+                </nav>
+              </div>
+
+              <div className="p-6 max-h-[60vh] overflow-y-auto">
+                {/* Basic Info Section */}
+                {activeSection === 'basic' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Description *
+                      </label>
+                      <input
+                        type="text"
+                        name="description"
+                        value={formData.description}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="e.g., Web Development - Hourly"
+                        required
+                      />
+                      {errors.description && (
+                        <p className="text-red-500 text-xs mt-1">{errors.description}</p>
+                      )}
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Item Number
+                      </label>
+                      <input
+                        type="text"
+                        name="item_number"
+                        value={formData.item_number}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
+                        placeholder="e.g., ITEM-001"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Optional: Used for quick searching</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        SKU
+                      </label>
+                      <input
+                        type="text"
+                        name="sku"
+                        value={formData.sku}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="e.g., SKU-12345"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Barcode
+                      </label>
+                      <input
+                        type="text"
+                        name="barcode"
+                        value={formData.barcode}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="e.g., 123456789012"
+                      />
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Category
+                      </label>
+                      <select
+                        name="category"
+                        value={formData.category}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        {categories.map(cat => (
+                          <option key={cat} value={cat}>{cat}</option>
+                        ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Unit of Measure
+                      </label>
+                      <select
+                        name="unit_of_measure"
+                        value={formData.unit_of_measure}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                      >
+                        <option value="Each">Each</option>
+                        <option value="Hour">Hour</option>
+                        <option value="Day">Day</option>
+                        <option value="Week">Week</option>
+                        <option value="Month">Month</option>
+                        <option value="Kilogram">Kilogram</option>
+                        <option value="Pound">Pound</option>
+                        <option value="Liter">Liter</option>
+                        <option value="Meter">Meter</option>
+                        <option value="Foot">Foot</option>
+                        <option value="Box">Box</option>
+                        <option value="Case">Case</option>
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Sell Price (Rate) *
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                          $
+                        </span>
+                        <input
+                          type="number"
+                          name="rate"
+                          value={formData.rate}
+                          onChange={handleInputChange}
+                          className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="0.00"
+                          step="0.01"
+                          min="0"
+                          required
+                        />
+                      </div>
+                      {errors.rate && (
+                        <p className="text-red-500 text-xs mt-1">{errors.rate}</p>
+                      )}
+                    </div>
+
+                    <div className="flex items-center space-x-6">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          name="taxable"
+                          checked={formData.taxable}
+                          onChange={handleInputChange}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">Taxable</span>
+                      </label>
+
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          name="is_active"
+                          checked={formData.is_active}
+                          onChange={handleInputChange}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">Active</span>
+                      </label>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Notes
+                      </label>
+                      <textarea
+                        name="notes"
+                        value={formData.notes}
+                        onChange={handleInputChange}
+                        rows="3"
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="Additional notes about this item..."
+                      />
+                    </div>
+                  </div>
+                )}
+
+                {/* Pricing & Inventory Section */}
+                {activeSection === 'inventory' && (
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="md:col-span-2">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">Pricing Information</h3>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Cost Price
+                      </label>
+                      <div className="relative">
+                        <span className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                          $
+                        </span>
+                        <input
+                          type="number"
+                          name="cost_price"
+                          value={formData.cost_price}
+                          onChange={handleInputChange}
+                          className="w-full pl-8 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="0.00"
+                          step="0.01"
+                          min="0"
+                        />
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">What you pay for this item</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Markup Percentage
+                      </label>
+                      <div className="relative">
+                        <input
+                          type="number"
+                          name="markup_percentage"
+                          value={formData.markup_percentage}
+                          onChange={handleInputChange}
+                          className="w-full pr-8 pl-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                          placeholder="0"
+                          step="0.01"
+                          min="0"
+                        />
+                        <span className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-500">
+                          %
+                        </span>
+                      </div>
+                      <p className="text-xs text-gray-500 mt-1">Profit margin on cost price</p>
+                    </div>
+
+                    <div className="md:col-span-2 mt-4">
+                      <h3 className="text-lg font-semibold text-gray-900 mb-3">Inventory Management</h3>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Stock Quantity
+                      </label>
+                      <input
+                        type="number"
+                        name="stock_quantity"
+                        value={formData.stock_quantity}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="0"
+                        step="0.01"
+                        min="0"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Current stock on hand</p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Reorder Level
+                      </label>
+                      <input
+                        type="number"
+                        name="reorder_level"
+                        value={formData.reorder_level}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="0"
+                        step="0.01"
+                        min="0"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">Minimum stock before reordering</p>
+                    </div>
+
+                    <div className="md:col-span-2">
+                      <label className="flex items-center">
+                        <input
+                          type="checkbox"
+                          name="low_stock_alert"
+                          checked={formData.low_stock_alert}
+                          onChange={handleInputChange}
+                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
+                        />
+                        <span className="ml-2 text-sm text-gray-700">
+                          Enable low stock alerts
+                        </span>
+                      </label>
+                      <p className="text-xs text-gray-500 mt-1 ml-6">
+                        Get notified when stock falls below reorder level
+                      </p>
+                    </div>
+                  </div>
+                )}
               </div>
 
               <div className="flex justify-end space-x-3 mt-6">
