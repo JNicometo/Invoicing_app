@@ -561,6 +561,44 @@ const runMigrations = () => {
       console.log('✓ All enhanced client columns already exist');
     }
 
+    // Add enhanced saved items fields for inventory and product management
+    console.log('Checking for enhanced saved items fields...');
+    const existingItemColumns = db.pragma('table_info(saved_items)');
+    const existingItemColumnNames = existingItemColumns.map(col => col.name);
+
+    const enhancedItemColumns = [
+      // Product Details
+      { name: 'sku', type: 'TEXT', default: "''" },
+      { name: 'barcode', type: 'TEXT', default: "''" },
+      { name: 'unit_of_measure', type: 'TEXT', default: "'Each'" },
+      // Pricing
+      { name: 'cost_price', type: 'REAL', default: '0' },
+      { name: 'markup_percentage', type: 'REAL', default: '0' },
+      // Inventory
+      { name: 'stock_quantity', type: 'REAL', default: '0' },
+      { name: 'reorder_level', type: 'REAL', default: '0' },
+      { name: 'low_stock_alert', type: 'INTEGER', default: '0' },
+      // Settings
+      { name: 'taxable', type: 'INTEGER', default: '1' },
+      { name: 'is_active', type: 'INTEGER', default: '1' },
+      { name: 'notes', type: 'TEXT', default: "''" }
+    ];
+
+    let itemColumnsAdded = 0;
+    enhancedItemColumns.forEach(column => {
+      if (!existingItemColumnNames.includes(column.name)) {
+        console.log(`Adding ${column.name} column to saved_items table...`);
+        db.exec(`ALTER TABLE saved_items ADD COLUMN ${column.name} ${column.type} DEFAULT ${column.default}`);
+        itemColumnsAdded++;
+      }
+    });
+
+    if (itemColumnsAdded > 0) {
+      console.log(`✓ Added ${itemColumnsAdded} enhanced columns to saved_items table`);
+    } else {
+      console.log('✓ All enhanced saved item columns already exist');
+    }
+
     console.log('Migrations completed successfully');
   } catch (error) {
     console.error('Migration error:', error);
