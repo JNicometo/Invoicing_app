@@ -31,7 +31,7 @@ contextBridge.exposeInMainWorld('electron', {
         // Saved Items
         'db:getAllSavedItems',
         'db:getSavedItem',
-        'db:getSavedItemByItemNumber',
+        'db:getSavedItemBySku',
         'db:createSavedItem',
         'db:updateSavedItem',
         'db:deleteSavedItem',

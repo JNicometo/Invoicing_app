@@ -24,7 +24,6 @@ function SavedItems() {
   const { getAllSavedItems, createSavedItem, updateSavedItem, deleteSavedItem } = useDatabase();
 
   const [formData, setFormData] = useState({
-    item_number: '',
     description: '',
     rate: '',
     category: 'General',
@@ -35,10 +34,6 @@ function SavedItems() {
     // Pricing
     cost_price: '',
     markup_percentage: '',
-    // Inventory
-    stock_quantity: '',
-    reorder_level: '',
-    low_stock_alert: false,
     // Settings
     taxable: true,
     is_active: true,
@@ -87,21 +82,16 @@ function SavedItems() {
     if (item) {
       setEditingItem(item);
       setFormData({
-        item_number: item.item_number || '',
         description: item.description,
         rate: item.rate.toString(),
         category: item.category,
         // Product Details
-        sku: item.sku || '',
+        sku: item.sku || item.item_number || '',
         barcode: item.barcode || '',
         unit_of_measure: item.unit_of_measure || 'Each',
         // Pricing
         cost_price: item.cost_price ? item.cost_price.toString() : '',
         markup_percentage: item.markup_percentage ? item.markup_percentage.toString() : '',
-        // Inventory
-        stock_quantity: item.stock_quantity ? item.stock_quantity.toString() : '',
-        reorder_level: item.reorder_level ? item.reorder_level.toString() : '',
-        low_stock_alert: item.low_stock_alert === 1,
         // Settings
         taxable: item.taxable !== 0,
         is_active: item.is_active !== 0,
@@ -110,7 +100,6 @@ function SavedItems() {
     } else {
       setEditingItem(null);
       setFormData({
-        item_number: '',
         description: '',
         rate: '',
         category: 'General',
@@ -121,10 +110,6 @@ function SavedItems() {
         // Pricing
         cost_price: '',
         markup_percentage: '',
-        // Inventory
-        stock_quantity: '',
-        reorder_level: '',
-        low_stock_alert: false,
         // Settings
         taxable: true,
         is_active: true,
@@ -139,7 +124,6 @@ function SavedItems() {
     setShowForm(false);
     setEditingItem(null);
     setFormData({
-      item_number: '',
       description: '',
       rate: '',
       category: 'General',
@@ -150,10 +134,6 @@ function SavedItems() {
       // Pricing
       cost_price: '',
       markup_percentage: '',
-      // Inventory
-      stock_quantity: '',
-      reorder_level: '',
-      low_stock_alert: false,
       // Settings
       taxable: true,
       is_active: true,
@@ -188,7 +168,6 @@ function SavedItems() {
 
     try {
       const itemData = {
-        item_number: formData.item_number || null,
         description: formData.description,
         rate: parseFloat(formData.rate),
         category: formData.category,
@@ -199,10 +178,6 @@ function SavedItems() {
         // Pricing
         cost_price: formData.cost_price ? parseFloat(formData.cost_price) : 0,
         markup_percentage: formData.markup_percentage ? parseFloat(formData.markup_percentage) : 0,
-        // Inventory
-        stock_quantity: formData.stock_quantity ? parseFloat(formData.stock_quantity) : 0,
-        reorder_level: formData.reorder_level ? parseFloat(formData.reorder_level) : 0,
-        low_stock_alert: formData.low_stock_alert ? 1 : 0,
         // Settings
         taxable: formData.taxable ? 1 : 0,
         is_active: formData.is_active ? 1 : 0,
@@ -549,7 +524,7 @@ function SavedItems() {
                         : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
                     }`}
                   >
-                    Pricing & Inventory
+                    Pricing
                   </button>
                 </nav>
               </div>
@@ -578,21 +553,6 @@ function SavedItems() {
 
                     <div>
                       <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Item Number
-                      </label>
-                      <input
-                        type="text"
-                        name="item_number"
-                        value={formData.item_number}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
-                        placeholder="e.g., ITEM-001"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Optional: Used for quick searching</p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
                         SKU
                       </label>
                       <input
@@ -603,6 +563,7 @@ function SavedItems() {
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                         placeholder="e.g., SKU-12345"
                       />
+                      <p className="text-xs text-gray-500 mt-1">Optional: Used for quick searching</p>
                     </div>
 
                     <div>
@@ -725,7 +686,7 @@ function SavedItems() {
                   </div>
                 )}
 
-                {/* Pricing & Inventory Section */}
+                {/* Pricing Section */}
                 {activeSection === 'inventory' && (
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div className="md:col-span-2">
@@ -774,62 +735,6 @@ function SavedItems() {
                         </span>
                       </div>
                       <p className="text-xs text-gray-500 mt-1">Profit margin on cost price</p>
-                    </div>
-
-                    <div className="md:col-span-2 mt-4">
-                      <h3 className="text-lg font-semibold text-gray-900 mb-3">Inventory Management</h3>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Stock Quantity
-                      </label>
-                      <input
-                        type="number"
-                        name="stock_quantity"
-                        value={formData.stock_quantity}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="0"
-                        step="0.01"
-                        min="0"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Current stock on hand</p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Reorder Level
-                      </label>
-                      <input
-                        type="number"
-                        name="reorder_level"
-                        value={formData.reorder_level}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="0"
-                        step="0.01"
-                        min="0"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">Minimum stock before reordering</p>
-                    </div>
-
-                    <div className="md:col-span-2">
-                      <label className="flex items-center">
-                        <input
-                          type="checkbox"
-                          name="low_stock_alert"
-                          checked={formData.low_stock_alert}
-                          onChange={handleInputChange}
-                          className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                        />
-                        <span className="ml-2 text-sm text-gray-700">
-                          Enable low stock alerts
-                        </span>
-                      </label>
-                      <p className="text-xs text-gray-500 mt-1 ml-6">
-                        Get notified when stock falls below reorder level
-                      </p>
                     </div>
                   </div>
                 )}

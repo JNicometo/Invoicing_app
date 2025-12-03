@@ -111,6 +111,8 @@ const runMigrations = () => {
       { name: 'invoice_suffix', type: 'TEXT', default: "''" },
       { name: 'invoice_start_number', type: 'TEXT', default: "'1'" },
       { name: 'quote_prefix', type: 'TEXT', default: "'QUO-'" },
+      { name: 'next_invoice_number', type: 'TEXT', default: "'INV-0001'" },
+      { name: 'next_quote_number', type: 'TEXT', default: "'QUO-0001'" },
       { name: 'tax_label', type: 'TEXT', default: "'Tax'" },
       { name: 'currency_code', type: 'TEXT', default: "'USD'" },
       { name: 'default_due_days', type: 'TEXT', default: "'30'" },
@@ -693,10 +695,6 @@ const runMigrations = () => {
       // Pricing
       { name: 'cost_price', type: 'REAL', default: '0' },
       { name: 'markup_percentage', type: 'REAL', default: '0' },
-      // Inventory
-      { name: 'stock_quantity', type: 'REAL', default: '0' },
-      { name: 'reorder_level', type: 'REAL', default: '0' },
-      { name: 'low_stock_alert', type: 'INTEGER', default: '0' },
       // Settings
       { name: 'taxable', type: 'INTEGER', default: '1' },
       { name: 'is_active', type: 'INTEGER', default: '1' },
@@ -716,6 +714,21 @@ const runMigrations = () => {
       console.log(`✓ Added ${itemColumnsAdded} enhanced columns to saved_items table`);
     } else {
       console.log('✓ All enhanced saved item columns already exist');
+    }
+
+    // Migrate item_number to sku if sku is empty
+    console.log('Migrating item_number to sku...');
+    if (existingItemColumnNames.includes('item_number')) {
+      const itemsWithItemNumber = db.prepare('SELECT id, item_number, sku FROM saved_items WHERE item_number IS NOT NULL AND item_number != "" AND (sku IS NULL OR sku = "")').all();
+      if (itemsWithItemNumber.length > 0) {
+        const updateStmt = db.prepare('UPDATE saved_items SET sku = ? WHERE id = ?');
+        itemsWithItemNumber.forEach(item => {
+          updateStmt.run(item.item_number, item.id);
+        });
+        console.log(`✓ Migrated ${itemsWithItemNumber.length} item_number values to sku`);
+      } else {
+        console.log('✓ No item_number values need migration to sku');
+      }
     }
 
     console.log('Migrations completed successfully');
@@ -773,6 +786,8 @@ const updateSettings = (settings) => {
       invoice_suffix = @invoice_suffix,
       invoice_start_number = @invoice_start_number,
       quote_prefix = @quote_prefix,
+      next_invoice_number = @next_invoice_number,
+      next_quote_number = @next_quote_number,
       tax_rate = @tax_rate,
       tax_label = @tax_label,
       currency_symbol = @currency_symbol,
@@ -1118,11 +1133,51 @@ const restoreInvoice = (id) => {
   return db.prepare('UPDATE invoices SET archived = 0, updated_at = CURRENT_TIMESTAMP WHERE id = ?').run(id);
 };
 
+/**
+ * Increment a number string while preserving format and padding
+ * Examples:
+ *   "INV-0001" -> "INV-0002"
+ *   "2024-001" -> "2024-002"
+ *   "ABC-12345" -> "ABC-12346"
+ *   "INV-00099" -> "INV-00100"
+ */
+const incrementNumberString = (numberString) => {
+  // Find the last sequence of digits in the string
+  const match = numberString.match(/^(.*?)(\d+)([^\d]*)$/);
+
+  if (!match) {
+    // No digits found, append 0001
+    return numberString + '0001';
+  }
+
+  const prefix = match[1];        // Everything before the number
+  const number = match[2];        // The number portion
+  const suffix = match[3];        // Everything after the number
+  const padding = number.length;  // Original padding length
+
+  // Increment the number
+  const nextNumber = (parseInt(number, 10) + 1).toString().padStart(padding, '0');
+
+  return prefix + nextNumber + suffix;
+};
+
 const generateInvoiceNumber = () => {
   const db = getDatabase();
   const settings = getSettings();
-  const prefix = settings.invoice_prefix || 'INV-';
 
+  // Use the new next_invoice_number field if available, otherwise fall back to old system
+  if (settings.next_invoice_number) {
+    const nextNumber = settings.next_invoice_number;
+
+    // Update the setting with the incremented number for next time
+    const incrementedNumber = incrementNumberString(nextNumber);
+    db.prepare('UPDATE settings SET next_invoice_number = ? WHERE id = 1').run(incrementedNumber);
+
+    return nextNumber;
+  }
+
+  // Fallback to old prefix-based system for backward compatibility
+  const prefix = settings.invoice_prefix || 'INV-';
   const lastInvoice = db.prepare(`
     SELECT invoice_number FROM invoices
     WHERE invoice_number LIKE ?
@@ -1153,8 +1208,18 @@ const getSavedItem = (id) => {
 const createSavedItem = (item) => {
   const db = getDatabase();
   const stmt = db.prepare(`
-    INSERT INTO saved_items (item_number, description, rate, category)
-    VALUES (@item_number, @description, @rate, @category)
+    INSERT INTO saved_items (
+      description, rate, category,
+      sku, barcode, unit_of_measure,
+      cost_price, markup_percentage,
+      taxable, is_active, notes
+    )
+    VALUES (
+      @description, @rate, @category,
+      @sku, @barcode, @unit_of_measure,
+      @cost_price, @markup_percentage,
+      @taxable, @is_active, @notes
+    )
   `);
   return stmt.run(item);
 };
@@ -1163,10 +1228,17 @@ const updateSavedItem = (id, item) => {
   const db = getDatabase();
   const stmt = db.prepare(`
     UPDATE saved_items SET
-      item_number = @item_number,
       description = @description,
       rate = @rate,
       category = @category,
+      sku = @sku,
+      barcode = @barcode,
+      unit_of_measure = @unit_of_measure,
+      cost_price = @cost_price,
+      markup_percentage = @markup_percentage,
+      taxable = @taxable,
+      is_active = @is_active,
+      notes = @notes,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = @id
   `);
@@ -1178,9 +1250,9 @@ const deleteSavedItem = (id) => {
   return db.prepare('DELETE FROM saved_items WHERE id = ?').run(id);
 };
 
-const getSavedItemByItemNumber = (itemNumber) => {
+const getSavedItemBySku = (sku) => {
   const db = getDatabase();
-  return db.prepare('SELECT * FROM saved_items WHERE item_number = ?').get(itemNumber);
+  return db.prepare('SELECT * FROM saved_items WHERE sku = ?').get(sku);
 };
 
 // Dashboard stats
@@ -1432,8 +1504,20 @@ const generateInvoiceFromRecurring = (recurringInvoiceId) => {
 const generateQuoteNumber = () => {
   const db = getDatabase();
   const settings = getSettings();
-  const prefix = settings.quote_prefix || 'QUO-';
 
+  // Use the new next_quote_number field if available, otherwise fall back to old system
+  if (settings.next_quote_number) {
+    const nextNumber = settings.next_quote_number;
+
+    // Update the setting with the incremented number for next time
+    const incrementedNumber = incrementNumberString(nextNumber);
+    db.prepare('UPDATE settings SET next_quote_number = ? WHERE id = 1').run(incrementedNumber);
+
+    return nextNumber;
+  }
+
+  // Fallback to old prefix-based system for backward compatibility
+  const prefix = settings.quote_prefix || 'QUO-';
   const lastQuote = db.prepare('SELECT quote_number FROM quotes ORDER BY id DESC LIMIT 1').get();
 
   if (!lastQuote) {
@@ -2118,7 +2202,7 @@ module.exports = {
   generateInvoiceNumber,
   getAllSavedItems,
   getSavedItem,
-  getSavedItemByItemNumber,
+  getSavedItemBySku,
   createSavedItem,
   updateSavedItem,
   deleteSavedItem,

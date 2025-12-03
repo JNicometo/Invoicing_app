@@ -135,7 +135,6 @@ CREATE TABLE IF NOT EXISTS invoice_items (
 -- Saved items table for reusable line items
 CREATE TABLE IF NOT EXISTS saved_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  item_number TEXT,
   description TEXT NOT NULL,
   rate REAL DEFAULT 0,
   category TEXT DEFAULT 'General',
@@ -146,10 +145,6 @@ CREATE TABLE IF NOT EXISTS saved_items (
   -- Pricing
   cost_price REAL DEFAULT 0,
   markup_percentage REAL DEFAULT 0,
-  -- Inventory
-  stock_quantity REAL DEFAULT 0,
-  reorder_level REAL DEFAULT 0,
-  low_stock_alert INTEGER DEFAULT 0,
   -- Settings
   taxable INTEGER DEFAULT 1,
   is_active INTEGER DEFAULT 1,
