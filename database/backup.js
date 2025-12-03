@@ -18,7 +18,7 @@ function getSqlServerAdapter() {
   return db.getSqlServerAdapter();
 }
 
-// Tables to backup (excluding expense_categories since expenses are removed)
+// Tables to backup - includes all current tables
 const TABLES_TO_BACKUP = [
   'settings',
   'clients',
@@ -28,12 +28,15 @@ const TABLES_TO_BACKUP = [
   'payments',
   'recurring_invoices',
   'recurring_invoice_items',
-  'estimates',
-  'estimate_items',
+  'quotes',
+  'quote_items',
   'credit_notes',
   'credit_note_items',
   'reminder_templates',
-  'invoice_reminders'
+  'invoice_reminders',
+  'users',
+  'sessions',
+  'audit_log'
 ];
 
 /**
