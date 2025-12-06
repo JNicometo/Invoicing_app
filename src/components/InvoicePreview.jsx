@@ -36,7 +36,10 @@ function InvoicePreview({ invoice, onClose }) {
     cvc: '',
   });
   const [processingCardPayment, setProcessingCardPayment] = useState(false);
-  const { getInvoice, getSettings, saveInvoiceAsPDF, sendInvoiceEmail, createPayment, getPaymentsByInvoice, deletePayment } = useDatabase();
+  const [stripePaymentLink, setStripePaymentLink] = useState('');
+  const [paypalPaymentLink, setPaypalPaymentLink] = useState('');
+  const [generatingPaymentLink, setGeneratingPaymentLink] = useState(false);
+  const { getInvoice, getSettings, saveInvoiceAsPDF, sendInvoiceEmail, createPayment, getPaymentsByInvoice, deletePayment, createStripePaymentLink, createPayPalPaymentLink } = useDatabase();
 
   useEffect(() => {
     loadInvoiceData();
@@ -496,6 +499,52 @@ function InvoicePreview({ invoice, onClose }) {
     }
   };
 
+  const handleGenerateStripeLink = async () => {
+    try {
+      setGeneratingPaymentLink(true);
+      const result = await createStripePaymentLink({
+        settings,
+        invoice: fullInvoice,
+        client: { id: fullInvoice.client_id, name: fullInvoice.client_name }
+      });
+
+      if (result.success) {
+        setStripePaymentLink(result.paymentLink);
+        alert('Stripe payment link generated! You can now copy and send it to your client.');
+      }
+    } catch (error) {
+      console.error('Error generating Stripe link:', error);
+      alert(error.message || 'Error generating Stripe payment link');
+    } finally {
+      setGeneratingPaymentLink(false);
+    }
+  };
+
+  const handleGeneratePayPalLink = async () => {
+    try {
+      setGeneratingPaymentLink(true);
+      const result = await createPayPalPaymentLink({
+        settings,
+        invoice: fullInvoice
+      });
+
+      if (result.success) {
+        setPaypalPaymentLink(result.paymentLink);
+        alert('PayPal payment link generated! You can now copy and send it to your client.');
+      }
+    } catch (error) {
+      console.error('Error generating PayPal link:', error);
+      alert(error.message || 'Error generating PayPal payment link');
+    } finally {
+      setGeneratingPaymentLink(false);
+    }
+  };
+
+  const handleCopyLink = (link, gateway) => {
+    navigator.clipboard.writeText(link);
+    alert(`${gateway} payment link copied to clipboard!`);
+  };
+
   const handleOpenPaymentModal = () => {
     // Reset payment form with remaining balance as suggested amount
     const balanceDue = fullInvoice.total - totalPaid;
@@ -732,12 +781,25 @@ function InvoicePreview({ invoice, onClose }) {
               </h2>
               <div className="flex space-x-2">
                 {settings?.stripe_enabled && (fullInvoice.total - totalPaid) > 0 && (
+                  <>
+                    <button
+                      onClick={handleGenerateStripeLink}
+                      disabled={generatingPaymentLink}
+                      className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                    >
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      {generatingPaymentLink ? 'Generating...' : 'Stripe Payment Link'}
+                    </button>
+                  </>
+                )}
+                {settings?.paypal_enabled && (fullInvoice.total - totalPaid) > 0 && (
                   <button
-                    onClick={() => setShowCardPaymentModal(true)}
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    onClick={handleGeneratePayPalLink}
+                    disabled={generatingPaymentLink}
+                    className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
                   >
-                    <CreditCard className="w-4 h-4 mr-2" />
-                    Pay with Card
+                    <DollarSign className="w-4 h-4 mr-2" />
+                    {generatingPaymentLink ? 'Generating...' : 'PayPal Payment Link'}
                   </button>
                 )}
                 <button
@@ -788,6 +850,54 @@ function InvoicePreview({ invoice, onClose }) {
                 ></div>
               </div>
             </div>
+
+            {/* Payment Links Display */}
+            {(stripePaymentLink || paypalPaymentLink) && (
+              <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                <h3 className="text-lg font-semibold text-purple-900 mb-3">Payment Links</h3>
+                {stripePaymentLink && (
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Stripe Payment Link</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={stripePaymentLink}
+                        readOnly
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                      />
+                      <button
+                        onClick={() => handleCopyLink(stripePaymentLink, 'Stripe')}
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {paypalPaymentLink && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">PayPal Payment Link</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={paypalPaymentLink}
+                        readOnly
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                      />
+                      <button
+                        onClick={() => handleCopyLink(paypalPaymentLink, 'PayPal')}
+                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <p className="text-sm text-gray-600 mt-3">
+                  💡 Copy these links and send them to your client via email or message. They can click to pay securely.
+                </p>
+              </div>
+            )}
 
             {/* Payment History */}
             {payments.length > 0 ? (

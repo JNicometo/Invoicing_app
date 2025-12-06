@@ -1440,6 +1440,50 @@ ipcMain.handle('sqlserver:createSchema', async (event, config) => {
   }
 });
 
+// Payment Gateway - PayPal
+ipcMain.handle('payment:createPayPalPaymentLink', async (event, paymentData) => {
+  try {
+    const { settings, invoice } = paymentData;
+
+    // Validate PayPal settings
+    if (!settings.paypal_enabled) {
+      throw new Error('PayPal is not configured. Please enable PayPal in Settings.');
+    }
+
+    // Get PayPal email/username from settings
+    const paypalIdentifier = settings.paypal_client_id || settings.company_email;
+
+    if (!paypalIdentifier) {
+      throw new Error('PayPal email or PayPal.me username not configured.');
+    }
+
+    // Generate PayPal.me link
+    const amount = invoice.total.toFixed(2);
+    let paymentLink;
+
+    // If it looks like a PayPal.me username (no @ symbol), use PayPal.me
+    if (!paypalIdentifier.includes('@')) {
+      paymentLink = `https://paypal.me/${paypalIdentifier}/${amount}USD`;
+    } else {
+      // Use standard PayPal payment link with email
+      const invoiceNumber = encodeURIComponent(invoice.invoice_number);
+      const note = encodeURIComponent(`Payment for Invoice ${invoice.invoice_number}`);
+      paymentLink = `https://www.paypal.com/paypalme/${paypalIdentifier.replace('@', '')}/${amount}?note=${note}`;
+    }
+
+    console.log('PayPal payment link created:', paymentLink);
+    return {
+      success: true,
+      paymentLink: paymentLink,
+      message: 'PayPal payment link created successfully!'
+    };
+
+  } catch (error) {
+    console.error('Error creating PayPal payment link:', error);
+    throw new Error(error.message);
+  }
+});
+
 // Payment Gateway - Stripe
 ipcMain.handle('payment:createStripePaymentLink', async (event, paymentData) => {
   try {

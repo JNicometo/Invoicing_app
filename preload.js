@@ -105,6 +105,7 @@ contextBridge.exposeInMainWorld('electron', {
         'email:sendInvoiceWithPayment',
         // Payment Gateway
         'payment:createStripePaymentLink',
+        'payment:createPayPalPaymentLink',
         'payment:createPaymentIntent',
         'payment:processCardPayment',
         // Backup & Restore

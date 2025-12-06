@@ -1379,6 +1379,63 @@ function Settings() {
                     )}
                   </div>
 
+                  {/* PayPal Configuration */}
+                  <div className="space-y-4 mt-8 pt-8 border-t">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-2">
+                        <DollarSign className="w-5 h-5 text-blue-600" />
+                        <h3 className="text-lg font-semibold text-gray-900">PayPal</h3>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          name="paypal_enabled"
+                          checked={formData.paypal_enabled}
+                          onChange={(e) => setFormData(prev => ({ ...prev, paypal_enabled: e.target.checked }))}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <p className="text-sm text-blue-800 mb-2">
+                        <strong>How to set up PayPal.me:</strong>
+                      </p>
+                      <ol className="text-xs text-blue-700 space-y-1 ml-4 list-decimal">
+                        <li>Create a PayPal account at <a href="https://paypal.com" target="_blank" rel="noopener noreferrer" className="underline">paypal.com</a></li>
+                        <li>Set up your PayPal.me link (e.g., paypal.me/yourname)</li>
+                        <li>Enter your PayPal.me username below (without paypal.me/)</li>
+                        <li>Or enter your PayPal email address</li>
+                      </ol>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        PayPal.me Username or Email <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="paypal_client_id"
+                        value={formData.paypal_client_id}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
+                        placeholder="yourname or email@example.com"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Enter your PayPal.me username (e.g., "yourname") or your PayPal email address
+                      </p>
+                    </div>
+
+                    {formData.paypal_enabled && formData.paypal_client_id && (
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-sm text-green-800">
+                          <strong>✓ PayPal Enabled:</strong> PayPal payment links will be generated for invoices. Clients can pay with PayPal or credit/debit cards.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="border-t border-gray-200 pt-8"></div>
 
                   {/* PayPal Configuration */}

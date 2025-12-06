@@ -359,6 +359,10 @@ export const useDatabase = () => {
     return await ipcCall('payment:createStripePaymentLink', paymentData);
   }, [ipcCall]);
 
+  const createPayPalPaymentLink = useCallback(async (paymentData) => {
+    return await ipcCall('payment:createPayPalPaymentLink', paymentData);
+  }, [ipcCall]);
+
   const sendInvoiceWithPayment = useCallback(async (emailData) => {
     return await ipcCall('email:sendInvoiceWithPayment', emailData);
   }, [ipcCall]);
@@ -463,6 +467,7 @@ export const useDatabase = () => {
     batchDeleteInvoices,
     // Payment Gateway
     createStripePaymentLink,
+    createPayPalPaymentLink,
     sendInvoiceWithPayment,
   };
 };
