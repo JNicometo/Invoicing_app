@@ -959,19 +959,26 @@ const generateInvoiceNumber = () => {
   const settings = getSettings();
   const prefix = settings.invoice_prefix || 'INV-';
 
-  const lastInvoice = db.prepare(`
+  // Get all invoices with this prefix and find the highest number
+  const invoices = db.prepare(`
     SELECT invoice_number FROM invoices
     WHERE invoice_number LIKE ?
-    ORDER BY id DESC
-    LIMIT 1
-  `).get(`${prefix}%`);
+  `).all(`${prefix}%`);
 
-  if (!lastInvoice) {
+  if (!invoices || invoices.length === 0) {
     return `${prefix}0001`;
   }
 
-  const lastNumber = parseInt(lastInvoice.invoice_number.replace(prefix, ''));
-  const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
+  // Extract numbers and find the maximum
+  const numbers = invoices
+    .map(inv => {
+      const numStr = inv.invoice_number.replace(prefix, '');
+      return parseInt(numStr) || 0;
+    })
+    .filter(num => !isNaN(num));
+
+  const maxNumber = numbers.length > 0 ? Math.max(...numbers) : 0;
+  const nextNumber = (maxNumber + 1).toString().padStart(4, '0');
   return `${prefix}${nextNumber}`;
 };
 

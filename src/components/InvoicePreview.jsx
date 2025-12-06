@@ -108,12 +108,12 @@ function InvoicePreview({ invoice, onClose }) {
     const headingFontSize = headingSizeMap[headingSize];
     const bodyFontSize = bodySizeMap[bodySize];
 
-    // Spacing mapping
-    const spacingMap = { compact: '20px', normal: '40px', spacious: '60px' };
+    // Spacing mapping - reduced for better single-page fit
+    const spacingMap = { compact: '15px', normal: '25px', spacious: '40px' };
     const sectionSpacing = spacingMap[spacing];
 
-    // Margin mapping
-    const marginMap = { narrow: '0.5in', normal: '1in', wide: '1.5in' };
+    // Margin mapping - reduced for better single-page fit
+    const marginMap = { narrow: '0.3in', normal: '0.5in', wide: '0.75in' };
     const pageMargin = marginMap[marginSize];
 
     // Header height mapping
@@ -160,8 +160,8 @@ function InvoicePreview({ invoice, onClose }) {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: ${sectionSpacing};
-            padding-bottom: 20px;
+            margin-bottom: ${parseInt(sectionSpacing) * 0.8}px;
+            padding-bottom: 15px;
             border-bottom: 2px solid ${invoiceAccentColor};
           }
           ${showLogo && settings?.logo_url ? `
@@ -195,10 +195,10 @@ function InvoicePreview({ invoice, onClose }) {
           .details {
             display: flex;
             justify-content: space-between;
-            margin-bottom: ${sectionSpacing};
-            padding: 20px 0;
+            margin-bottom: ${parseInt(sectionSpacing) * 0.7}px;
+            padding: 15px 0;
             background: ${tableStyle === 'striped' ? '#f9fafb' : 'transparent'};
-            ${tableStyle === 'bordered' ? `border: ${tableBorder}; padding: 20px;` : ''}
+            ${tableStyle === 'bordered' ? `border: ${tableBorder}; padding: 15px;` : ''}
             border-radius: ${borderRadius};
           }
           .bill-to h3, .invoice-details h3 {
@@ -227,7 +227,7 @@ function InvoicePreview({ invoice, onClose }) {
           table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: ${sectionSpacing};
+            margin-bottom: ${parseInt(sectionSpacing) * 0.7}px;
             ${tableStyle === 'bordered' ? `border: ${tableBorder};` : ''}
           }
           thead tr {
@@ -278,8 +278,8 @@ function InvoicePreview({ invoice, onClose }) {
             color: ${textPrimaryColor};
           }
           .notes, .payment-terms, .bank-details {
-            margin-bottom: ${parseInt(sectionSpacing) / 2}px;
-            padding: 15px;
+            margin-bottom: ${parseInt(sectionSpacing) * 0.4}px;
+            padding: 12px;
             background: ${tableStyle === 'striped' ? '#f9fafb' : 'transparent'};
             border-radius: ${borderRadius};
             ${tableStyle === 'bordered' ? `border: ${tableBorder};` : ''}
@@ -297,11 +297,15 @@ function InvoicePreview({ invoice, onClose }) {
           }
           .footer {
             text-align: center;
-            padding-top: ${sectionSpacing};
-            margin-top: ${sectionSpacing};
+            padding-top: ${parseInt(sectionSpacing) * 0.6}px;
+            margin-top: ${parseInt(sectionSpacing) * 0.6}px;
             border-top: 1px solid ${textSecondaryColor};
             font-size: ${parseInt(bodyFontSize) - 1}pt;
             color: ${textSecondaryColor};
+          }
+          @media print {
+            body { margin: 0; padding: ${pageMargin}; }
+            .container { page-break-inside: avoid; }
           }
         </style>
       </head>
@@ -892,7 +896,19 @@ function InvoicePreview({ invoice, onClose }) {
                       <option value="Cash">Cash</option>
                       <option value="Check">Check</option>
                       <option value="Credit Card">Credit Card</option>
+                      <option value="Debit Card">Debit Card</option>
                       <option value="Bank Transfer">Bank Transfer</option>
+                      <option value="ACH">ACH</option>
+                      <option value="Wire Transfer">Wire Transfer</option>
+                      <option value="PayPal">PayPal</option>
+                      <option value="Venmo">Venmo</option>
+                      <option value="Zelle">Zelle</option>
+                      <option value="Stripe">Stripe</option>
+                      <option value="Square">Square</option>
+                      <option value="Apple Pay">Apple Pay</option>
+                      <option value="Google Pay">Google Pay</option>
+                      <option value="Cryptocurrency">Cryptocurrency</option>
+                      <option value="Money Order">Money Order</option>
                       <option value="Other">Other</option>
                     </select>
                   </div>
