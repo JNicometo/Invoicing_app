@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, Building, FileText, Palette, Check, Settings as SettingsIcon, Globe, Mail, Hash, Upload, X as XIcon, Type, Layout, Paintbrush, Eye, CreditCard, HardDrive, Download, UploadCloud, Database, Server } from 'lucide-react';
+import { Save, Building, FileText, Palette, Check, Settings as SettingsIcon, Globe, Mail, Hash, Upload, X as XIcon, Type, Layout, Paintbrush, Eye, CreditCard, HardDrive, Download, UploadCloud, Database, Server, DollarSign } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { validateSettings } from '../utils/validation';
 
