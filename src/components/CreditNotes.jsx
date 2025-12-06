@@ -9,7 +9,7 @@ function CreditNotes() {
     getAllInvoices,
     getAllClients,
     getAllSavedItems,
-    getSavedItemByItemNumber,
+    getSavedItemBySku,
     getInvoice,
     updateInvoice,
     createCreditNote,
@@ -156,7 +156,7 @@ function CreditNotes() {
 
     if (itemNumber && itemNumber.trim()) {
       try {
-        const savedItem = await getSavedItemByItemNumber(itemNumber);
+        const savedItem = await getSavedItemBySku(itemNumber);
         if (savedItem) {
           newItems[index] = {
             ...newItems[index],

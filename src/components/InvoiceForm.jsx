@@ -15,7 +15,7 @@ function InvoiceForm({ invoice, onClose }) {
     getSettings,
     getInvoice,
     getClientByCustomerNumber,
-    getSavedItemByItemNumber,
+    getSavedItemBySku,
     createClient,
     createSavedItem
   } = useDatabase();
@@ -317,11 +317,11 @@ function InvoiceForm({ invoice, onClose }) {
   const handleItemNumberBlur = async (index) => {
     const itemNumber = items[index].item_number;
     if (!itemNumber || !itemNumber.trim()) {
-      return; // No item number entered, do nothing
+      return; // No SKU entered, do nothing
     }
 
     try {
-      const savedItem = await getSavedItemByItemNumber(itemNumber.trim());
+      const savedItem = await getSavedItemBySku(itemNumber.trim());
       if (savedItem) {
         const newItems = [...items];
         newItems[index].description = savedItem.description;

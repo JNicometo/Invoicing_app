@@ -91,6 +91,7 @@ CREATE TABLE IF NOT EXISTS invoices (
   total REAL DEFAULT 0,
   notes TEXT DEFAULT '',
   payment_terms TEXT DEFAULT '',
+  -- Client snapshot fields
   client_name TEXT DEFAULT '',
   client_email TEXT DEFAULT '',
   client_phone TEXT DEFAULT '',
@@ -98,6 +99,15 @@ CREATE TABLE IF NOT EXISTS invoices (
   client_city TEXT DEFAULT '',
   client_state TEXT DEFAULT '',
   client_zip TEXT DEFAULT '',
+  billing_address TEXT DEFAULT '',
+  billing_city TEXT DEFAULT '',
+  billing_state TEXT DEFAULT '',
+  billing_zip TEXT DEFAULT '',
+  shipping_address TEXT DEFAULT '',
+  shipping_city TEXT DEFAULT '',
+  shipping_state TEXT DEFAULT '',
+  shipping_zip TEXT DEFAULT '',
+  tax_id TEXT DEFAULT '',
   archived INTEGER DEFAULT 0,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -116,6 +126,8 @@ CREATE TABLE IF NOT EXISTS invoice_items (
   discount_value REAL DEFAULT 0,
   discount_amount REAL DEFAULT 0,
   amount REAL DEFAULT 0,
+  sku TEXT DEFAULT '',
+  unit_of_measure TEXT DEFAULT 'Each',
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (invoice_id) REFERENCES invoices(id) ON DELETE CASCADE
 );
@@ -123,10 +135,21 @@ CREATE TABLE IF NOT EXISTS invoice_items (
 -- Saved items table for reusable line items
 CREATE TABLE IF NOT EXISTS saved_items (
   id INTEGER PRIMARY KEY AUTOINCREMENT,
-  item_number TEXT,
   description TEXT NOT NULL,
   rate REAL DEFAULT 0,
   category TEXT DEFAULT 'General',
+  -- Product Details
+  sku TEXT DEFAULT '',
+  barcode TEXT DEFAULT '',
+  unit_of_measure TEXT DEFAULT 'Each',
+  -- Pricing
+  cost_price REAL DEFAULT 0,
+  markup_percentage REAL DEFAULT 0,
+  -- Settings
+  taxable INTEGER DEFAULT 1,
+  is_active INTEGER DEFAULT 1,
+  notes TEXT DEFAULT '',
+  -- Timestamps
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   updated_at TEXT DEFAULT CURRENT_TIMESTAMP
 );
@@ -196,6 +219,23 @@ CREATE TABLE IF NOT EXISTS quotes (
   total REAL DEFAULT 0,
   notes TEXT DEFAULT '',
   terms TEXT DEFAULT '',
+  -- Client snapshot fields
+  client_name TEXT DEFAULT '',
+  client_email TEXT DEFAULT '',
+  client_phone TEXT DEFAULT '',
+  client_address TEXT DEFAULT '',
+  client_city TEXT DEFAULT '',
+  client_state TEXT DEFAULT '',
+  client_zip TEXT DEFAULT '',
+  billing_address TEXT DEFAULT '',
+  billing_city TEXT DEFAULT '',
+  billing_state TEXT DEFAULT '',
+  billing_zip TEXT DEFAULT '',
+  shipping_address TEXT DEFAULT '',
+  shipping_city TEXT DEFAULT '',
+  shipping_state TEXT DEFAULT '',
+  shipping_zip TEXT DEFAULT '',
+  tax_id TEXT DEFAULT '',
   converted_to_invoice_id INTEGER DEFAULT NULL,
   archived INTEGER DEFAULT 0,
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -215,6 +255,8 @@ CREATE TABLE IF NOT EXISTS quote_items (
   discount_value REAL DEFAULT 0,
   discount_amount REAL DEFAULT 0,
   amount REAL DEFAULT 0,
+  sku TEXT DEFAULT '',
+  unit_of_measure TEXT DEFAULT 'Each',
   created_at TEXT DEFAULT CURRENT_TIMESTAMP,
   FOREIGN KEY (quote_id) REFERENCES quotes(id) ON DELETE CASCADE
 );

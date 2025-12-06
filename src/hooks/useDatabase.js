@@ -106,8 +106,8 @@ export const useDatabase = () => {
     return await ipcCall('db:getSavedItem', id);
   }, [ipcCall]);
 
-  const getSavedItemByItemNumber = useCallback(async (itemNumber) => {
-    return await ipcCall('db:getSavedItemByItemNumber', itemNumber);
+  const getSavedItemBySku = useCallback(async (sku) => {
+    return await ipcCall('db:getSavedItemBySku', sku);
   }, [ipcCall]);
 
   const createSavedItem = useCallback(async (item) => {
@@ -394,7 +394,7 @@ export const useDatabase = () => {
     // Saved Items
     getAllSavedItems,
     getSavedItem,
-    getSavedItemByItemNumber,
+    getSavedItemBySku,
     createSavedItem,
     updateSavedItem,
     deleteSavedItem,

@@ -335,10 +335,22 @@ function QuotePreview({ quote, onClose }) {
             <div class="bill-to">
               <h3>BILL TO:</h3>
               <p><strong>${fullQuote?.client_name || 'Client Name'}</strong></p>
-              ${fullQuote?.client_email ? `<p>${fullQuote.client_email}</p>` : ''}
-              ${fullQuote?.client_phone ? `<p>${fullQuote.client_phone}</p>` : ''}
-              ${fullQuote?.client_address ? `<p>${fullQuote.client_address}</p>` : ''}
-              ${fullQuote?.client_city ? `<p>${fullQuote.client_city}, ${fullQuote.client_state || ''} ${fullQuote.client_zip || ''}</p>` : ''}
+              ${settings?.show_client_email_on_invoice && fullQuote?.client_email ? `<p>${fullQuote.client_email}</p>` : ''}
+              ${settings?.show_client_phone_on_invoice && fullQuote?.client_phone ? `<p>${fullQuote.client_phone}</p>` : ''}
+              ${settings?.show_client_billing_address_on_invoice && fullQuote?.billing_address ? `
+                <p><em>Billing Address:</em></p>
+                <p>${fullQuote.billing_address}</p>
+                ${fullQuote?.billing_city ? `<p>${fullQuote.billing_city}, ${fullQuote.billing_state || ''} ${fullQuote.billing_zip || ''}</p>` : ''}
+              ` : `
+                ${fullQuote?.client_address ? `<p>${fullQuote.client_address}</p>` : ''}
+                ${fullQuote?.client_city ? `<p>${fullQuote.client_city}, ${fullQuote.client_state || ''} ${fullQuote.client_zip || ''}</p>` : ''}
+              `}
+              ${settings?.show_client_shipping_address_on_invoice && fullQuote?.shipping_address ? `
+                <p><em>Shipping Address:</em></p>
+                <p>${fullQuote.shipping_address}</p>
+                ${fullQuote?.shipping_city ? `<p>${fullQuote.shipping_city}, ${fullQuote.shipping_state || ''} ${fullQuote.shipping_zip || ''}</p>` : ''}
+              ` : ''}
+              ${settings?.show_client_tax_id_on_invoice && fullQuote?.tax_id ? `<p><em>Tax ID:</em> ${fullQuote.tax_id}</p>` : ''}
             </div>
             <div class="quote-details">
               <p><strong>Quote Date:</strong> ${formatDate(fullQuote?.date || '')}</p>
@@ -350,8 +362,10 @@ function QuotePreview({ quote, onClose }) {
           <table>
             <thead>
               <tr>
+                ${settings?.show_item_sku_on_invoice ? '<th>SKU</th>' : ''}
                 <th>Description</th>
                 <th class="text-center">Qty</th>
+                ${settings?.show_item_unit_on_invoice ? '<th class="text-center">Unit</th>' : ''}
                 <th class="text-right">Rate</th>
                 <th class="text-right">Amount</th>
               </tr>
@@ -359,8 +373,10 @@ function QuotePreview({ quote, onClose }) {
             <tbody>
               ${(fullQuote.items || []).map(item => `
                 <tr>
+                  ${settings?.show_item_sku_on_invoice ? `<td>${item.sku || '-'}</td>` : ''}
                   <td>${item.description}</td>
                   <td class="text-center">${item.quantity}</td>
+                  ${settings?.show_item_unit_on_invoice ? `<td class="text-center">${item.unit_of_measure || 'Each'}</td>` : ''}
                   <td class="text-right">${formatCurrency(item.rate)}</td>
                   <td class="text-right"><strong>${formatCurrency(item.amount)}</strong></td>
                 </tr>

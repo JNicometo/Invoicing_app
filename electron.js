@@ -408,12 +408,12 @@ ipcMain.handle('db:getSavedItem', async (event, id) => {
   }
 });
 
-ipcMain.handle('db:getSavedItemByItemNumber', async (event, itemNumber) => {
+ipcMain.handle('db:getSavedItemBySku', async (event, sku) => {
   try {
     // SQL Server adapter doesn't have this yet, fallback to SQLite
-    return db.getSavedItemByItemNumber(itemNumber);
+    return db.getSavedItemBySku(sku);
   } catch (error) {
-    console.error('Error getting saved item by item number:', error);
+    console.error('Error getting saved item by SKU:', error);
     throw error;
   }
 });
