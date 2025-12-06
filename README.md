@@ -40,8 +40,16 @@ A professional, feature-rich desktop invoicing application built with Electron. 
 
 - **📥 PDF Export** - Professional invoice PDFs
   - One-click PDF generation
+  - Optimized for single-page layout
   - Company branding included
   - Save anywhere on your system
+
+- **💳 Payment Link Generation** - Accept online payments easily
+  - Generate Stripe payment links with one click
+  - Generate PayPal payment links instantly
+  - Copy-to-clipboard for easy sharing
+  - 17 payment method options for tracking
+  - Simple setup - no webhooks or servers needed
 
 - **⌨️ Keyboard Shortcuts** - Lightning-fast navigation
   - Full keyboard shortcut support
@@ -59,13 +67,17 @@ A professional, feature-rich desktop invoicing application built with Electron. 
   - Tax rates and payment terms
   - Theme customization
 
-### Advanced Features (Roadmap)
-- **Email Integration** - Send invoices directly via email
-- **Recurring Invoices** - Automate recurring billing
-- **Expense Tracking** - Track business expenses and generate reports
-- **Quotes & Estimates** - Create and convert quotes to invoices
-- **Multi-Currency Support** - Handle international clients
-- **Payment Integration** - Accept online payments
+### Advanced Features ✅
+- **✅ Email Integration** - Send invoices directly via email
+- **✅ Payment Link Generation** - Stripe & PayPal payment links
+- **✅ Payment Tracking** - Track 17 different payment methods
+- **✅ Quotes & Estimates** - Create and convert quotes to invoices
+
+### Planned Features 📅
+- **📅 Recurring Invoices** - Automate recurring billing
+- **📅 Expense Tracking** - Track business expenses and generate reports
+- **📅 Multi-Currency Support** - Handle international clients
+- **📅 Automated Payment Webhooks** - Auto-update invoices when paid
 
 ## Quick Start
 
@@ -200,13 +212,18 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 - ✅ Client management with customer numbers
 - ✅ Saved items library with item numbers
 - ✅ Dashboard with visual statistics and charts
-- ✅ PDF export functionality
+- ✅ PDF export functionality (optimized layout)
+- ✅ Invoice numbering fix (proper sequential numbering)
 - ✅ Archive system
 - ✅ Global search functionality
 - ✅ Quick filters and date range filtering
 - ✅ Batch operations
 - ✅ Keyboard shortcuts
 - ✅ Automatic overdue status tracking
+- ✅ Payment link generation (Stripe & PayPal)
+- ✅ 17 payment method options
+- ✅ Email invoice sending
+- ✅ Quotes and estimates
 - ✅ Comprehensive user documentation
 
 ### In Progress 🚧
@@ -215,13 +232,12 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 - 🚧 Application packaging for distribution
 
 ### Planned 📅
-- 📅 Email integration for sending invoices
-- 📅 Recurring invoices
+- 📅 Recurring invoices (automated)
 - 📅 Expense tracking
-- 📅 Quotes and estimates
 - 📅 Multi-currency support
-- 📅 Payment gateway integration
+- 📅 Automated payment webhooks
 - 📅 Mobile companion app
+- 📅 Advanced reporting
 
 ## Testing
 
