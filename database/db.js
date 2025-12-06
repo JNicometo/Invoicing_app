@@ -202,6 +202,12 @@ const runMigrations = () => {
       { name: 'stripe_webhook_secret', type: 'TEXT', default: "''" },
       { name: 'webhook_port', type: 'TEXT', default: "'3001'" },
 
+      // PayPal Integration
+      { name: 'paypal_client_id', type: 'TEXT', default: "''" },
+      { name: 'paypal_client_secret', type: 'TEXT', default: "''" },
+      { name: 'paypal_enabled', type: 'INTEGER', default: '0' },
+      { name: 'paypal_mode', type: 'TEXT', default: "'sandbox'" }, // sandbox or live
+
       // SMTP Security
       { name: 'smtp_verify_tls', type: 'INTEGER', default: '1' }, // 1 = verify TLS (secure), 0 = skip verification
 
@@ -680,6 +686,32 @@ const runMigrations = () => {
       console.log(`✓ Added ${clientColumnsAdded} enhanced columns to clients table`);
     } else {
       console.log('✓ All enhanced client columns already exist');
+    }
+
+    // Add payment gateway columns to payments table
+    console.log('Checking for payment gateway columns...');
+    const paymentColumns = db.pragma('table_info(payments)');
+    const paymentColumnNames = paymentColumns.map(col => col.name);
+
+    const paymentGatewayColumns = [
+      { name: 'payment_gateway', type: 'TEXT', default: "'manual'" }, // manual, stripe, paypal
+      { name: 'transaction_id', type: 'TEXT', default: "''" },
+      { name: 'gateway_fee', type: 'REAL', default: '0' }
+    ];
+
+    let paymentColumnsAdded = 0;
+    paymentGatewayColumns.forEach(column => {
+      if (!paymentColumnNames.includes(column.name)) {
+        console.log(`Adding ${column.name} column to payments table...`);
+        db.exec(`ALTER TABLE payments ADD COLUMN ${column.name} ${column.type} DEFAULT ${column.default}`);
+        paymentColumnsAdded++;
+      }
+    });
+
+    if (paymentColumnsAdded > 0) {
+      console.log(`✓ Added ${paymentColumnsAdded} payment gateway columns to payments table`);
+    } else {
+      console.log('✓ All payment gateway columns already exist');
     }
 
     // Add enhanced saved items fields for inventory and product management

@@ -36,7 +36,10 @@ function InvoicePreview({ invoice, onClose }) {
     cvc: '',
   });
   const [processingCardPayment, setProcessingCardPayment] = useState(false);
-  const { getInvoice, getSettings, saveInvoiceAsPDF, sendInvoiceEmail, createPayment, getPaymentsByInvoice, deletePayment } = useDatabase();
+  const [stripePaymentLink, setStripePaymentLink] = useState('');
+  const [paypalPaymentLink, setPaypalPaymentLink] = useState('');
+  const [generatingPaymentLink, setGeneratingPaymentLink] = useState(false);
+  const { getInvoice, getSettings, saveInvoiceAsPDF, sendInvoiceEmail, createPayment, getPaymentsByInvoice, deletePayment, createStripePaymentLink, createPayPalPaymentLink } = useDatabase();
 
   useEffect(() => {
     loadInvoiceData();
@@ -108,12 +111,12 @@ function InvoicePreview({ invoice, onClose }) {
     const headingFontSize = headingSizeMap[headingSize];
     const bodyFontSize = bodySizeMap[bodySize];
 
-    // Spacing mapping
-    const spacingMap = { compact: '20px', normal: '40px', spacious: '60px' };
+    // Spacing mapping - reduced for better single-page fit
+    const spacingMap = { compact: '15px', normal: '25px', spacious: '40px' };
     const sectionSpacing = spacingMap[spacing];
 
-    // Margin mapping
-    const marginMap = { narrow: '0.5in', normal: '1in', wide: '1.5in' };
+    // Margin mapping - reduced for better single-page fit
+    const marginMap = { narrow: '0.3in', normal: '0.5in', wide: '0.75in' };
     const pageMargin = marginMap[marginSize];
 
     // Header height mapping
@@ -160,8 +163,8 @@ function InvoicePreview({ invoice, onClose }) {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: ${sectionSpacing};
-            padding-bottom: 20px;
+            margin-bottom: ${parseInt(sectionSpacing) * 0.8}px;
+            padding-bottom: 15px;
             border-bottom: 2px solid ${invoiceAccentColor};
           }
           ${showLogo && settings?.logo_url ? `
@@ -195,10 +198,10 @@ function InvoicePreview({ invoice, onClose }) {
           .details {
             display: flex;
             justify-content: space-between;
-            margin-bottom: ${sectionSpacing};
-            padding: 20px 0;
+            margin-bottom: ${parseInt(sectionSpacing) * 0.7}px;
+            padding: 15px 0;
             background: ${tableStyle === 'striped' ? '#f9fafb' : 'transparent'};
-            ${tableStyle === 'bordered' ? `border: ${tableBorder}; padding: 20px;` : ''}
+            ${tableStyle === 'bordered' ? `border: ${tableBorder}; padding: 15px;` : ''}
             border-radius: ${borderRadius};
           }
           .bill-to h3, .invoice-details h3 {
@@ -227,7 +230,7 @@ function InvoicePreview({ invoice, onClose }) {
           table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: ${sectionSpacing};
+            margin-bottom: ${parseInt(sectionSpacing) * 0.7}px;
             ${tableStyle === 'bordered' ? `border: ${tableBorder};` : ''}
           }
           thead tr {
@@ -278,8 +281,8 @@ function InvoicePreview({ invoice, onClose }) {
             color: ${textPrimaryColor};
           }
           .notes, .payment-terms, .bank-details {
-            margin-bottom: ${parseInt(sectionSpacing) / 2}px;
-            padding: 15px;
+            margin-bottom: ${parseInt(sectionSpacing) * 0.4}px;
+            padding: 12px;
             background: ${tableStyle === 'striped' ? '#f9fafb' : 'transparent'};
             border-radius: ${borderRadius};
             ${tableStyle === 'bordered' ? `border: ${tableBorder};` : ''}
@@ -297,11 +300,15 @@ function InvoicePreview({ invoice, onClose }) {
           }
           .footer {
             text-align: center;
-            padding-top: ${sectionSpacing};
-            margin-top: ${sectionSpacing};
+            padding-top: ${parseInt(sectionSpacing) * 0.6}px;
+            margin-top: ${parseInt(sectionSpacing) * 0.6}px;
             border-top: 1px solid ${textSecondaryColor};
             font-size: ${parseInt(bodyFontSize) - 1}pt;
             color: ${textSecondaryColor};
+          }
+          @media print {
+            body { margin: 0; padding: ${pageMargin}; }
+            .container { page-break-inside: avoid; }
           }
         </style>
       </head>
@@ -506,6 +513,52 @@ function InvoicePreview({ invoice, onClose }) {
     } finally {
       setSending(false);
     }
+  };
+
+  const handleGenerateStripeLink = async () => {
+    try {
+      setGeneratingPaymentLink(true);
+      const result = await createStripePaymentLink({
+        settings,
+        invoice: fullInvoice,
+        client: { id: fullInvoice.client_id, name: fullInvoice.client_name }
+      });
+
+      if (result.success) {
+        setStripePaymentLink(result.paymentLink);
+        alert('Stripe payment link generated! You can now copy and send it to your client.');
+      }
+    } catch (error) {
+      console.error('Error generating Stripe link:', error);
+      alert(error.message || 'Error generating Stripe payment link');
+    } finally {
+      setGeneratingPaymentLink(false);
+    }
+  };
+
+  const handleGeneratePayPalLink = async () => {
+    try {
+      setGeneratingPaymentLink(true);
+      const result = await createPayPalPaymentLink({
+        settings,
+        invoice: fullInvoice
+      });
+
+      if (result.success) {
+        setPaypalPaymentLink(result.paymentLink);
+        alert('PayPal payment link generated! You can now copy and send it to your client.');
+      }
+    } catch (error) {
+      console.error('Error generating PayPal link:', error);
+      alert(error.message || 'Error generating PayPal payment link');
+    } finally {
+      setGeneratingPaymentLink(false);
+    }
+  };
+
+  const handleCopyLink = (link, gateway) => {
+    navigator.clipboard.writeText(link);
+    alert(`${gateway} payment link copied to clipboard!`);
   };
 
   const handleOpenPaymentModal = () => {
@@ -744,12 +797,25 @@ function InvoicePreview({ invoice, onClose }) {
               </h2>
               <div className="flex space-x-2">
                 {settings?.stripe_enabled && (fullInvoice.total - totalPaid) > 0 && (
+                  <>
+                    <button
+                      onClick={handleGenerateStripeLink}
+                      disabled={generatingPaymentLink}
+                      className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                    >
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      {generatingPaymentLink ? 'Generating...' : 'Stripe Payment Link'}
+                    </button>
+                  </>
+                )}
+                {settings?.paypal_enabled && (fullInvoice.total - totalPaid) > 0 && (
                   <button
-                    onClick={() => setShowCardPaymentModal(true)}
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    onClick={handleGeneratePayPalLink}
+                    disabled={generatingPaymentLink}
+                    className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
                   >
-                    <CreditCard className="w-4 h-4 mr-2" />
-                    Pay with Card
+                    <DollarSign className="w-4 h-4 mr-2" />
+                    {generatingPaymentLink ? 'Generating...' : 'PayPal Payment Link'}
                   </button>
                 )}
                 <button
@@ -800,6 +866,54 @@ function InvoicePreview({ invoice, onClose }) {
                 ></div>
               </div>
             </div>
+
+            {/* Payment Links Display */}
+            {(stripePaymentLink || paypalPaymentLink) && (
+              <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                <h3 className="text-lg font-semibold text-purple-900 mb-3">Payment Links</h3>
+                {stripePaymentLink && (
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Stripe Payment Link</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={stripePaymentLink}
+                        readOnly
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                      />
+                      <button
+                        onClick={() => handleCopyLink(stripePaymentLink, 'Stripe')}
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {paypalPaymentLink && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">PayPal Payment Link</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={paypalPaymentLink}
+                        readOnly
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                      />
+                      <button
+                        onClick={() => handleCopyLink(paypalPaymentLink, 'PayPal')}
+                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <p className="text-sm text-gray-600 mt-3">
+                  💡 Copy these links and send them to your client via email or message. They can click to pay securely.
+                </p>
+              </div>
+            )}
 
             {/* Payment History */}
             {payments.length > 0 ? (
@@ -908,7 +1022,19 @@ function InvoicePreview({ invoice, onClose }) {
                       <option value="Cash">Cash</option>
                       <option value="Check">Check</option>
                       <option value="Credit Card">Credit Card</option>
+                      <option value="Debit Card">Debit Card</option>
                       <option value="Bank Transfer">Bank Transfer</option>
+                      <option value="ACH">ACH</option>
+                      <option value="Wire Transfer">Wire Transfer</option>
+                      <option value="PayPal">PayPal</option>
+                      <option value="Venmo">Venmo</option>
+                      <option value="Zelle">Zelle</option>
+                      <option value="Stripe">Stripe</option>
+                      <option value="Square">Square</option>
+                      <option value="Apple Pay">Apple Pay</option>
+                      <option value="Google Pay">Google Pay</option>
+                      <option value="Cryptocurrency">Cryptocurrency</option>
+                      <option value="Money Order">Money Order</option>
                       <option value="Other">Other</option>
                     </select>
                   </div>

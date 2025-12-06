@@ -1204,11 +1204,22 @@ function ClientManagement({ onNavigateToInvoices }) {
                         className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                       >
                         <option value="">Select...</option>
+                        <option value="Cash">Cash</option>
                         <option value="Check">Check</option>
                         <option value="Credit Card">Credit Card</option>
-                        <option value="ACH">ACH / Bank Transfer</option>
+                        <option value="Debit Card">Debit Card</option>
+                        <option value="Bank Transfer">Bank Transfer</option>
+                        <option value="ACH">ACH</option>
                         <option value="Wire Transfer">Wire Transfer</option>
-                        <option value="Cash">Cash</option>
+                        <option value="PayPal">PayPal</option>
+                        <option value="Venmo">Venmo</option>
+                        <option value="Zelle">Zelle</option>
+                        <option value="Stripe">Stripe</option>
+                        <option value="Square">Square</option>
+                        <option value="Apple Pay">Apple Pay</option>
+                        <option value="Google Pay">Google Pay</option>
+                        <option value="Cryptocurrency">Cryptocurrency</option>
+                        <option value="Money Order">Money Order</option>
                         <option value="Other">Other</option>
                       </select>
                     </div>
