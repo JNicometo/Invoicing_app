@@ -752,7 +752,7 @@ function InvoicePreview({ invoice, onClose }) {
 
   return (
     <div className="p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         {/* Header Actions */}
         <div className="flex justify-between items-center mb-6 print:hidden">
           <h1 className="text-3xl font-bold text-gray-900">Invoice Preview</h1>
