@@ -36,7 +36,7 @@ function QuotePreview({ quote, onClose }) {
     cvc: '',
   });
   const [processingCardPayment, setProcessingCardPayment] = useState(false);
-  const { getQuote, getSettings, savePDF, sendInvoiceEmail, createPayment, getPaymentsByQuote, deletePayment } = useDatabase();
+  const { getQuote, getSettings, savePDF, sendQuoteEmail, createPayment, getPaymentsByQuote, deletePayment } = useDatabase();
 
   const loadQuoteData = useCallback(async () => {
     try {
@@ -492,7 +492,7 @@ function QuotePreview({ quote, onClose }) {
       setSending(true);
       const quoteHtml = generateQuoteHTML();
 
-      const result = await sendInvoiceEmail({
+      const result = await sendQuoteEmail({
         settings,
         recipient: emailData.recipient,
         subject: emailData.subject,
