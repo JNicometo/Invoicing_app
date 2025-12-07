@@ -85,6 +85,11 @@ function Settings() {
     square_enabled: false,
     square_environment: 'sandbox',
 
+    // GoCardless Integration
+    gocardless_access_token: '',
+    gocardless_enabled: false,
+    gocardless_environment: 'sandbox',
+
     // Display Options
     show_item_numbers: true,
     show_customer_numbers: true,
@@ -239,6 +244,11 @@ function Settings() {
           square_location_id: data.square_location_id || '',
           square_enabled: data.square_enabled !== undefined ? data.square_enabled : false,
           square_environment: data.square_environment || 'sandbox',
+
+          // GoCardless Integration
+          gocardless_access_token: data.gocardless_access_token || '',
+          gocardless_enabled: data.gocardless_enabled !== undefined ? data.gocardless_enabled : false,
+          gocardless_environment: data.gocardless_environment || 'sandbox',
 
           // Display Options
           show_item_numbers: data.show_item_numbers !== undefined ? data.show_item_numbers : true,
@@ -1542,6 +1552,90 @@ function Settings() {
                       <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
                         <p className="text-sm text-green-800">
                           <strong>✓ Square Enabled:</strong> Square payment links will be generated for invoices. Clients can pay with credit/debit cards, Apple Pay, and Google Pay.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="border-t border-gray-200 pt-8"></div>
+
+                  {/* GoCardless Configuration */}
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-2">
+                        <DollarSign className="w-5 h-5 text-indigo-600" />
+                        <h3 className="text-lg font-semibold text-gray-900">GoCardless (ACH/Bank Transfer)</h3>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          name="gocardless_enabled"
+                          checked={formData.gocardless_enabled}
+                          onChange={(e) => setFormData(prev => ({ ...prev, gocardless_enabled: e.target.checked }))}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                      </label>
+                    </div>
+
+                    <div className="p-4 bg-indigo-50 border border-indigo-200 rounded-lg">
+                      <p className="text-sm text-indigo-900 mb-2">
+                        <strong>💰 Lowest Fees - Save up to 65%!</strong>
+                      </p>
+                      <p className="text-xs text-indigo-800 mb-2">
+                        GoCardless charges only 1% + $0.25 per transaction vs 2.9% + $0.30 for credit cards. On a $5,000 invoice, you save $95!
+                      </p>
+                      <p className="text-xs text-gray-700 mb-2">
+                        <strong>How to get your GoCardless API keys:</strong>
+                      </p>
+                      <ol className="text-xs text-gray-700 space-y-1 ml-4 list-decimal">
+                        <li>Create a GoCardless account at <a href="https://gocardless.com" target="_blank" rel="noopener noreferrer" className="underline">gocardless.com</a></li>
+                        <li>Go to <a href="https://developer.gocardless.com/" target="_blank" rel="noopener noreferrer" className="underline">developer.gocardless.com</a></li>
+                        <li>Navigate to the Developers section</li>
+                        <li>Copy your Access Token</li>
+                        <li>Paste it below and enable GoCardless</li>
+                      </ol>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        GoCardless Access Token <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="password"
+                        name="gocardless_access_token"
+                        value={formData.gocardless_access_token}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                        placeholder="live_xxxxxxxxxxxxxxxxxx"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Your GoCardless API access token
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Environment
+                      </label>
+                      <select
+                        name="gocardless_environment"
+                        value={formData.gocardless_environment}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-indigo-500 focus:border-transparent"
+                      >
+                        <option value="sandbox">Sandbox (Testing)</option>
+                        <option value="live">Live (Production)</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Use Sandbox for testing, Live for real bank transfers
+                      </p>
+                    </div>
+
+                    {formData.gocardless_enabled && formData.gocardless_access_token && (
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-sm text-green-800">
+                          <strong>✓ GoCardless Enabled:</strong> GoCardless payment links will be generated for invoices. Clients can pay via ACH (US) or SEPA (Europe) bank transfers with the lowest fees available!
                         </p>
                       </div>
                     )}

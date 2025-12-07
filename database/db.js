@@ -214,6 +214,11 @@ const runMigrations = () => {
       { name: 'square_enabled', type: 'INTEGER', default: '0' },
       { name: 'square_environment', type: 'TEXT', default: "'sandbox'" }, // sandbox or production
 
+      // GoCardless Integration (ACH/SEPA)
+      { name: 'gocardless_access_token', type: 'TEXT', default: "''" },
+      { name: 'gocardless_enabled', type: 'INTEGER', default: '0' },
+      { name: 'gocardless_environment', type: 'TEXT', default: "'sandbox'" }, // sandbox or live
+
       // SMTP Security
       { name: 'smtp_verify_tls', type: 'INTEGER', default: '1' }, // 1 = verify TLS (secure), 0 = skip verification
 
