@@ -1454,6 +1454,99 @@ function Settings() {
                     )}
                   </div>
 
+                  {/* Square Configuration */}
+                  <div className="space-y-4 mt-8 pt-8 border-t">
+                    <div className="flex items-center justify-between mb-4">
+                      <div className="flex items-center space-x-2">
+                        <CreditCard className="w-5 h-5 text-gray-900" />
+                        <h3 className="text-lg font-semibold text-gray-900">Square</h3>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          name="square_enabled"
+                          checked={formData.square_enabled}
+                          onChange={(e) => setFormData(prev => ({ ...prev, square_enabled: e.target.checked }))}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
+                      </label>
+                    </div>
+
+                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                      <p className="text-sm text-gray-800 mb-2">
+                        <strong>How to get your Square API keys:</strong>
+                      </p>
+                      <ol className="text-xs text-gray-700 space-y-1 ml-4 list-decimal">
+                        <li>Create a Square account at <a href="https://squareup.com" target="_blank" rel="noopener noreferrer" className="underline">squareup.com</a></li>
+                        <li>Go to <a href="https://developer.squareup.com/" target="_blank" rel="noopener noreferrer" className="underline">developer.squareup.com</a></li>
+                        <li>Create an Application (or use an existing one)</li>
+                        <li>Copy your Access Token from the Credentials page</li>
+                        <li>Paste it below and enable Square</li>
+                      </ol>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Square Access Token <span className="text-red-500">*</span>
+                      </label>
+                      <input
+                        type="password"
+                        name="square_access_token"
+                        value={formData.square_access_token}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                        placeholder="EAAAxxxxxxxxxxxxxxxxxxxx"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Your Square application access token
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Square Location ID <span className="text-gray-400">(Optional)</span>
+                      </label>
+                      <input
+                        type="text"
+                        name="square_location_id"
+                        value={formData.square_location_id}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                        placeholder="Leave blank to use default location"
+                      />
+                      <p className="text-xs text-gray-500 mt-1">
+                        Only needed if you have multiple locations
+                      </p>
+                    </div>
+
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 mb-1">
+                        Environment
+                      </label>
+                      <select
+                        name="square_environment"
+                        value={formData.square_environment}
+                        onChange={handleInputChange}
+                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                      >
+                        <option value="sandbox">Sandbox (Testing)</option>
+                        <option value="production">Production (Live)</option>
+                      </select>
+                      <p className="text-xs text-gray-500 mt-1">
+                        Use Sandbox for testing, Production for real payments
+                      </p>
+                    </div>
+
+                    {formData.square_enabled && formData.square_access_token && (
+                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                        <p className="text-sm text-green-800">
+                          <strong>✓ Square Enabled:</strong> Square payment links will be generated for invoices. Clients can pay with credit/debit cards, Apple Pay, and Google Pay.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+
                   <div className="border-t border-gray-200 pt-8"></div>
 
                   {/* PayPal Configuration */}

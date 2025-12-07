@@ -38,8 +38,9 @@ function InvoicePreview({ invoice, onClose }) {
   const [processingCardPayment, setProcessingCardPayment] = useState(false);
   const [stripePaymentLink, setStripePaymentLink] = useState('');
   const [paypalPaymentLink, setPaypalPaymentLink] = useState('');
+  const [squarePaymentLink, setSquarePaymentLink] = useState('');
   const [generatingPaymentLink, setGeneratingPaymentLink] = useState(false);
-  const { getInvoice, getSettings, saveInvoiceAsPDF, sendInvoiceEmail, createPayment, getPaymentsByInvoice, deletePayment, createStripePaymentLink, createPayPalPaymentLink } = useDatabase();
+  const { getInvoice, getSettings, saveInvoiceAsPDF, sendInvoiceEmail, createPayment, getPaymentsByInvoice, deletePayment, createStripePaymentLink, createPayPalPaymentLink, createSquarePaymentLink } = useDatabase();
 
   useEffect(() => {
     loadInvoiceData();
@@ -556,6 +557,27 @@ function InvoicePreview({ invoice, onClose }) {
     }
   };
 
+  const handleGenerateSquareLink = async () => {
+    try {
+      setGeneratingPaymentLink(true);
+      const result = await createSquarePaymentLink({
+        settings,
+        invoice: fullInvoice,
+        client: { id: fullInvoice.client_id, name: fullInvoice.client_name }
+      });
+
+      if (result.success) {
+        setSquarePaymentLink(result.paymentLink);
+        alert('Square payment link generated! You can now copy and send it to your client.');
+      }
+    } catch (error) {
+      console.error('Error generating Square link:', error);
+      alert(error.message || 'Error generating Square payment link');
+    } finally {
+      setGeneratingPaymentLink(false);
+    }
+  };
+
   const handleCopyLink = (link, gateway) => {
     navigator.clipboard.writeText(link);
     alert(`${gateway} payment link copied to clipboard!`);
@@ -818,6 +840,16 @@ function InvoicePreview({ invoice, onClose }) {
                     {generatingPaymentLink ? 'Generating...' : 'PayPal Payment Link'}
                   </button>
                 )}
+                {settings?.square_enabled && (fullInvoice.total - totalPaid) > 0 && (
+                  <button
+                    onClick={handleGenerateSquareLink}
+                    disabled={generatingPaymentLink}
+                    className="flex items-center px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
+                  >
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    {generatingPaymentLink ? 'Generating...' : 'Square Payment Link'}
+                  </button>
+                )}
                 <button
                   onClick={handleOpenPaymentModal}
                   className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
@@ -868,7 +900,7 @@ function InvoicePreview({ invoice, onClose }) {
             </div>
 
             {/* Payment Links Display */}
-            {(stripePaymentLink || paypalPaymentLink) && (
+            {(stripePaymentLink || paypalPaymentLink || squarePaymentLink) && (
               <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
                 <h3 className="text-lg font-semibold text-purple-900 mb-3">Payment Links</h3>
                 {stripePaymentLink && (
@@ -891,7 +923,7 @@ function InvoicePreview({ invoice, onClose }) {
                   </div>
                 )}
                 {paypalPaymentLink && (
-                  <div>
+                  <div className="mb-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">PayPal Payment Link</label>
                     <div className="flex gap-2">
                       <input
@@ -903,6 +935,25 @@ function InvoicePreview({ invoice, onClose }) {
                       <button
                         onClick={() => handleCopyLink(paypalPaymentLink, 'PayPal')}
                         className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {squarePaymentLink && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Square Payment Link</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={squarePaymentLink}
+                        readOnly
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                      />
+                      <button
+                        onClick={() => handleCopyLink(squarePaymentLink, 'Square')}
+                        className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm"
                       >
                         Copy
                       </button>
