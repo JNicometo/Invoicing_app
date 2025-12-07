@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef } from 'react';
-import { Save, Building, FileText, Palette, Check, Settings as SettingsIcon, Globe, Mail, Hash, Upload, X as XIcon, Type, Layout, Paintbrush, Eye, CreditCard, HardDrive, Download, UploadCloud, Database, Server, DollarSign } from 'lucide-react';
+import { Save, Building, FileText, Palette, Check, Settings as SettingsIcon, Globe, Mail, Hash, Upload, X as XIcon, Type, Layout, Paintbrush, Eye, CreditCard, HardDrive, Download, UploadCloud, Database, Server, DollarSign, ChevronDown } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { validateSettings } from '../utils/validation';
 
@@ -10,6 +10,12 @@ function Settings() {
   const [errors, setErrors] = useState({});
   const [successMessage, setSuccessMessage] = useState('');
   const [logoPreview, setLogoPreview] = useState('');
+  const [expandedPaymentGateways, setExpandedPaymentGateways] = useState({
+    stripe: false,
+    paypal: false,
+    square: false,
+    gocardless: false,
+  });
 
   const fileInputRef = useRef(null);
   const { getSettings, updateSettings } = useDatabase();
@@ -84,6 +90,11 @@ function Settings() {
     square_location_id: '',
     square_enabled: false,
     square_environment: 'sandbox',
+
+    // GoCardless Integration
+    gocardless_access_token: '',
+    gocardless_enabled: false,
+    gocardless_environment: 'sandbox',
 
     // Display Options
     show_item_numbers: true,
@@ -239,6 +250,11 @@ function Settings() {
           square_location_id: data.square_location_id || '',
           square_enabled: data.square_enabled !== undefined ? data.square_enabled : false,
           square_environment: data.square_environment || 'sandbox',
+
+          // GoCardless Integration
+          gocardless_access_token: data.gocardless_access_token || '',
+          gocardless_enabled: data.gocardless_enabled !== undefined ? data.gocardless_enabled : false,
+          gocardless_environment: data.gocardless_environment || 'sandbox',
 
           // Display Options
           show_item_numbers: data.show_item_numbers !== undefined ? data.show_item_numbers : true,
@@ -1311,330 +1327,333 @@ function Settings() {
 
               {/* Payment Gateways Tab */}
               {activeTab === 'payments' && (
-                <div className="space-y-8">
+                <div className="space-y-6">
                   <div>
-                    <h2 className="text-xl font-semibold text-gray-900 mb-4">Payment Gateway Integration</h2>
+                    <h2 className="text-xl font-semibold text-gray-900 mb-2">Payment Gateway Integration</h2>
                     <p className="text-sm text-gray-600 mb-6">
-                      Connect payment gateways to accept online payments and generate payment links for invoices
+                      Connect payment gateways to accept online payments. Click on a gateway to configure it.
                     </p>
                   </div>
 
-                  {/* Stripe Configuration */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-2">
-                        <CreditCard className="w-5 h-5 text-gray-700" />
-                        <h3 className="text-lg font-semibold text-gray-900">Stripe</h3>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          name="stripe_enabled"
-                          checked={formData.stripe_enabled}
-                          onChange={(e) => setFormData(prev => ({ ...prev, stripe_enabled: e.target.checked }))}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                      </label>
-                    </div>
-
-                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-800 mb-2">
-                        <strong>How to get your Stripe API keys:</strong>
-                      </p>
-                      <ol className="text-xs text-blue-700 space-y-1 ml-4 list-decimal">
-                        <li>Sign up for a free account at <a href="https://stripe.com" target="_blank" rel="noopener noreferrer" className="underline">stripe.com</a></li>
-                        <li>Go to Developers → API keys in your Stripe Dashboard</li>
-                        <li>Copy your "Publishable key" and "Secret key"</li>
-                        <li>Use Test mode keys for testing, Live mode for production</li>
-                      </ol>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Stripe Secret Key <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="password"
-                          name="stripe_secret_key"
-                          value={formData.stripe_secret_key}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                          placeholder="sk_test_..."
-                          autoComplete="off"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Starts with sk_test_ (test) or sk_live_ (production)
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Stripe Publishable Key <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          name="stripe_publishable_key"
-                          value={formData.stripe_publishable_key}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                          placeholder="pk_test_..."
-                          autoComplete="off"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          Starts with pk_test_ (test) or pk_live_ (production)
-                        </p>
-                      </div>
-                    </div>
-
-                    {formData.stripe_enabled && formData.stripe_secret_key && (
-                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <p className="text-sm text-green-800">
-                          <strong>✓ Stripe Enabled:</strong> Payment links will be generated for invoices. Clients can pay online with credit/debit cards.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* PayPal Configuration */}
-                  <div className="space-y-4 mt-8 pt-8 border-t">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-2">
-                        <DollarSign className="w-5 h-5 text-blue-600" />
-                        <h3 className="text-lg font-semibold text-gray-900">PayPal</h3>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          name="paypal_enabled"
-                          checked={formData.paypal_enabled}
-                          onChange={(e) => setFormData(prev => ({ ...prev, paypal_enabled: e.target.checked }))}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                      </label>
-                    </div>
-
-                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-800 mb-2">
-                        <strong>How to set up PayPal.me:</strong>
-                      </p>
-                      <ol className="text-xs text-blue-700 space-y-1 ml-4 list-decimal">
-                        <li>Create a PayPal account at <a href="https://paypal.com" target="_blank" rel="noopener noreferrer" className="underline">paypal.com</a></li>
-                        <li>Set up your PayPal.me link (e.g., paypal.me/yourname)</li>
-                        <li>Enter your PayPal.me username below (without paypal.me/)</li>
-                        <li>Or enter your PayPal email address</li>
-                      </ol>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        PayPal.me Username or Email <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="paypal_client_id"
-                        value={formData.paypal_client_id}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
-                        placeholder="yourname or email@example.com"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Enter your PayPal.me username (e.g., "yourname") or your PayPal email address
-                      </p>
-                    </div>
-
-                    {formData.paypal_enabled && formData.paypal_client_id && (
-                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <p className="text-sm text-green-800">
-                          <strong>✓ PayPal Enabled:</strong> PayPal payment links will be generated for invoices. Clients can pay with PayPal or credit/debit cards.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Square Configuration */}
-                  <div className="space-y-4 mt-8 pt-8 border-t">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-2">
-                        <CreditCard className="w-5 h-5 text-gray-900" />
-                        <h3 className="text-lg font-semibold text-gray-900">Square</h3>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          name="square_enabled"
-                          checked={formData.square_enabled}
-                          onChange={(e) => setFormData(prev => ({ ...prev, square_enabled: e.target.checked }))}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
-                      </label>
-                    </div>
-
-                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
-                      <p className="text-sm text-gray-800 mb-2">
-                        <strong>How to get your Square API keys:</strong>
-                      </p>
-                      <ol className="text-xs text-gray-700 space-y-1 ml-4 list-decimal">
-                        <li>Create a Square account at <a href="https://squareup.com" target="_blank" rel="noopener noreferrer" className="underline">squareup.com</a></li>
-                        <li>Go to <a href="https://developer.squareup.com/" target="_blank" rel="noopener noreferrer" className="underline">developer.squareup.com</a></li>
-                        <li>Create an Application (or use an existing one)</li>
-                        <li>Copy your Access Token from the Credentials page</li>
-                        <li>Paste it below and enable Square</li>
-                      </ol>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Square Access Token <span className="text-red-500">*</span>
-                      </label>
-                      <input
-                        type="password"
-                        name="square_access_token"
-                        value={formData.square_access_token}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                        placeholder="EAAAxxxxxxxxxxxxxxxxxxxx"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Your Square application access token
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Square Location ID <span className="text-gray-400">(Optional)</span>
-                      </label>
-                      <input
-                        type="text"
-                        name="square_location_id"
-                        value={formData.square_location_id}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
-                        placeholder="Leave blank to use default location"
-                      />
-                      <p className="text-xs text-gray-500 mt-1">
-                        Only needed if you have multiple locations
-                      </p>
-                    </div>
-
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">
-                        Environment
-                      </label>
-                      <select
-                        name="square_environment"
-                        value={formData.square_environment}
-                        onChange={handleInputChange}
-                        className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-gray-500 focus:border-transparent"
+                  {/* Payment Gateway Cards - Compact View */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    {/* Stripe Card */}
+                    <div className={`border rounded-lg ${formData.stripe_enabled ? 'border-purple-300 bg-purple-50' : 'border-gray-200 bg-white'}`}>
+                      <button
+                        onClick={() => setExpandedPaymentGateways(prev => ({ ...prev, stripe: !prev.stripe }))}
+                        className="w-full p-4 flex items-center justify-between text-left"
                       >
-                        <option value="sandbox">Sandbox (Testing)</option>
-                        <option value="production">Production (Live)</option>
-                      </select>
-                      <p className="text-xs text-gray-500 mt-1">
-                        Use Sandbox for testing, Production for real payments
-                      </p>
+                        <div className="flex items-center space-x-3">
+                          <CreditCard className={`w-5 h-5 ${formData.stripe_enabled ? 'text-purple-600' : 'text-gray-400'}`} />
+                          <div>
+                            <h3 className="font-semibold text-gray-900">Stripe</h3>
+                            <p className="text-xs text-gray-500">Credit/Debit Cards</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {formData.stripe_enabled && <Check className="w-4 h-4 text-green-600" />}
+                          <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedPaymentGateways.stripe ? 'rotate-180' : ''}`} />
+                        </div>
+                      </button>
+
+                      {expandedPaymentGateways.stripe && (
+                        <div className="px-4 pb-4 space-y-4 border-t">
+                          <div className="flex items-center justify-between pt-4">
+                            <span className="text-sm font-medium text-gray-700">Enable Stripe</span>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                name="stripe_enabled"
+                                checked={formData.stripe_enabled}
+                                onChange={(e) => setFormData(prev => ({ ...prev, stripe_enabled: e.target.checked }))}
+                                className="sr-only peer"
+                              />
+                              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                            </label>
+                          </div>
+
+                          <div className="p-3 bg-purple-50 border border-purple-100 rounded text-xs text-gray-700">
+                            <strong className="block text-purple-900 mb-1">Setup:</strong>
+                            1. Sign up at <a href="https://stripe.com" target="_blank" rel="noopener noreferrer" className="text-purple-700 underline">stripe.com</a><br/>
+                            2. Get API keys from Developers → API keys
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Secret Key</label>
+                            <input
+                              type="password"
+                              name="stripe_secret_key"
+                              value={formData.stripe_secret_key}
+                              onChange={handleInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              placeholder="sk_test_..."
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Publishable Key</label>
+                            <input
+                              type="text"
+                              name="stripe_publishable_key"
+                              value={formData.stripe_publishable_key}
+                              onChange={handleInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              placeholder="pk_test_..."
+                            />
+                          </div>
+
+                          {formData.stripe_enabled && formData.stripe_secret_key && (
+                            <div className="p-2 bg-green-50 border border-green-200 rounded text-xs text-green-800">
+                              ✓ Stripe enabled - Payment links will be generated
+                            </div>
+                          )}
+                        </div>
+                      )}
                     </div>
 
-                    {formData.square_enabled && formData.square_access_token && (
-                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <p className="text-sm text-green-800">
-                          <strong>✓ Square Enabled:</strong> Square payment links will be generated for invoices. Clients can pay with credit/debit cards, Apple Pay, and Google Pay.
-                        </p>
-                      </div>
-                    )}
+                    {/* Square Card */}
+                    <div className={`border rounded-lg ${formData.square_enabled ? 'border-gray-400 bg-gray-50' : 'border-gray-200 bg-white'}`}>
+                      <button
+                        onClick={() => setExpandedPaymentGateways(prev => ({ ...prev, square: !prev.square }))}
+                        className="w-full p-4 flex items-center justify-between text-left"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <CreditCard className={`w-5 h-5 ${formData.square_enabled ? 'text-gray-900' : 'text-gray-400'}`} />
+                          <div>
+                            <h3 className="font-semibold text-gray-900">Square</h3>
+                            <p className="text-xs text-gray-500">Cards, Apple Pay, Google Pay</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {formData.square_enabled && <Check className="w-4 h-4 text-green-600" />}
+                          <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedPaymentGateways.square ? 'rotate-180' : ''}`} />
+                        </div>
+                      </button>
+
+                      {expandedPaymentGateways.square && (
+                        <div className="px-4 pb-4 space-y-4 border-t">
+                          <div className="flex items-center justify-between pt-4">
+                            <span className="text-sm font-medium text-gray-700">Enable Square</span>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                name="square_enabled"
+                                checked={formData.square_enabled}
+                                onChange={(e) => setFormData(prev => ({ ...prev, square_enabled: e.target.checked }))}
+                                className="sr-only peer"
+                              />
+                              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-gray-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-gray-900"></div>
+                            </label>
+                          </div>
+
+                          <div className="p-3 bg-gray-50 border border-gray-200 rounded text-xs text-gray-700">
+                            <strong className="block text-gray-900 mb-1">Setup:</strong>
+                            1. Sign up at <a href="https://squareup.com" target="_blank" rel="noopener noreferrer" className="text-gray-700 underline">squareup.com</a><br/>
+                            2. Go to <a href="https://developer.squareup.com" target="_blank" rel="noopener noreferrer" className="text-gray-700 underline">developer.squareup.com</a> → Credentials
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Access Token</label>
+                            <input
+                              type="password"
+                              name="square_access_token"
+                              value={formData.square_access_token}
+                              onChange={handleInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              placeholder="EAAAxxxx..."
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Location ID <span className="text-gray-400 text-xs">(Optional)</span></label>
+                            <input
+                              type="text"
+                              name="square_location_id"
+                              value={formData.square_location_id}
+                              onChange={handleInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              placeholder="Leave blank for default"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Environment</label>
+                            <select
+                              name="square_environment"
+                              value={formData.square_environment}
+                              onChange={handleInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            >
+                              <option value="sandbox">Sandbox (Testing)</option>
+                              <option value="production">Production (Live)</option>
+                            </select>
+                          </div>
+
+                          {formData.square_enabled && formData.square_access_token && (
+                            <div className="p-2 bg-green-50 border border-green-200 rounded text-xs text-green-800">
+                              ✓ Square enabled - Payment links will be generated
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* GoCardless Card */}
+                    <div className={`border rounded-lg ${formData.gocardless_enabled ? 'border-indigo-300 bg-indigo-50' : 'border-gray-200 bg-white'}`}>
+                      <button
+                        onClick={() => setExpandedPaymentGateways(prev => ({ ...prev, gocardless: !prev.gocardless }))}
+                        className="w-full p-4 flex items-center justify-between text-left"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <DollarSign className={`w-5 h-5 ${formData.gocardless_enabled ? 'text-indigo-600' : 'text-gray-400'}`} />
+                          <div>
+                            <h3 className="font-semibold text-gray-900">GoCardless</h3>
+                            <p className="text-xs text-indigo-600 font-medium">ACH/SEPA - Lowest Fees (1%)</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {formData.gocardless_enabled && <Check className="w-4 h-4 text-green-600" />}
+                          <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedPaymentGateways.gocardless ? 'rotate-180' : ''}`} />
+                        </div>
+                      </button>
+
+                      {expandedPaymentGateways.gocardless && (
+                        <div className="px-4 pb-4 space-y-4 border-t">
+                          <div className="flex items-center justify-between pt-4">
+                            <span className="text-sm font-medium text-gray-700">Enable GoCardless</span>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                name="gocardless_enabled"
+                                checked={formData.gocardless_enabled}
+                                onChange={(e) => setFormData(prev => ({ ...prev, gocardless_enabled: e.target.checked }))}
+                                className="sr-only peer"
+                              />
+                              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-indigo-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-indigo-600"></div>
+                            </label>
+                          </div>
+
+                          <div className="p-3 bg-indigo-50 border border-indigo-100 rounded text-xs">
+                            <strong className="block text-indigo-900 mb-1">💰 Save 65% on fees!</strong>
+                            <p className="text-indigo-800 mb-2">1% + $0.25 vs 2.9% + $0.30 (cards). On a $5,000 invoice, save $95!</p>
+                            <strong className="block text-gray-900 mb-1">Setup:</strong>
+                            <p className="text-gray-700">
+                              1. Sign up at <a href="https://gocardless.com" target="_blank" rel="noopener noreferrer" className="text-indigo-700 underline">gocardless.com</a><br/>
+                              2. Get access token from developer.gocardless.com
+                            </p>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Access Token</label>
+                            <input
+                              type="password"
+                              name="gocardless_access_token"
+                              value={formData.gocardless_access_token}
+                              onChange={handleInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              placeholder="live_xxxx..."
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Environment</label>
+                            <select
+                              name="gocardless_environment"
+                              value={formData.gocardless_environment}
+                              onChange={handleInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            >
+                              <option value="sandbox">Sandbox (Testing)</option>
+                              <option value="live">Live (Production)</option>
+                            </select>
+                          </div>
+
+                          {formData.gocardless_enabled && formData.gocardless_access_token && (
+                            <div className="p-2 bg-green-50 border border-green-200 rounded text-xs text-green-800">
+                              ✓ GoCardless enabled - Bank transfer payment links will be generated
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* PayPal Card */}
+                    <div className={`border rounded-lg ${formData.paypal_enabled ? 'border-blue-300 bg-blue-50' : 'border-gray-200 bg-white'}`}>
+                      <button
+                        onClick={() => setExpandedPaymentGateways(prev => ({ ...prev, paypal: !prev.paypal }))}
+                        className="w-full p-4 flex items-center justify-between text-left"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <DollarSign className={`w-5 h-5 ${formData.paypal_enabled ? 'text-blue-600' : 'text-gray-400'}`} />
+                          <div>
+                            <h3 className="font-semibold text-gray-900">PayPal</h3>
+                            <p className="text-xs text-gray-500">PayPal.me Simple Links</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {formData.paypal_enabled && <Check className="w-4 h-4 text-green-600" />}
+                          <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedPaymentGateways.paypal ? 'rotate-180' : ''}`} />
+                        </div>
+                      </button>
+
+                      {expandedPaymentGateways.paypal && (
+                        <div className="px-4 pb-4 space-y-4 border-t">
+                          <div className="flex items-center justify-between pt-4">
+                            <span className="text-sm font-medium text-gray-700">Enable PayPal</span>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                name="paypal_enabled"
+                                checked={formData.paypal_enabled}
+                                onChange={(e) => setFormData(prev => ({ ...prev, paypal_enabled: e.target.checked }))}
+                                className="sr-only peer"
+                              />
+                              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                            </label>
+                          </div>
+
+                          <div className="p-3 bg-blue-50 border border-blue-100 rounded text-xs text-gray-700">
+                            <strong className="block text-blue-900 mb-1">Setup:</strong>
+                            1. Create PayPal account at <a href="https://paypal.com" target="_blank" rel="noopener noreferrer" className="text-blue-700 underline">paypal.com</a><br/>
+                            2. Set up your PayPal.me link<br/>
+                            3. Enter your username or email below
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">PayPal.me Username or Email</label>
+                            <input
+                              type="text"
+                              name="paypal_client_id"
+                              value={formData.paypal_client_id}
+                              onChange={handleInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              placeholder="yourname or email@example.com"
+                            />
+                            <p className="text-xs text-gray-500 mt-1">
+                              Enter your PayPal.me username or PayPal email
+                            </p>
+                          </div>
+
+                          {formData.paypal_enabled && formData.paypal_client_id && (
+                            <div className="p-2 bg-green-50 border border-green-200 rounded text-xs text-green-800">
+                              ✓ PayPal enabled - Payment links will be generated
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
                   </div>
 
-                  <div className="border-t border-gray-200 pt-8"></div>
-
-                  {/* PayPal Configuration */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between mb-4">
-                      <div className="flex items-center space-x-2">
-                        <CreditCard className="w-5 h-5 text-gray-700" />
-                        <h3 className="text-lg font-semibold text-gray-900">PayPal</h3>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          name="paypal_enabled"
-                          checked={formData.paypal_enabled}
-                          onChange={(e) => setFormData(prev => ({ ...prev, paypal_enabled: e.target.checked }))}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-blue-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                      </label>
-                    </div>
-
-                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
-                      <p className="text-sm text-blue-800 mb-2">
-                        <strong>How to get your PayPal API credentials:</strong>
-                      </p>
-                      <ol className="text-xs text-blue-700 space-y-1 ml-4 list-decimal">
-                        <li>Sign up for a PayPal Business account at <a href="https://paypal.com" target="_blank" rel="noopener noreferrer" className="underline">paypal.com</a></li>
-                        <li>Go to Dashboard → My Apps & Credentials</li>
-                        <li>Create a new app or use an existing one</li>
-                        <li>Copy your Client ID and Secret</li>
-                      </ol>
-                    </div>
-
-                    <div className="grid grid-cols-1 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          PayPal Client ID <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="text"
-                          name="paypal_client_id"
-                          value={formData.paypal_client_id}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                          placeholder="AY..."
-                          autoComplete="off"
-                        />
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          PayPal Client Secret <span className="text-red-500">*</span>
-                        </label>
-                        <input
-                          type="password"
-                          name="paypal_client_secret"
-                          value={formData.paypal_client_secret}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono text-sm"
-                          placeholder="E..."
-                          autoComplete="off"
-                        />
-                      </div>
-                    </div>
-
-                    {formData.paypal_enabled && formData.paypal_client_id && (
-                      <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
-                        <p className="text-sm text-green-800">
-                          <strong>✓ PayPal Enabled:</strong> Payment buttons will be added to invoices. Clients can pay via PayPal.
-                        </p>
-                      </div>
-                    )}
-                  </div>
-
-                  {/* Features Explanation */}
-                  <div className="mt-8 p-6 bg-gradient-to-r from-purple-50 to-pink-50 rounded-lg border border-purple-200">
+                  {/* Summary Footer */}
+                  <div className="mt-6 p-4 bg-gradient-to-r from-purple-50 to-indigo-50 rounded-lg border border-purple-200">
                     <div className="flex items-start space-x-3">
-                      <CreditCard className="w-5 h-5 text-purple-600 mt-0.5" />
-                      <div>
-                        <p className="text-sm font-semibold text-purple-900 mb-2">
-                          Payment Integration Features
-                        </p>
-                        <ul className="text-sm text-purple-800 space-y-1 ml-4 list-disc">
-                          <li>Generate secure payment links for each invoice</li>
-                          <li>Automatic payment tracking and reconciliation</li>
-                          <li>Email invoices with embedded "Pay Now" buttons</li>
-                          <li>Support for credit cards, debit cards, and digital wallets</li>
-                          <li>Real-time payment notifications</li>
+                      <CreditCard className="w-5 h-5 text-purple-600 mt-0.5 flex-shrink-0" />
+                      <div className="text-sm">
+                        <p className="font-semibold text-purple-900 mb-1">Payment Integration Features</p>
+                        <ul className="text-purple-800 space-y-0.5 text-xs">
+                          <li>• Generate secure payment links for each invoice</li>
+                          <li>• Support for credit cards, bank transfers, and digital wallets</li>
+                          <li>• Choose the lowest-fee option for your clients (GoCardless recommended)</li>
                         </ul>
                       </div>
                     </div>

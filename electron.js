@@ -1739,6 +1739,68 @@ ipcMain.handle('payment:createSquarePaymentLink', async (event, paymentData) => 
   }
 });
 
+// GoCardless Payment Link (ACH/SEPA)
+ipcMain.handle('payment:createGoCardlessPaymentLink', async (event, paymentData) => {
+  try {
+    const { settings, invoice, client } = paymentData;
+
+    // Validate GoCardless settings
+    if (!settings.gocardless_enabled || !settings.gocardless_access_token) {
+      throw new Error('GoCardless is not configured. Please configure GoCardless settings first.');
+    }
+
+    // Initialize GoCardless client
+    const gocardless = require('gocardless-nodejs');
+    const gcClient = gocardless(
+      settings.gocardless_access_token,
+      settings.gocardless_environment === 'live' ? gocardless.constants.Environments.Live : gocardless.constants.Environments.Sandbox
+    );
+
+    // Create a billing request with payment request
+    const billingRequest = await gcClient.billingRequests.create({
+      payment_request: {
+        description: `Invoice ${invoice.invoice_number}`,
+        amount: Math.round(invoice.total * 100), // GoCardless uses cents/pence
+        currency: (settings.currency_code || 'USD').toUpperCase(),
+        // Set metadata for reference
+        metadata: {
+          invoice_id: invoice.id.toString(),
+          invoice_number: invoice.invoice_number,
+          client_id: client.id.toString(),
+        }
+      }
+    });
+
+    // Create a billing request flow (payment page)
+    const billingRequestFlow = await gcClient.billingRequestFlows.create({
+      redirect_uri: settings.company_website || 'https://example.com',
+      exit_uri: settings.company_website || 'https://example.com',
+      links: {
+        billing_request: billingRequest.id
+      }
+    });
+
+    console.log('GoCardless payment link created:', billingRequestFlow.id);
+    return {
+      success: true,
+      paymentLink: billingRequestFlow.authorisation_url,
+      paymentLinkId: billingRequestFlow.id,
+      billingRequestId: billingRequest.id,
+      message: 'GoCardless payment link created successfully!',
+    };
+
+  } catch (error) {
+    console.error('Error creating GoCardless payment link:', error);
+    let errorMessage = error.message;
+
+    if (error.error && error.error.message) {
+      errorMessage = error.error.message;
+    }
+
+    throw new Error(errorMessage);
+  }
+});
+
 // Send email with payment link
 ipcMain.handle('email:sendInvoiceWithPayment', async (event, emailData) => {
   try {

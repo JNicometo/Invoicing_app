@@ -109,6 +109,7 @@ contextBridge.exposeInMainWorld('electron', {
         'payment:createStripePaymentLink',
         'payment:createPayPalPaymentLink',
         'payment:createSquarePaymentLink',
+        'payment:createGoCardlessPaymentLink',
         'payment:createPaymentIntent',
         'payment:processCardPayment',
         // Backup & Restore
