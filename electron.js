@@ -381,6 +381,16 @@ ipcMain.handle('db:generateInvoiceNumber', async () => {
   }
 });
 
+ipcMain.handle('db:peekNextInvoiceNumber', async () => {
+  try {
+    // Peek at next invoice number without incrementing counter
+    return db.peekNextInvoiceNumber();
+  } catch (error) {
+    console.error('Error peeking next invoice number:', error);
+    throw error;
+  }
+});
+
 // Saved Items
 ipcMain.handle('db:getAllSavedItems', async () => {
   try {
@@ -763,6 +773,16 @@ ipcMain.handle('db:generateQuoteNumber', async () => {
     return db.generateQuoteNumber();
   } catch (error) {
     console.error('Error generating quote number:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:peekNextQuoteNumber', async () => {
+  try {
+    // Peek at next quote number without incrementing counter
+    return db.peekNextQuoteNumber();
+  } catch (error) {
+    console.error('Error peeking next quote number:', error);
     throw error;
   }
 });

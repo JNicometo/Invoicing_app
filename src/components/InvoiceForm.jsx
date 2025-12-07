@@ -12,6 +12,7 @@ function InvoiceForm({ invoice, onClose }) {
     createInvoice,
     updateInvoice,
     generateInvoiceNumber,
+    peekNextInvoiceNumber,
     getSettings,
     getInvoice,
     getClientByCustomerNumber,
@@ -129,10 +130,11 @@ function InvoiceForm({ invoice, onClose }) {
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      const [clientsData, savedItemsData, settingsData] = await Promise.all([
+      const [clientsData, savedItemsData, settingsData, previewNumber] = await Promise.all([
         getAllClients(),
         getAllSavedItems(),
-        getSettings()
+        getSettings(),
+        !isEdit ? peekNextInvoiceNumber() : Promise.resolve(null)
       ]);
 
       setClients(clientsData);
@@ -142,6 +144,7 @@ function InvoiceForm({ invoice, onClose }) {
       if (!isEdit) {
         setFormData(prev => ({
           ...prev,
+          invoice_number: previewNumber,
           payment_terms: settingsData.payment_terms || ''
         }));
       }
@@ -486,7 +489,6 @@ function InvoiceForm({ invoice, onClose }) {
                   name="invoice_number"
                   value={formData.invoice_number}
                   onChange={handleInputChange}
-                  placeholder={!isEdit ? "(Auto-generated on save)" : ""}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
                 />

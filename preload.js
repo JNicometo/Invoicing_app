@@ -28,6 +28,7 @@ contextBridge.exposeInMainWorld('electron', {
         'db:archiveInvoice',
         'db:restoreInvoice',
         'db:generateInvoiceNumber',
+        'db:peekNextInvoiceNumber',
         // Saved Items
         'db:getAllSavedItems',
         'db:getSavedItem',
@@ -50,6 +51,7 @@ contextBridge.exposeInMainWorld('electron', {
         'db:generateInvoiceFromRecurring',
         // Quotes
         'db:generateQuoteNumber',
+        'db:peekNextQuoteNumber',
         'db:createQuote',
         'db:getAllQuotes',
         'db:getArchivedQuotes',

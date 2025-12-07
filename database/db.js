@@ -1226,6 +1226,34 @@ const generateInvoiceNumber = () => {
   return `${prefix}${nextNumber}`;
 };
 
+// Preview the next invoice number WITHOUT incrementing the counter
+const peekNextInvoiceNumber = () => {
+  const settings = getSettings();
+
+  // Use the new next_invoice_number field if available
+  if (settings.next_invoice_number) {
+    return settings.next_invoice_number;
+  }
+
+  // Fallback to old prefix-based system
+  const db = getDatabase();
+  const prefix = settings.invoice_prefix || 'INV-';
+  const lastInvoice = db.prepare(`
+    SELECT invoice_number FROM invoices
+    WHERE invoice_number LIKE ?
+    ORDER BY id DESC
+    LIMIT 1
+  `).get(`${prefix}%`);
+
+  if (!lastInvoice) {
+    return `${prefix}0001`;
+  }
+
+  const lastNumber = parseInt(lastInvoice.invoice_number.replace(prefix, ''));
+  const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
+  return `${prefix}${nextNumber}`;
+};
+
 // Saved items operations
 const getAllSavedItems = () => {
   const db = getDatabase();
@@ -1559,6 +1587,29 @@ const generateQuoteNumber = () => {
   const lastNumber = parseInt(lastQuote.quote_number.replace(prefix, ''));
   const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
 
+  return `${prefix}${nextNumber}`;
+};
+
+// Preview the next quote number WITHOUT incrementing the counter
+const peekNextQuoteNumber = () => {
+  const settings = getSettings();
+
+  // Use the new next_quote_number field if available
+  if (settings.next_quote_number) {
+    return settings.next_quote_number;
+  }
+
+  // Fallback to old prefix-based system
+  const db = getDatabase();
+  const prefix = settings.quote_prefix || 'QUO-';
+  const lastQuote = db.prepare('SELECT quote_number FROM quotes ORDER BY id DESC LIMIT 1').get();
+
+  if (!lastQuote) {
+    return `${prefix}0001`;
+  }
+
+  const lastNumber = parseInt(lastQuote.quote_number.replace(prefix, ''));
+  const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
   return `${prefix}${nextNumber}`;
 };
 
@@ -2232,6 +2283,7 @@ module.exports = {
   archiveInvoice,
   restoreInvoice,
   generateInvoiceNumber,
+  peekNextInvoiceNumber,
   getAllSavedItems,
   getSavedItem,
   getSavedItemBySku,
@@ -2253,6 +2305,7 @@ module.exports = {
   generateInvoiceFromRecurring,
   // Quotes
   generateQuoteNumber,
+  peekNextQuoteNumber,
   createQuote,
   getAllQuotes,
   getArchivedQuotes,
