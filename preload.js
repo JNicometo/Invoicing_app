@@ -104,6 +104,7 @@ contextBridge.exposeInMainWorld('electron', {
         // PDF & Email
         'pdf:saveInvoice',
         'email:sendInvoice',
+        'email:sendQuote',
         'email:sendInvoiceWithPayment',
         // Payment Gateway
         'payment:createStripePaymentLink',

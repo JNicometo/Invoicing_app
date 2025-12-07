@@ -141,6 +141,10 @@ export const useDatabase = () => {
     return await ipcCall('email:sendInvoice', emailData);
   }, [ipcCall]);
 
+  const sendQuoteEmail = useCallback(async (emailData) => {
+    return await ipcCall('email:sendQuote', emailData);
+  }, [ipcCall]);
+
   // Payments
   const createPayment = useCallback(async (payment) => {
     return await ipcCall('db:createPayment', payment);
@@ -421,6 +425,7 @@ export const useDatabase = () => {
     saveInvoiceAsPDF,
     // Email
     sendInvoiceEmail,
+    sendQuoteEmail,
     // Payments
     createPayment,
     getPaymentsByInvoice,

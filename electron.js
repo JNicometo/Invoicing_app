@@ -671,6 +671,125 @@ ipcMain.handle('email:sendInvoice', async (event, emailData) => {
   }
 });
 
+// Send Quote via Email
+ipcMain.handle('email:sendQuote', async (event, emailData) => {
+  let pdfWindow = null;
+  try {
+    const { settings, recipient, subject, body, quoteHtml, quoteNumber, cc, bcc } = emailData;
+
+    // Validate SMTP settings
+    if (!settings.smtp_host || !settings.smtp_user || !settings.smtp_password) {
+      throw new Error('SMTP settings are not configured. Please configure email settings first.');
+    }
+
+    // Create a transporter
+    const transporter = nodemailer.createTransport({
+      host: settings.smtp_host,
+      port: parseInt(settings.smtp_port) || 587,
+      secure: settings.smtp_secure === true || settings.smtp_secure === 1,
+      auth: {
+        user: settings.smtp_user,
+        pass: settings.smtp_password,
+      },
+      tls: {
+        rejectUnauthorized: false,
+        minVersion: 'TLSv1.2'
+      },
+      connectionTimeout: 10000,
+      greetingTimeout: 5000
+    });
+
+    console.log('SMTP Config for Quote:', {
+      host: settings.smtp_host,
+      port: parseInt(settings.smtp_port) || 587,
+      secure: settings.smtp_secure === true || settings.smtp_secure === 1,
+      user: settings.smtp_user
+    });
+
+    // Verify connection configuration
+    await transporter.verify();
+
+    // Generate PDF in memory for attachment
+    pdfWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    await pdfWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(quoteHtml)}`);
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const pdfData = await pdfWindow.webContents.printToPDF({
+      printBackground: true,
+      pageSize: 'Letter',
+      margins: {
+        top: 0.5,
+        bottom: 0.5,
+        left: 0.5,
+        right: 0.5
+      }
+    });
+
+    // Prepare email options
+    const mailOptions = {
+      from: settings.smtp_from_email
+        ? `"${settings.smtp_from_name || settings.company_name}" <${settings.smtp_from_email}>`
+        : settings.smtp_user,
+      to: recipient,
+      subject: subject,
+      text: body,
+      html: `<pre style="font-family: Arial, sans-serif; white-space: pre-wrap;">${body}</pre>`,
+      attachments: [
+        {
+          filename: `Quote-${quoteNumber}.pdf`,
+          content: pdfData,
+          contentType: 'application/pdf'
+        }
+      ]
+    };
+
+    // Add CC and BCC if provided
+    if (cc && cc.trim()) {
+      mailOptions.cc = cc;
+    }
+    if (bcc && bcc.trim()) {
+      mailOptions.bcc = bcc;
+    }
+
+    // Send the email
+    const info = await transporter.sendMail(mailOptions);
+
+    log.success('Quote email sent successfully:', info.messageId);
+    return {
+      success: true,
+      messageId: info.messageId,
+      message: 'Quote sent successfully!'
+    };
+
+  } catch (error) {
+    log.error('Error sending quote email:', error);
+
+    // Provide user-friendly error messages
+    let errorMessage = error.message;
+    if (error.code === 'EAUTH') {
+      errorMessage = 'Authentication failed. Please check your SMTP username and password.';
+    } else if (error.code === 'ESOCKET') {
+      errorMessage = 'Could not connect to email server. Please check your SMTP host and port.';
+    } else if (error.code === 'ECONNECTION') {
+      errorMessage = 'Connection failed. Please check your internet connection and SMTP settings.';
+    }
+
+    throw new Error(errorMessage);
+  } finally {
+    // Always close the PDF window, even on error
+    if (pdfWindow && !pdfWindow.isDestroyed()) {
+      pdfWindow.close();
+    }
+  }
+});
+
 // Payments
 ipcMain.handle('db:createPayment', async (event, payment) => {
   try {

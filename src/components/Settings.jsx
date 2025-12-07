@@ -1335,6 +1335,125 @@ function Settings() {
                     </p>
                   </div>
 
+                  {/* Payment Gateway Comparison Table */}
+                  <div className="bg-gradient-to-br from-blue-50 to-purple-50 rounded-lg border border-blue-200 p-6 mb-6">
+                    <h3 className="text-lg font-semibold text-gray-900 mb-4 flex items-center">
+                      <CreditCard className="w-5 h-5 mr-2 text-blue-600" />
+                      Compare Payment Gateways
+                    </h3>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-sm">
+                        <thead>
+                          <tr className="border-b border-gray-300">
+                            <th className="text-left py-2 px-3 font-semibold text-gray-900">Gateway</th>
+                            <th className="text-left py-2 px-3 font-semibold text-gray-900">Fees</th>
+                            <th className="text-left py-2 px-3 font-semibold text-gray-900">Payment Methods</th>
+                            <th className="text-left py-2 px-3 font-semibold text-gray-900">Best For</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          <tr className="border-b border-gray-200">
+                            <td className="py-3 px-3">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-2 h-2 bg-indigo-600 rounded-full"></div>
+                                <span className="font-semibold text-gray-900">GoCardless</span>
+                                <span className="text-xs bg-green-100 text-green-800 px-2 py-0.5 rounded-full font-medium">Lowest Fees</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="font-semibold text-green-700">1% + $0.25</div>
+                              <div className="text-xs text-gray-600">Save 65% vs cards</div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="text-gray-700">ACH (US)</div>
+                              <div className="text-gray-700">SEPA (EU)</div>
+                              <div className="text-xs text-gray-500">Bank transfers</div>
+                            </td>
+                            <td className="py-3 px-3 text-gray-700">
+                              <div>• Large invoices ($1,000+)</div>
+                              <div>• Recurring payments</div>
+                              <div>• B2B transactions</div>
+                            </td>
+                          </tr>
+                          <tr className="border-b border-gray-200">
+                            <td className="py-3 px-3">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-2 h-2 bg-purple-600 rounded-full"></div>
+                                <span className="font-semibold text-gray-900">Stripe</span>
+                                <span className="text-xs bg-purple-100 text-purple-800 px-2 py-0.5 rounded-full font-medium">Popular</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="font-semibold text-gray-700">2.9% + $0.30</div>
+                              <div className="text-xs text-gray-600">Standard rate</div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="text-gray-700">Credit/Debit cards</div>
+                              <div className="text-gray-700">Apple Pay, Google Pay</div>
+                              <div className="text-xs text-gray-500">Digital wallets</div>
+                            </td>
+                            <td className="py-3 px-3 text-gray-700">
+                              <div>• Online businesses</div>
+                              <div>• International clients</div>
+                              <div>• Quick payments</div>
+                            </td>
+                          </tr>
+                          <tr className="border-b border-gray-200">
+                            <td className="py-3 px-3">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-2 h-2 bg-gray-900 rounded-full"></div>
+                                <span className="font-semibold text-gray-900">Square</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="font-semibold text-gray-700">2.9% + $0.30</div>
+                              <div className="text-xs text-gray-600">Online rate</div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="text-gray-700">Credit/Debit cards</div>
+                              <div className="text-gray-700">Apple Pay, Google Pay</div>
+                              <div className="text-gray-700">Cash App Pay</div>
+                            </td>
+                            <td className="py-3 px-3 text-gray-700">
+                              <div>• Small businesses</div>
+                              <div>• In-person + online</div>
+                              <div>• US market</div>
+                            </td>
+                          </tr>
+                          <tr>
+                            <td className="py-3 px-3">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-2 h-2 bg-blue-600 rounded-full"></div>
+                                <span className="font-semibold text-gray-900">PayPal</span>
+                                <span className="text-xs bg-blue-100 text-blue-800 px-2 py-0.5 rounded-full font-medium">Easy Setup</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="font-semibold text-gray-700">2.99% + $0.49</div>
+                              <div className="text-xs text-gray-600">PayPal.me</div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="text-gray-700">PayPal balance</div>
+                              <div className="text-gray-700">Credit/Debit cards</div>
+                              <div className="text-xs text-gray-500">via PayPal</div>
+                            </td>
+                            <td className="py-3 px-3 text-gray-700">
+                              <div>• Simple setup</div>
+                              <div>• Trusted brand</div>
+                              <div>• Consumer invoices</div>
+                            </td>
+                          </tr>
+                        </tbody>
+                      </table>
+                    </div>
+                    <div className="mt-4 p-3 bg-white rounded border border-blue-200">
+                      <p className="text-xs text-gray-700">
+                        <strong className="text-blue-900">💡 Recommendation:</strong> Enable multiple gateways to give clients payment options.
+                        For large B2B invoices, GoCardless saves significant fees. For quick consumer payments, Stripe or PayPal work well.
+                      </p>
+                    </div>
+                  </div>
+
                   {/* Payment Gateway Cards - Compact View */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Stripe Card */}
