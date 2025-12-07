@@ -1686,6 +1686,59 @@ ipcMain.handle('payment:processCardPayment', async (event, paymentData) => {
   }
 });
 
+// Square Payment Link
+ipcMain.handle('payment:createSquarePaymentLink', async (event, paymentData) => {
+  try {
+    const { settings, invoice, client } = paymentData;
+
+    // Validate Square settings
+    if (!settings.square_enabled || !settings.square_access_token) {
+      throw new Error('Square is not configured. Please configure Square settings first.');
+    }
+
+    // Initialize Square client
+    const { Client, Environment } = require('square');
+    const squareClient = new Client({
+      accessToken: settings.square_access_token,
+      environment: settings.square_environment === 'production' ? Environment.Production : Environment.Sandbox,
+    });
+
+    // Create a payment link using Square Checkout API
+    const { result } = await squareClient.checkoutApi.createPaymentLink({
+      idempotencyKey: `invoice-${invoice.id}-${Date.now()}`,
+      quickPay: {
+        name: `Invoice ${invoice.invoice_number}`,
+        priceMoney: {
+          amount: BigInt(Math.round(invoice.total * 100)), // Square uses cents
+          currency: (settings.currency_code || 'USD').toUpperCase(),
+        },
+      },
+      checkoutOptions: {
+        allowTipping: false,
+        redirectUrl: settings.company_website || undefined,
+      },
+    });
+
+    console.log('Square payment link created:', result.paymentLink.id);
+    return {
+      success: true,
+      paymentLink: result.paymentLink.url,
+      paymentLinkId: result.paymentLink.id,
+      message: 'Square payment link created successfully!',
+    };
+
+  } catch (error) {
+    console.error('Error creating Square payment link:', error);
+    let errorMessage = error.message;
+
+    if (error.errors && error.errors.length > 0) {
+      errorMessage = error.errors[0].detail || error.errors[0].code;
+    }
+
+    throw new Error(errorMessage);
+  }
+});
+
 // Send email with payment link
 ipcMain.handle('email:sendInvoiceWithPayment', async (event, emailData) => {
   try {
