@@ -79,6 +79,12 @@ function Settings() {
     paypal_client_secret: '',
     paypal_enabled: false,
 
+    // Square Integration
+    square_access_token: '',
+    square_location_id: '',
+    square_enabled: false,
+    square_environment: 'sandbox',
+
     // Display Options
     show_item_numbers: true,
     show_customer_numbers: true,
@@ -227,6 +233,12 @@ function Settings() {
           paypal_client_id: data.paypal_client_id || '',
           paypal_client_secret: data.paypal_client_secret || '',
           paypal_enabled: data.paypal_enabled !== undefined ? data.paypal_enabled : false,
+
+          // Square Integration
+          square_access_token: data.square_access_token || '',
+          square_location_id: data.square_location_id || '',
+          square_enabled: data.square_enabled !== undefined ? data.square_enabled : false,
+          square_environment: data.square_environment || 'sandbox',
 
           // Display Options
           show_item_numbers: data.show_item_numbers !== undefined ? data.show_item_numbers : true,

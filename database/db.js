@@ -208,6 +208,12 @@ const runMigrations = () => {
       { name: 'paypal_enabled', type: 'INTEGER', default: '0' },
       { name: 'paypal_mode', type: 'TEXT', default: "'sandbox'" }, // sandbox or live
 
+      // Square Integration
+      { name: 'square_access_token', type: 'TEXT', default: "''" },
+      { name: 'square_location_id', type: 'TEXT', default: "''" },
+      { name: 'square_enabled', type: 'INTEGER', default: '0' },
+      { name: 'square_environment', type: 'TEXT', default: "'sandbox'" }, // sandbox or production
+
       // SMTP Security
       { name: 'smtp_verify_tls', type: 'INTEGER', default: '1' }, // 1 = verify TLS (secure), 0 = skip verification
 

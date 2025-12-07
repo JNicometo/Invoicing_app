@@ -371,6 +371,10 @@ export const useDatabase = () => {
     return await ipcCall('payment:createPayPalPaymentLink', paymentData);
   }, [ipcCall]);
 
+  const createSquarePaymentLink = useCallback(async (paymentData) => {
+    return await ipcCall('payment:createSquarePaymentLink', paymentData);
+  }, [ipcCall]);
+
   const sendInvoiceWithPayment = useCallback(async (emailData) => {
     return await ipcCall('email:sendInvoiceWithPayment', emailData);
   }, [ipcCall]);
@@ -478,6 +482,7 @@ export const useDatabase = () => {
     // Payment Gateway
     createStripePaymentLink,
     createPayPalPaymentLink,
+    createSquarePaymentLink,
     sendInvoiceWithPayment,
   };
 };
