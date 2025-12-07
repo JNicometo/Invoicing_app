@@ -76,21 +76,19 @@ function QuoteForm({ quote, onClose }) {
   const loadInitialData = useCallback(async () => {
     try {
       setLoading(true);
-      const [clientsData, savedItemsData, settingsData, quoteNum] = await Promise.all([
+      const [clientsData, savedItemsData, settingsData] = await Promise.all([
         getAllClients(),
         getAllSavedItems(),
-        getSettings(),
-        !isEdit ? generateQuoteNumber() : Promise.resolve(null)
+        getSettings()
       ]);
 
       setClients(clientsData);
       setSavedItems(savedItemsData);
       setSettings(settingsData);
 
-      if (!isEdit && quoteNum) {
+      if (!isEdit) {
         setFormData(prev => ({
           ...prev,
-          quote_number: quoteNum,
           terms: settingsData.terms || ''
         }));
       }
@@ -378,6 +376,13 @@ function QuoteForm({ quote, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Generate quote number only when saving (not on form load)
+    if (!isEdit && !formData.quote_number) {
+      const quoteNum = await generateQuoteNumber();
+      setFormData(prev => ({ ...prev, quote_number: quoteNum }));
+      formData.quote_number = quoteNum; // Update for immediate validation
+    }
+
     const validation = validateQuote(formData, items);
     if (!validation.isValid) {
       setErrors(validation.errors);
@@ -475,6 +480,7 @@ function QuoteForm({ quote, onClose }) {
                   name="quote_number"
                   value={formData.quote_number}
                   onChange={handleInputChange}
+                  placeholder={!isEdit ? "(Auto-generated on save)" : ""}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
                 />

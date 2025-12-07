@@ -129,21 +129,19 @@ function InvoiceForm({ invoice, onClose }) {
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      const [clientsData, savedItemsData, settingsData, invoiceNum] = await Promise.all([
+      const [clientsData, savedItemsData, settingsData] = await Promise.all([
         getAllClients(),
         getAllSavedItems(),
-        getSettings(),
-        !isEdit ? generateInvoiceNumber() : Promise.resolve(null)
+        getSettings()
       ]);
 
       setClients(clientsData);
       setSavedItems(savedItemsData);
       setSettings(settingsData);
 
-      if (!isEdit && invoiceNum) {
+      if (!isEdit) {
         setFormData(prev => ({
           ...prev,
-          invoice_number: invoiceNum,
           payment_terms: settingsData.payment_terms || ''
         }));
       }
@@ -394,6 +392,13 @@ function InvoiceForm({ invoice, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
+    // Generate invoice number only when saving (not on form load)
+    if (!isEdit && !formData.invoice_number) {
+      const invoiceNum = await generateInvoiceNumber();
+      setFormData(prev => ({ ...prev, invoice_number: invoiceNum }));
+      formData.invoice_number = invoiceNum; // Update for immediate validation
+    }
+
     const validation = validateInvoice(formData, items);
     if (!validation.isValid) {
       setErrors(validation.errors);
@@ -481,6 +486,7 @@ function InvoiceForm({ invoice, onClose }) {
                   name="invoice_number"
                   value={formData.invoice_number}
                   onChange={handleInputChange}
+                  placeholder={!isEdit ? "(Auto-generated on save)" : ""}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
                 />
