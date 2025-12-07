@@ -97,6 +97,10 @@ export const useDatabase = () => {
     return await ipcCall('db:generateInvoiceNumber');
   }, [ipcCall]);
 
+  const peekNextInvoiceNumber = useCallback(async () => {
+    return await ipcCall('db:peekNextInvoiceNumber');
+  }, [ipcCall]);
+
   // Saved Items
   const getAllSavedItems = useCallback(async () => {
     return await ipcCall('db:getAllSavedItems');
@@ -178,6 +182,10 @@ export const useDatabase = () => {
   // Quotes
   const generateQuoteNumber = useCallback(async () => {
     return await ipcCall('db:generateQuoteNumber');
+  }, [ipcCall]);
+
+  const peekNextQuoteNumber = useCallback(async () => {
+    return await ipcCall('db:peekNextQuoteNumber');
   }, [ipcCall]);
 
   const createQuote = useCallback(async (quote, items) => {
@@ -391,6 +399,7 @@ export const useDatabase = () => {
     archiveInvoice,
     restoreInvoice,
     generateInvoiceNumber,
+    peekNextInvoiceNumber,
     // Saved Items
     getAllSavedItems,
     getSavedItem,
@@ -417,6 +426,7 @@ export const useDatabase = () => {
     generateInvoiceFromRecurring,
     // Quotes
     generateQuoteNumber,
+    peekNextQuoteNumber,
     createQuote,
     getAllQuotes,
     getArchivedQuotes,

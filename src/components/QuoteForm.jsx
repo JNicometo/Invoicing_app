@@ -12,6 +12,7 @@ function QuoteForm({ quote, onClose }) {
     createQuote,
     updateQuote,
     generateQuoteNumber,
+    peekNextQuoteNumber,
     getSettings,
     getQuote,
     getClientByCustomerNumber,
@@ -76,10 +77,11 @@ function QuoteForm({ quote, onClose }) {
   const loadInitialData = useCallback(async () => {
     try {
       setLoading(true);
-      const [clientsData, savedItemsData, settingsData] = await Promise.all([
+      const [clientsData, savedItemsData, settingsData, previewNumber] = await Promise.all([
         getAllClients(),
         getAllSavedItems(),
-        getSettings()
+        getSettings(),
+        !isEdit ? peekNextQuoteNumber() : Promise.resolve(null)
       ]);
 
       setClients(clientsData);
@@ -89,6 +91,7 @@ function QuoteForm({ quote, onClose }) {
       if (!isEdit) {
         setFormData(prev => ({
           ...prev,
+          quote_number: previewNumber,
           terms: settingsData.terms || ''
         }));
       }
@@ -98,7 +101,7 @@ function QuoteForm({ quote, onClose }) {
     } finally {
       setLoading(false);
     }
-  }, [getAllClients, getAllSavedItems, getSettings, generateQuoteNumber, isEdit]);
+  }, [getAllClients, getAllSavedItems, getSettings, peekNextQuoteNumber, isEdit]);
 
   useEffect(() => {
     loadInitialData();
@@ -480,7 +483,6 @@ function QuoteForm({ quote, onClose }) {
                   name="quote_number"
                   value={formData.quote_number}
                   onChange={handleInputChange}
-                  placeholder={!isEdit ? "(Auto-generated on save)" : ""}
                   className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent"
                   required
                 />
