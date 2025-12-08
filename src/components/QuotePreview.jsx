@@ -36,7 +36,7 @@ function QuotePreview({ quote, onClose }) {
     cvc: '',
   });
   const [processingCardPayment, setProcessingCardPayment] = useState(false);
-  const { getQuote, getSettings, savePDF, sendQuoteEmail, createPayment, getPaymentsByQuote, deletePayment } = useDatabase();
+  const { getQuote, getSettings, savePDF, sendQuoteEmail } = useDatabase();
 
   const loadQuoteData = useCallback(async () => {
     try {
@@ -48,33 +48,20 @@ function QuotePreview({ quote, onClose }) {
       setFullQuote(quoteData);
       setSettings(settingsData);
 
-      // Load payments
-      const paymentsData = await getPaymentsByQuote(quote.id);
-      setPayments(paymentsData || []);
-      const total = (paymentsData || []).reduce((sum, p) => sum + p.amount, 0);
-      setTotalPaid(total);
+      // Quotes don't have payments - set to empty
+      setPayments([]);
+      setTotalPaid(0);
     } catch (error) {
       console.error('Error loading quote:', error);
       alert('Error loading quote: ' + error.message);
     } finally {
       setLoading(false);
     }
-  }, [quote.id, getQuote, getSettings, getPaymentsByQuote]);
+  }, [quote.id, getQuote, getSettings]);
 
   useEffect(() => {
     loadQuoteData();
   }, [loadQuoteData]);
-
-  const loadPayments = async (invoiceId) => {
-    try {
-      const paymentsData = await getPaymentsByQuote(invoiceId || quote.id);
-      setPayments(paymentsData || []);
-      const total = (paymentsData || []).reduce((sum, p) => sum + p.amount, 0);
-      setTotalPaid(total);
-    } catch (error) {
-      console.error('Error loading payments:', error);
-    }
-  };
 
   const handlePrint = () => {
     // Add print class to body and trigger print
