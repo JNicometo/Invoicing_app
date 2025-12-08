@@ -379,13 +379,6 @@ function QuoteForm({ quote, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Generate quote number only when saving (not on form load)
-    if (!isEdit && !formData.quote_number) {
-      const quoteNum = await generateQuoteNumber();
-      setFormData(prev => ({ ...prev, quote_number: quoteNum }));
-      formData.quote_number = quoteNum; // Update for immediate validation
-    }
-
     const validation = validateQuote(formData, items);
     if (!validation.isValid) {
       setErrors(validation.errors);
@@ -404,9 +397,16 @@ function QuoteForm({ quote, onClose }) {
     }
 
     try {
+      // Generate quote number only after validation passes and right before saving
+      let quoteNumber = formData.quote_number;
+      if (!isEdit && !quoteNumber) {
+        quoteNumber = await generateQuoteNumber();
+      }
+
       const totals = calculateTotals();
       const quoteData = {
         ...formData,
+        quote_number: quoteNumber,
         subtotal: totals.subtotal,
         tax: totals.tax,
         discount_type: formData.discount_type || 'none',
@@ -438,7 +438,8 @@ function QuoteForm({ quote, onClose }) {
       onClose(true);
     } catch (error) {
       console.error('Error saving quote:', error);
-      alert('Error saving quote: ' + error.message);
+      const errorMessage = error.message || error.toString() || 'Unknown error occurred';
+      alert('Error saving quote: ' + errorMessage);
     }
   };
 
