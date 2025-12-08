@@ -601,6 +601,11 @@ function InvoicePreview({ invoice, onClose }) {
     }
   };
 
+  /**
+   * Generates an Authorize.Net hosted payment page link for this invoice
+   * Creates a secure HMAC-MD5 fingerprint authenticated URL that clients can use to pay
+   * The link is valid and directs to Authorize.Net's PCI-compliant payment form
+   */
   const handleGenerateAuthorizeNetLink = async () => {
     try {
       setGeneratingPaymentLink(true);
@@ -853,7 +858,15 @@ function InvoicePreview({ invoice, onClose }) {
           </div>
         </div>
 
-        {/* Payment Tracking Section */}
+        {/* Payment Tracking Section
+            This section displays payment status, generates payment links, and tracks payment history.
+            Features:
+            - Generate payment links for multiple gateways (Stripe, PayPal, Square, GoCardless, Authorize.Net)
+            - Record manual payments (cash, check, wire transfer, etc.)
+            - View payment history with delete capability
+            - Visual progress bar showing payment completion
+            - Balance due calculation
+        */}
         {fullInvoice && (
           <div className="bg-white shadow-lg rounded-lg p-6 mb-6 print:hidden">
             <div className="flex justify-between items-center mb-4">
@@ -861,6 +874,7 @@ function InvoicePreview({ invoice, onClose }) {
                 <DollarSign className="w-6 h-6 mr-2 text-green-600" />
                 Payment Tracking
               </h2>
+              {/* Payment Gateway Buttons - Each button generates a payment link for that gateway */}
               <div className="flex space-x-2">
                 {settings?.stripe_enabled && (fullInvoice.total - totalPaid) > 0 && (
                   <>
@@ -963,10 +977,15 @@ function InvoicePreview({ invoice, onClose }) {
               </div>
             </div>
 
-            {/* Payment Links Display */}
+            {/* Payment Links Display Section
+                Shows all generated payment links with copy-to-clipboard functionality.
+                Links are displayed after clicking the respective gateway button above.
+                Each link can be copied and sent to the client via email or messaging.
+                Supported gateways: Stripe, PayPal, Square, GoCardless, Authorize.Net
+            */}
             {(stripePaymentLink || paypalPaymentLink || squarePaymentLink || goCardlessPaymentLink || authorizeNetPaymentLink) && (
               <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
-                <h3 className="text-lg font-semibold text-purple-900 mb-3">Payment Links</h3>
+                <h3 className="text-lg font-semibold text-purple-900 mb-3">Generated Payment Links</h3>
                 {stripePaymentLink && (
                   <div className="mb-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">Stripe Payment Link</label>

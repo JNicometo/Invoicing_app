@@ -1920,7 +1920,47 @@ ipcMain.handle('payment:createGoCardlessPaymentLink', async (event, paymentData)
   }
 });
 
-// Authorize.Net Payment Link (Enterprise)
+/**
+ * Creates an Authorize.Net hosted payment page link for invoice payment
+ *
+ * This handler generates a secure payment URL using Authorize.Net's hosted payment page
+ * approach with MD5 HMAC fingerprint authentication. The hosted payment page handles
+ * all PCI compliance requirements as the payment form is hosted by Authorize.Net.
+ *
+ * @async
+ * @param {Object} event - The IPC event object
+ * @param {Object} paymentData - Payment data object
+ * @param {Object} paymentData.settings - Application settings containing Authorize.Net credentials
+ * @param {string} paymentData.settings.authorizenet_api_login_id - API Login ID from Authorize.Net
+ * @param {string} paymentData.settings.authorizenet_transaction_key - Transaction Key for HMAC signing
+ * @param {boolean} paymentData.settings.authorizenet_enabled - Whether Authorize.Net is enabled
+ * @param {string} paymentData.settings.authorizenet_environment - 'sandbox' or 'production'
+ * @param {Object} paymentData.invoice - Invoice object
+ * @param {number} paymentData.invoice.id - Invoice database ID
+ * @param {string} paymentData.invoice.invoice_number - Invoice number for reference
+ * @param {number} paymentData.invoice.total - Total amount due
+ * @param {string} paymentData.invoice.client_email - Client email for pre-fill
+ * @param {Object} paymentData.client - Client object
+ * @param {string} paymentData.client.name - Client full name
+ *
+ * @returns {Promise<Object>} Payment link result
+ * @returns {boolean} returns.success - Whether the operation succeeded
+ * @returns {string} returns.paymentLink - The hosted payment page URL
+ * @returns {string} returns.paymentLinkId - Unique identifier for this payment link
+ * @returns {string} returns.message - Success message
+ *
+ * @throws {Error} When Authorize.Net is not configured or enabled
+ *
+ * @example
+ * const result = await window.electron.ipcRenderer.invoke('payment:createAuthorizeNetPaymentLink', {
+ *   settings: { authorizenet_api_login_id: '...', authorizenet_transaction_key: '...' },
+ *   invoice: { id: 1, invoice_number: 'INV-0001', total: 1500.00 },
+ *   client: { name: 'John Doe' }
+ * });
+ * // Returns: { success: true, paymentLink: 'https://test.authorize.net/payment/payment?...', ... }
+ *
+ * @see {@link https://developer.authorize.net/api/reference/features/accept_hosted.html|Authorize.Net Accept Hosted Documentation}
+ */
 ipcMain.handle('payment:createAuthorizeNetPaymentLink', async (event, paymentData) => {
   try {
     const { settings, invoice, client } = paymentData;
@@ -1932,41 +1972,56 @@ ipcMain.handle('payment:createAuthorizeNetPaymentLink', async (event, paymentDat
 
     const crypto = require('crypto');
 
-    // Determine endpoint based on environment
+    // Determine endpoint based on environment (sandbox for testing, production for live transactions)
     const endpoint = settings.authorizenet_environment === 'production'
       ? 'https://accept.authorize.net/payment/payment'
       : 'https://test.authorize.net/payment/payment';
 
-    // Generate timestamp and sequence
+    // Generate timestamp and sequence for fingerprint uniqueness
+    // Timestamp: Unix timestamp in seconds (required by Authorize.Net)
+    // Sequence: Random number to prevent duplicate fingerprints
     const timestamp = Math.floor(Date.now() / 1000);
     const sequence = Math.floor(Math.random() * 1000);
 
-    // Generate fingerprint for hosted payment page
+    // Generate fingerprint for hosted payment page authentication
+    // The fingerprint proves this request came from an authorized merchant
     const amount = invoice.total.toFixed(2);
     const fpSequence = sequence.toString();
     const fpTimestamp = timestamp.toString();
 
-    // Create fingerprint hash
+    // Create HMAC-MD5 fingerprint hash using Authorize.Net's specification
+    // Format: API_LOGIN_ID^SEQUENCE^TIMESTAMP^AMOUNT^
+    // The caret (^) delimiters are required by Authorize.Net
     const fingerprintData = `${settings.authorizenet_api_login_id}^${fpSequence}^${fpTimestamp}^${amount}^`;
     const fingerprint = crypto
       .createHmac('md5', settings.authorizenet_transaction_key)
       .update(fingerprintData)
       .digest('hex');
 
-    // Build hosted payment page URL with parameters
+    // Build hosted payment page URL with required and optional parameters
+    // All parameters are prefixed with 'x_' as per Authorize.Net specification
     const params = new URLSearchParams({
-      'x_login': settings.authorizenet_api_login_id,
-      'x_amount': amount,
-      'x_fp_sequence': fpSequence,
-      'x_fp_timestamp': fpTimestamp,
-      'x_fp_hash': fingerprint,
-      'x_show_form': 'PAYMENT_FORM',
-      'x_invoice_num': invoice.invoice_number,
-      'x_description': `Invoice ${invoice.invoice_number}`,
-      'x_first_name': client.name.split(' ')[0] || '',
-      'x_last_name': client.name.split(' ').slice(1).join(' ') || '',
-      'x_email': invoice.client_email || '',
-      'x_relay_response': 'FALSE',
+      // Authentication parameters (required)
+      'x_login': settings.authorizenet_api_login_id,          // Merchant API Login ID
+      'x_amount': amount,                                      // Transaction amount (2 decimal places)
+      'x_fp_sequence': fpSequence,                             // Fingerprint sequence number
+      'x_fp_timestamp': fpTimestamp,                           // Fingerprint timestamp
+      'x_fp_hash': fingerprint,                                // HMAC-MD5 fingerprint for security
+
+      // Display parameters
+      'x_show_form': 'PAYMENT_FORM',                          // Show payment form immediately
+
+      // Transaction information (pre-filled for user convenience)
+      'x_invoice_num': invoice.invoice_number,                // Invoice reference number
+      'x_description': `Invoice ${invoice.invoice_number}`,   // Transaction description
+
+      // Customer information (pre-filled to improve UX)
+      'x_first_name': client.name.split(' ')[0] || '',        // Client first name
+      'x_last_name': client.name.split(' ').slice(1).join(' ') || '',  // Client last name
+      'x_email': invoice.client_email || '',                  // Client email
+
+      // Response handling
+      'x_relay_response': 'FALSE',                            // Don't use relay response (simpler flow)
     });
 
     const paymentUrl = `${endpoint}?${params.toString()}`;

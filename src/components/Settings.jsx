@@ -1490,7 +1490,15 @@ function Settings() {
                     </div>
                   </div>
 
-                  {/* Payment Gateway Cards - Compact View */}
+                  {/* Payment Gateway Cards - Compact Accordion View
+                      Each card is collapsible to save space. Cards show active status with colored borders.
+                      Available Gateways:
+                      - Stripe: Credit/debit cards (2.9% + $0.30) - Most popular
+                      - PayPal: PayPal.me links (2.99% + $0.49) - Easiest setup
+                      - Square: Credit/debit cards (2.9% + $0.30) - POS integration
+                      - GoCardless: ACH/SEPA bank transfers (1% + $0.25) - Lowest fees
+                      - Authorize.Net: Enterprise/B2B (2.9% + $0.30) - Government contracts
+                  */}
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {/* Stripe Card */}
                     <div className={`border rounded-lg ${formData.stripe_enabled ? 'border-purple-300 bg-purple-50' : 'border-gray-200 bg-white'}`}>
@@ -1798,7 +1806,11 @@ function Settings() {
                       )}
                     </div>
 
-                    {/* Authorize.Net Card */}
+                    {/* Authorize.Net Card - Enterprise Payment Gateway
+                        Uses hosted payment pages with HMAC-MD5 fingerprint authentication
+                        Best for: Government contracts, B2B transactions, enterprise customers
+                        Features: PCI compliant, industry standard, high trust factor
+                    */}
                     <div className={`border rounded-lg ${formData.authorizenet_enabled ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-white'}`}>
                       <button
                         onClick={() => setExpandedPaymentGateways(prev => ({ ...prev, authorizenet: !prev.authorizenet }))}
