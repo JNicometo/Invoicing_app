@@ -1920,6 +1920,71 @@ ipcMain.handle('payment:createGoCardlessPaymentLink', async (event, paymentData)
   }
 });
 
+// Authorize.Net Payment Link (Enterprise)
+ipcMain.handle('payment:createAuthorizeNetPaymentLink', async (event, paymentData) => {
+  try {
+    const { settings, invoice, client } = paymentData;
+
+    // Validate Authorize.Net settings
+    if (!settings.authorizenet_enabled || !settings.authorizenet_api_login_id || !settings.authorizenet_transaction_key) {
+      throw new Error('Authorize.Net is not configured. Please configure Authorize.Net settings first.');
+    }
+
+    const crypto = require('crypto');
+
+    // Determine endpoint based on environment
+    const endpoint = settings.authorizenet_environment === 'production'
+      ? 'https://accept.authorize.net/payment/payment'
+      : 'https://test.authorize.net/payment/payment';
+
+    // Generate timestamp and sequence
+    const timestamp = Math.floor(Date.now() / 1000);
+    const sequence = Math.floor(Math.random() * 1000);
+
+    // Generate fingerprint for hosted payment page
+    const amount = invoice.total.toFixed(2);
+    const fpSequence = sequence.toString();
+    const fpTimestamp = timestamp.toString();
+
+    // Create fingerprint hash
+    const fingerprintData = `${settings.authorizenet_api_login_id}^${fpSequence}^${fpTimestamp}^${amount}^`;
+    const fingerprint = crypto
+      .createHmac('md5', settings.authorizenet_transaction_key)
+      .update(fingerprintData)
+      .digest('hex');
+
+    // Build hosted payment page URL with parameters
+    const params = new URLSearchParams({
+      'x_login': settings.authorizenet_api_login_id,
+      'x_amount': amount,
+      'x_fp_sequence': fpSequence,
+      'x_fp_timestamp': fpTimestamp,
+      'x_fp_hash': fingerprint,
+      'x_show_form': 'PAYMENT_FORM',
+      'x_invoice_num': invoice.invoice_number,
+      'x_description': `Invoice ${invoice.invoice_number}`,
+      'x_first_name': client.name.split(' ')[0] || '',
+      'x_last_name': client.name.split(' ').slice(1).join(' ') || '',
+      'x_email': invoice.client_email || '',
+      'x_relay_response': 'FALSE',
+    });
+
+    const paymentUrl = `${endpoint}?${params.toString()}`;
+
+    console.log('Authorize.Net payment link created for invoice:', invoice.invoice_number);
+    return {
+      success: true,
+      paymentLink: paymentUrl,
+      paymentLinkId: `authnet-${invoice.id}-${timestamp}`,
+      message: 'Authorize.Net payment link created successfully!',
+    };
+
+  } catch (error) {
+    console.error('Error creating Authorize.Net payment link:', error);
+    throw new Error(error.message);
+  }
+});
+
 // Send email with payment link
 ipcMain.handle('email:sendInvoiceWithPayment', async (event, emailData) => {
   try {

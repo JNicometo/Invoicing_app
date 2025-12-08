@@ -40,8 +40,9 @@ function InvoicePreview({ invoice, onClose }) {
   const [paypalPaymentLink, setPaypalPaymentLink] = useState('');
   const [squarePaymentLink, setSquarePaymentLink] = useState('');
   const [goCardlessPaymentLink, setGoCardlessPaymentLink] = useState('');
+  const [authorizeNetPaymentLink, setAuthorizeNetPaymentLink] = useState('');
   const [generatingPaymentLink, setGeneratingPaymentLink] = useState(false);
-  const { getInvoice, getSettings, saveInvoiceAsPDF, sendInvoiceEmail, createPayment, getPaymentsByInvoice, deletePayment, createStripePaymentLink, createPayPalPaymentLink, createSquarePaymentLink, createGoCardlessPaymentLink } = useDatabase();
+  const { getInvoice, getSettings, saveInvoiceAsPDF, sendInvoiceEmail, createPayment, getPaymentsByInvoice, deletePayment, createStripePaymentLink, createPayPalPaymentLink, createSquarePaymentLink, createGoCardlessPaymentLink, createAuthorizeNetPaymentLink } = useDatabase();
 
   useEffect(() => {
     loadInvoiceData();
@@ -600,6 +601,27 @@ function InvoicePreview({ invoice, onClose }) {
     }
   };
 
+  const handleGenerateAuthorizeNetLink = async () => {
+    try {
+      setGeneratingPaymentLink(true);
+      const result = await createAuthorizeNetPaymentLink({
+        settings,
+        invoice: fullInvoice,
+        client: { id: fullInvoice.client_id, name: fullInvoice.client_name }
+      });
+
+      if (result.success) {
+        setAuthorizeNetPaymentLink(result.paymentLink);
+        alert('Authorize.Net payment link generated! You can now copy and send it to your client.');
+      }
+    } catch (error) {
+      console.error('Error generating Authorize.Net link:', error);
+      alert(error.message || 'Error generating Authorize.Net payment link');
+    } finally {
+      setGeneratingPaymentLink(false);
+    }
+  };
+
   const handleCopyLink = (link, gateway) => {
     navigator.clipboard.writeText(link);
     alert(`${gateway} payment link copied to clipboard!`);
@@ -882,6 +904,16 @@ function InvoicePreview({ invoice, onClose }) {
                     {generatingPaymentLink ? 'Generating...' : 'GoCardless ACH/Bank'}
                   </button>
                 )}
+                {settings?.authorizenet_enabled && (fullInvoice.total - totalPaid) > 0 && (
+                  <button
+                    onClick={handleGenerateAuthorizeNetLink}
+                    disabled={generatingPaymentLink}
+                    className="flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
+                  >
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    {generatingPaymentLink ? 'Generating...' : 'Authorize.Net Enterprise'}
+                  </button>
+                )}
                 <button
                   onClick={handleOpenPaymentModal}
                   className="flex items-center px-4 py-2 bg-green-600 text-white rounded-lg hover:bg-green-700"
@@ -932,7 +964,7 @@ function InvoicePreview({ invoice, onClose }) {
             </div>
 
             {/* Payment Links Display */}
-            {(stripePaymentLink || paypalPaymentLink || squarePaymentLink || goCardlessPaymentLink) && (
+            {(stripePaymentLink || paypalPaymentLink || squarePaymentLink || goCardlessPaymentLink || authorizeNetPaymentLink) && (
               <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
                 <h3 className="text-lg font-semibold text-purple-900 mb-3">Payment Links</h3>
                 {stripePaymentLink && (
@@ -993,7 +1025,7 @@ function InvoicePreview({ invoice, onClose }) {
                   </div>
                 )}
                 {goCardlessPaymentLink && (
-                  <div>
+                  <div className="mb-3">
                     <label className="block text-sm font-medium text-gray-700 mb-1">GoCardless Payment Link (ACH/Bank Transfer)</label>
                     <div className="flex gap-2">
                       <input
@@ -1005,6 +1037,25 @@ function InvoicePreview({ invoice, onClose }) {
                       <button
                         onClick={() => handleCopyLink(goCardlessPaymentLink, 'GoCardless')}
                         className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {authorizeNetPaymentLink && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Authorize.Net Payment Link (Enterprise)</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={authorizeNetPaymentLink}
+                        readOnly
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                      />
+                      <button
+                        onClick={() => handleCopyLink(authorizeNetPaymentLink, 'Authorize.Net')}
+                        className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm"
                       >
                         Copy
                       </button>

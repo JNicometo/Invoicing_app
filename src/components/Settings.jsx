@@ -15,6 +15,7 @@ function Settings() {
     paypal: false,
     square: false,
     gocardless: false,
+    authorizenet: false,
   });
 
   const fileInputRef = useRef(null);
@@ -95,6 +96,12 @@ function Settings() {
     gocardless_access_token: '',
     gocardless_enabled: false,
     gocardless_environment: 'sandbox',
+
+    // Authorize.Net Integration
+    authorizenet_api_login_id: '',
+    authorizenet_transaction_key: '',
+    authorizenet_enabled: false,
+    authorizenet_environment: 'sandbox',
 
     // Display Options
     show_item_numbers: true,
@@ -255,6 +262,12 @@ function Settings() {
           gocardless_access_token: data.gocardless_access_token || '',
           gocardless_enabled: data.gocardless_enabled !== undefined ? data.gocardless_enabled : false,
           gocardless_environment: data.gocardless_environment || 'sandbox',
+
+          // Authorize.Net Integration
+          authorizenet_api_login_id: data.authorizenet_api_login_id || '',
+          authorizenet_transaction_key: data.authorizenet_transaction_key || '',
+          authorizenet_enabled: data.authorizenet_enabled !== undefined ? data.authorizenet_enabled : false,
+          authorizenet_environment: data.authorizenet_environment || 'sandbox',
 
           // Display Options
           show_item_numbers: data.show_item_numbers !== undefined ? data.show_item_numbers : true,
@@ -1420,6 +1433,29 @@ function Settings() {
                               <div>• US market</div>
                             </td>
                           </tr>
+                          <tr className="border-b border-gray-200">
+                            <td className="py-3 px-3">
+                              <div className="flex items-center space-x-2">
+                                <div className="w-2 h-2 bg-orange-600 rounded-full"></div>
+                                <span className="font-semibold text-gray-900">Authorize.Net</span>
+                                <span className="text-xs bg-orange-100 text-orange-800 px-2 py-0.5 rounded-full font-medium">Enterprise</span>
+                              </div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="font-semibold text-gray-700">2.9% + $0.30</div>
+                              <div className="text-xs text-gray-600">Standard rate</div>
+                            </td>
+                            <td className="py-3 px-3">
+                              <div className="text-gray-700">Credit/Debit cards</div>
+                              <div className="text-gray-700">eChecks</div>
+                              <div className="text-xs text-gray-500">Digital wallets</div>
+                            </td>
+                            <td className="py-3 px-3 text-gray-700">
+                              <div>• Enterprise clients</div>
+                              <div>• Government contracts</div>
+                              <div>• B2B invoicing</div>
+                            </td>
+                          </tr>
                           <tr>
                             <td className="py-3 px-3">
                               <div className="flex items-center space-x-2">
@@ -1449,7 +1485,7 @@ function Settings() {
                     <div className="mt-4 p-3 bg-white rounded border border-blue-200">
                       <p className="text-xs text-gray-700">
                         <strong className="text-blue-900">💡 Recommendation:</strong> Enable multiple gateways to give clients payment options.
-                        For large B2B invoices, GoCardless saves significant fees. For quick consumer payments, Stripe or PayPal work well.
+                        GoCardless offers lowest fees. Authorize.Net for enterprise/government. Stripe/PayPal for quick consumer payments.
                       </p>
                     </div>
                   </div>
@@ -1756,6 +1792,98 @@ function Settings() {
                           {formData.paypal_enabled && formData.paypal_client_id && (
                             <div className="p-2 bg-green-50 border border-green-200 rounded text-xs text-green-800">
                               ✓ PayPal enabled - Payment links will be generated
+                            </div>
+                          )}
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Authorize.Net Card */}
+                    <div className={`border rounded-lg ${formData.authorizenet_enabled ? 'border-orange-300 bg-orange-50' : 'border-gray-200 bg-white'}`}>
+                      <button
+                        onClick={() => setExpandedPaymentGateways(prev => ({ ...prev, authorizenet: !prev.authorizenet }))}
+                        className="w-full p-4 flex items-center justify-between text-left"
+                      >
+                        <div className="flex items-center space-x-3">
+                          <CreditCard className={`w-5 h-5 ${formData.authorizenet_enabled ? 'text-orange-600' : 'text-gray-400'}`} />
+                          <div>
+                            <h3 className="font-semibold text-gray-900">Authorize.Net</h3>
+                            <p className="text-xs text-orange-600 font-medium">Enterprise & B2B</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          {formData.authorizenet_enabled && <Check className="w-4 h-4 text-green-600" />}
+                          <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform ${expandedPaymentGateways.authorizenet ? 'rotate-180' : ''}`} />
+                        </div>
+                      </button>
+
+                      {expandedPaymentGateways.authorizenet && (
+                        <div className="px-4 pb-4 space-y-4 border-t">
+                          <div className="flex items-center justify-between pt-4">
+                            <span className="text-sm font-medium text-gray-700">Enable Authorize.Net</span>
+                            <label className="relative inline-flex items-center cursor-pointer">
+                              <input
+                                type="checkbox"
+                                name="authorizenet_enabled"
+                                checked={formData.authorizenet_enabled}
+                                onChange={(e) => setFormData(prev => ({ ...prev, authorizenet_enabled: e.target.checked }))}
+                                className="sr-only peer"
+                              />
+                              <div className="w-11 h-6 bg-gray-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-orange-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-orange-600"></div>
+                            </label>
+                          </div>
+
+                          <div className="p-3 bg-orange-50 border border-orange-100 rounded text-xs">
+                            <strong className="block text-orange-900 mb-1">🏢 Trusted by Enterprise</strong>
+                            <p className="text-orange-800 mb-2">Industry standard for large businesses, government contracts, and B2B transactions.</p>
+                            <strong className="block text-gray-900 mb-1">Setup:</strong>
+                            <p className="text-gray-700">
+                              1. Sign up at <a href="https://authorize.net" target="_blank" rel="noopener noreferrer" className="text-orange-700 underline">authorize.net</a><br/>
+                              2. Go to Account → Settings → API Credentials & Keys<br/>
+                              3. Generate API Login ID and Transaction Key
+                            </p>
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">API Login ID</label>
+                            <input
+                              type="text"
+                              name="authorizenet_api_login_id"
+                              value={formData.authorizenet_api_login_id}
+                              onChange={handleInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              placeholder="API Login ID"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Transaction Key</label>
+                            <input
+                              type="password"
+                              name="authorizenet_transaction_key"
+                              value={formData.authorizenet_transaction_key}
+                              onChange={handleInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                              placeholder="Transaction Key"
+                            />
+                          </div>
+
+                          <div>
+                            <label className="block text-sm font-medium text-gray-700 mb-1">Environment</label>
+                            <select
+                              name="authorizenet_environment"
+                              value={formData.authorizenet_environment}
+                              onChange={handleInputChange}
+                              className="w-full px-3 py-2 border border-gray-300 rounded-lg text-sm"
+                            >
+                              <option value="sandbox">Sandbox (Testing)</option>
+                              <option value="production">Production (Live)</option>
+                            </select>
+                          </div>
+
+                          {formData.authorizenet_enabled && formData.authorizenet_api_login_id && formData.authorizenet_transaction_key && (
+                            <div className="p-2 bg-green-50 border border-green-200 rounded text-xs text-green-800">
+                              ✓ Authorize.Net enabled - Enterprise payment links will be generated
                             </div>
                           )}
                         </div>
