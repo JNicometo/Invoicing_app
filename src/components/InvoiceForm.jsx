@@ -395,13 +395,6 @@ function InvoiceForm({ invoice, onClose }) {
   const handleSubmit = async (e) => {
     e.preventDefault();
 
-    // Generate invoice number only when saving (not on form load)
-    if (!isEdit && !formData.invoice_number) {
-      const invoiceNum = await generateInvoiceNumber();
-      setFormData(prev => ({ ...prev, invoice_number: invoiceNum }));
-      formData.invoice_number = invoiceNum; // Update for immediate validation
-    }
-
     const validation = validateInvoice(formData, items);
     if (!validation.isValid) {
       setErrors(validation.errors);
@@ -410,9 +403,16 @@ function InvoiceForm({ invoice, onClose }) {
     }
 
     try {
+      // Generate invoice number only after validation passes and right before saving
+      let invoiceNumber = formData.invoice_number;
+      if (!isEdit && !invoiceNumber) {
+        invoiceNumber = await generateInvoiceNumber();
+      }
+
       const totals = calculateTotals();
       const invoiceData = {
         ...formData,
+        invoice_number: invoiceNumber,
         subtotal: totals.subtotal,
         tax: totals.tax,
         discount_type: formData.discount_type || 'none',
@@ -444,7 +444,8 @@ function InvoiceForm({ invoice, onClose }) {
       onClose(true);
     } catch (error) {
       console.error('Error saving invoice:', error);
-      alert('Error saving invoice: ' + error.message);
+      const errorMessage = error.message || error.toString() || 'Unknown error occurred';
+      alert('Error saving invoice: ' + errorMessage);
     }
   };
 
