@@ -219,6 +219,12 @@ const runMigrations = () => {
       { name: 'gocardless_enabled', type: 'INTEGER', default: '0' },
       { name: 'gocardless_environment', type: 'TEXT', default: "'sandbox'" }, // sandbox or live
 
+      // Authorize.Net Integration (Enterprise)
+      { name: 'authorizenet_api_login_id', type: 'TEXT', default: "''" },
+      { name: 'authorizenet_transaction_key', type: 'TEXT', default: "''" },
+      { name: 'authorizenet_enabled', type: 'INTEGER', default: '0' },
+      { name: 'authorizenet_environment', type: 'TEXT', default: "'sandbox'" }, // sandbox or production
+
       // SMTP Security
       { name: 'smtp_verify_tls', type: 'INTEGER', default: '1' }, // 1 = verify TLS (secure), 0 = skip verification
 

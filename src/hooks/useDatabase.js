@@ -383,6 +383,10 @@ export const useDatabase = () => {
     return await ipcCall('payment:createGoCardlessPaymentLink', paymentData);
   }, [ipcCall]);
 
+  const createAuthorizeNetPaymentLink = useCallback(async (paymentData) => {
+    return await ipcCall('payment:createAuthorizeNetPaymentLink', paymentData);
+  }, [ipcCall]);
+
   const sendInvoiceWithPayment = useCallback(async (emailData) => {
     return await ipcCall('email:sendInvoiceWithPayment', emailData);
   }, [ipcCall]);
@@ -493,6 +497,7 @@ export const useDatabase = () => {
     createPayPalPaymentLink,
     createSquarePaymentLink,
     createGoCardlessPaymentLink,
+    createAuthorizeNetPaymentLink,
     sendInvoiceWithPayment,
   };
 };
