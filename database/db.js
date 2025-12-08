@@ -1214,17 +1214,34 @@ const generateInvoiceNumber = () => {
   const db = getDatabase();
   const settings = getSettings();
 
+  console.log('==========================================');
+  console.log('GENERATING INVOICE NUMBER');
+  console.log('==========================================');
+  console.log('Current next_invoice_number in settings:', settings.next_invoice_number);
+  console.log('Current invoice_prefix in settings:', settings.invoice_prefix);
+
   // Use the new next_invoice_number field if available, otherwise fall back to old system
   if (settings.next_invoice_number) {
     const nextNumber = settings.next_invoice_number;
+    console.log('Using next_invoice_number field:', nextNumber);
 
     // Update the setting with the incremented number for next time
     const incrementedNumber = incrementNumberString(nextNumber);
-    db.prepare('UPDATE settings SET next_invoice_number = ? WHERE id = 1').run(incrementedNumber);
+    console.log('Incrementing', nextNumber, '→', incrementedNumber);
+
+    const result = db.prepare('UPDATE settings SET next_invoice_number = ? WHERE id = 1').run(incrementedNumber);
+    console.log('Database update result:', result);
+
+    // Verify the update
+    const updatedSettings = getSettings();
+    console.log('Verified next_invoice_number after update:', updatedSettings.next_invoice_number);
+    console.log('Returning invoice number:', nextNumber);
+    console.log('==========================================\n');
 
     return nextNumber;
   }
 
+  console.log('No next_invoice_number found, using fallback system');
   // Fallback to old prefix-based system for backward compatibility
   const prefix = settings.invoice_prefix || 'INV-';
   const lastInvoice = db.prepare(`
@@ -1235,12 +1252,17 @@ const generateInvoiceNumber = () => {
   `).get(`${prefix}%`);
 
   if (!lastInvoice) {
+    console.log('No previous invoices found, returning:', `${prefix}0001`);
+    console.log('==========================================\n');
     return `${prefix}0001`;
   }
 
   const lastNumber = parseInt(lastInvoice.invoice_number.replace(prefix, ''));
   const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
-  return `${prefix}${nextNumber}`;
+  const result = `${prefix}${nextNumber}`;
+  console.log('Last invoice:', lastInvoice.invoice_number, '→ Next:', result);
+  console.log('==========================================\n');
+  return result;
 };
 
 // Preview the next invoice number WITHOUT incrementing the counter
