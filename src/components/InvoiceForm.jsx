@@ -404,8 +404,9 @@ function InvoiceForm({ invoice, onClose }) {
 
     try {
       // Generate invoice number only after validation passes and right before saving
+      // For new invoices, ALWAYS generate a fresh number (ignore the preview)
       let invoiceNumber = formData.invoice_number;
-      if (!isEdit && !invoiceNumber) {
+      if (!isEdit) {
         invoiceNumber = await generateInvoiceNumber();
       }
 
