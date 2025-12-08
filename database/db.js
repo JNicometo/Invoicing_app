@@ -1653,41 +1653,79 @@ const peekNextQuoteNumber = () => {
 };
 
 const createQuote = (quote, items) => {
-  const db = getDatabase();
+  try {
+    const db = getDatabase();
 
-  const stmt = db.prepare(`
-    INSERT INTO quotes (quote_number, client_id, date, expiry_date, status, subtotal, tax,
-      discount_type, discount_value, discount_amount, shipping, adjustment, adjustment_label,
-      total, notes, terms)
-    VALUES (@quote_number, @client_id, @date, @expiry_date, @status, @subtotal, @tax,
-      @discount_type, @discount_value, @discount_amount, @shipping, @adjustment, @adjustment_label,
-      @total, @notes, @terms)
-  `);
+    console.log('Creating quote:', {
+      quote_number: quote.quote_number,
+      client_id: quote.client_id,
+      items_count: items?.length
+    });
 
-  const result = stmt.run(quote);
-  const quoteId = result.lastInsertRowid;
+    // Validate required fields
+    if (!quote.quote_number) {
+      throw new Error('Quote number is required');
+    }
+    if (!quote.client_id) {
+      throw new Error('Client is required');
+    }
+    if (!items || items.length === 0) {
+      throw new Error('At least one line item is required');
+    }
 
-  // Insert items
-  const itemStmt = db.prepare(`
-    INSERT INTO quote_items (quote_id, description, quantity, rate,
-      discount_type, discount_value, discount_amount, amount)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
+    const stmt = db.prepare(`
+      INSERT INTO quotes (quote_number, client_id, date, expiry_date, status, subtotal, tax,
+        discount_type, discount_value, discount_amount, shipping, adjustment, adjustment_label,
+        total, notes, terms)
+      VALUES (@quote_number, @client_id, @date, @expiry_date, @status, @subtotal, @tax,
+        @discount_type, @discount_value, @discount_amount, @shipping, @adjustment, @adjustment_label,
+        @total, @notes, @terms)
+    `);
 
-  items.forEach(item => {
-    itemStmt.run(
-      quoteId,
-      item.description,
-      item.quantity,
-      item.rate,
-      item.discount_type || 'none',
-      item.discount_value || 0,
-      item.discount_amount || 0,
-      item.amount
-    );
-  });
+    const result = stmt.run(quote);
+    const quoteId = result.lastInsertRowid;
 
-  return result;
+    console.log('Quote created with ID:', quoteId);
+
+    // Insert items
+    const itemStmt = db.prepare(`
+      INSERT INTO quote_items (quote_id, description, quantity, rate,
+        discount_type, discount_value, discount_amount, amount)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    items.forEach((item, index) => {
+      try {
+        itemStmt.run(
+          quoteId,
+          item.description,
+          item.quantity,
+          item.rate,
+          item.discount_type || 'none',
+          item.discount_value || 0,
+          item.discount_amount || 0,
+          item.amount
+        );
+      } catch (itemError) {
+        throw new Error(`Error adding line item ${index + 1}: ${itemError.message}`);
+      }
+    });
+
+    console.log('Quote items inserted successfully');
+    return result;
+  } catch (error) {
+    console.error('Error in createQuote:', error);
+    // Provide a helpful error message
+    if (error.message.includes('UNIQUE constraint')) {
+      throw new Error(`Quote number ${quote.quote_number} already exists`);
+    } else if (error.message.includes('FOREIGN KEY constraint')) {
+      throw new Error('Invalid client selected');
+    } else if (error.message.includes('NOT NULL constraint')) {
+      throw new Error('Required field is missing');
+    } else {
+      throw new Error(error.message || 'Failed to create quote');
+    }
+  }
 };
 
 const getAllQuotes = () => {
