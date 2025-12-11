@@ -1214,17 +1214,34 @@ const generateInvoiceNumber = () => {
   const db = getDatabase();
   const settings = getSettings();
 
+  console.log('==========================================');
+  console.log('GENERATING INVOICE NUMBER');
+  console.log('==========================================');
+  console.log('Current next_invoice_number in settings:', settings.next_invoice_number);
+  console.log('Current invoice_prefix in settings:', settings.invoice_prefix);
+
   // Use the new next_invoice_number field if available, otherwise fall back to old system
   if (settings.next_invoice_number) {
     const nextNumber = settings.next_invoice_number;
+    console.log('Using next_invoice_number field:', nextNumber);
 
     // Update the setting with the incremented number for next time
     const incrementedNumber = incrementNumberString(nextNumber);
-    db.prepare('UPDATE settings SET next_invoice_number = ? WHERE id = 1').run(incrementedNumber);
+    console.log('Incrementing', nextNumber, '→', incrementedNumber);
+
+    const result = db.prepare('UPDATE settings SET next_invoice_number = ? WHERE id = 1').run(incrementedNumber);
+    console.log('Database update result:', result);
+
+    // Verify the update
+    const updatedSettings = getSettings();
+    console.log('Verified next_invoice_number after update:', updatedSettings.next_invoice_number);
+    console.log('Returning invoice number:', nextNumber);
+    console.log('==========================================\n');
 
     return nextNumber;
   }
 
+  console.log('No next_invoice_number found, using fallback system');
   // Fallback to old prefix-based system for backward compatibility
   const prefix = settings.invoice_prefix || 'INV-';
   const lastInvoice = db.prepare(`
@@ -1235,12 +1252,17 @@ const generateInvoiceNumber = () => {
   `).get(`${prefix}%`);
 
   if (!lastInvoice) {
+    console.log('No previous invoices found, returning:', `${prefix}0001`);
+    console.log('==========================================\n');
     return `${prefix}0001`;
   }
 
   const lastNumber = parseInt(lastInvoice.invoice_number.replace(prefix, ''));
   const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
-  return `${prefix}${nextNumber}`;
+  const result = `${prefix}${nextNumber}`;
+  console.log('Last invoice:', lastInvoice.invoice_number, '→ Next:', result);
+  console.log('==========================================\n');
+  return result;
 };
 
 // Preview the next invoice number WITHOUT incrementing the counter
@@ -1631,41 +1653,79 @@ const peekNextQuoteNumber = () => {
 };
 
 const createQuote = (quote, items) => {
-  const db = getDatabase();
+  try {
+    const db = getDatabase();
 
-  const stmt = db.prepare(`
-    INSERT INTO quotes (quote_number, client_id, date, expiry_date, status, subtotal, tax,
-      discount_type, discount_value, discount_amount, shipping, adjustment, adjustment_label,
-      total, notes, terms)
-    VALUES (@quote_number, @client_id, @date, @expiry_date, @status, @subtotal, @tax,
-      @discount_type, @discount_value, @discount_amount, @shipping, @adjustment, @adjustment_label,
-      @total, @notes, @terms)
-  `);
+    console.log('Creating quote:', {
+      quote_number: quote.quote_number,
+      client_id: quote.client_id,
+      items_count: items?.length
+    });
 
-  const result = stmt.run(quote);
-  const quoteId = result.lastInsertRowid;
+    // Validate required fields
+    if (!quote.quote_number) {
+      throw new Error('Quote number is required');
+    }
+    if (!quote.client_id) {
+      throw new Error('Client is required');
+    }
+    if (!items || items.length === 0) {
+      throw new Error('At least one line item is required');
+    }
 
-  // Insert items
-  const itemStmt = db.prepare(`
-    INSERT INTO quote_items (quote_id, description, quantity, rate,
-      discount_type, discount_value, discount_amount, amount)
-    VALUES (?, ?, ?, ?, ?, ?, ?, ?)
-  `);
+    const stmt = db.prepare(`
+      INSERT INTO quotes (quote_number, client_id, date, expiry_date, status, subtotal, tax,
+        discount_type, discount_value, discount_amount, shipping, adjustment, adjustment_label,
+        total, notes, terms)
+      VALUES (@quote_number, @client_id, @date, @expiry_date, @status, @subtotal, @tax,
+        @discount_type, @discount_value, @discount_amount, @shipping, @adjustment, @adjustment_label,
+        @total, @notes, @terms)
+    `);
 
-  items.forEach(item => {
-    itemStmt.run(
-      quoteId,
-      item.description,
-      item.quantity,
-      item.rate,
-      item.discount_type || 'none',
-      item.discount_value || 0,
-      item.discount_amount || 0,
-      item.amount
-    );
-  });
+    const result = stmt.run(quote);
+    const quoteId = result.lastInsertRowid;
 
-  return result;
+    console.log('Quote created with ID:', quoteId);
+
+    // Insert items
+    const itemStmt = db.prepare(`
+      INSERT INTO quote_items (quote_id, description, quantity, rate,
+        discount_type, discount_value, discount_amount, amount)
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+    `);
+
+    items.forEach((item, index) => {
+      try {
+        itemStmt.run(
+          quoteId,
+          item.description,
+          item.quantity,
+          item.rate,
+          item.discount_type || 'none',
+          item.discount_value || 0,
+          item.discount_amount || 0,
+          item.amount
+        );
+      } catch (itemError) {
+        throw new Error(`Error adding line item ${index + 1}: ${itemError.message}`);
+      }
+    });
+
+    console.log('Quote items inserted successfully');
+    return result;
+  } catch (error) {
+    console.error('Error in createQuote:', error);
+    // Provide a helpful error message
+    if (error.message.includes('UNIQUE constraint')) {
+      throw new Error(`Quote number ${quote.quote_number} already exists`);
+    } else if (error.message.includes('FOREIGN KEY constraint')) {
+      throw new Error('Invalid client selected');
+    } else if (error.message.includes('NOT NULL constraint')) {
+      throw new Error('Required field is missing');
+    } else {
+      throw new Error(error.message || 'Failed to create quote');
+    }
+  }
 };
 
 const getAllQuotes = () => {

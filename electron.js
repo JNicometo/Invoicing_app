@@ -918,7 +918,11 @@ ipcMain.handle('db:createQuote', async (event, quote, items) => {
     return db.createQuote(quote, items);
   } catch (error) {
     console.error('Error creating quote:', error);
-    throw error;
+    // Ensure error has a proper message
+    const errorMessage = error.message || error.toString() || 'Failed to create quote';
+    const enhancedError = new Error(errorMessage);
+    enhancedError.stack = error.stack;
+    throw enhancedError;
   }
 });
 

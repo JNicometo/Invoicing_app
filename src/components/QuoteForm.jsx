@@ -398,8 +398,9 @@ function QuoteForm({ quote, onClose }) {
 
     try {
       // Generate quote number only after validation passes and right before saving
+      // For new quotes, ALWAYS generate a fresh number (ignore the preview)
       let quoteNumber = formData.quote_number;
-      if (!isEdit && !quoteNumber) {
+      if (!isEdit) {
         quoteNumber = await generateQuoteNumber();
       }
 
