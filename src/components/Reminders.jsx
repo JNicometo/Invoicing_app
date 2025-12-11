@@ -73,12 +73,13 @@ function Reminders() {
 
   const handleEditTemplate = (template) => {
     setEditingTemplate(template);
+    // Map database schema to form schema (body -> message, active -> is_active)
     setTemplateFormData({
       name: template.name,
       subject: template.subject,
-      message: template.message,
+      message: template.body,  // database uses 'body', form uses 'message'
       days_before_due: template.days_before_due,
-      is_active: template.is_active
+      is_active: template.active  // database uses 'active', form uses 'is_active'
     });
     setShowTemplateForm(true);
   };
@@ -86,10 +87,19 @@ function Reminders() {
   const handleSaveTemplate = async (e) => {
     e.preventDefault();
     try {
+      // Map form data to database schema (message -> body, is_active -> active)
+      const templateData = {
+        name: templateFormData.name,
+        subject: templateFormData.subject,
+        body: templateFormData.message,  // database uses 'body' not 'message'
+        days_before_due: templateFormData.days_before_due,
+        active: templateFormData.is_active  // database uses 'active' not 'is_active'
+      };
+
       if (editingTemplate) {
-        await updateReminderTemplate(editingTemplate.id, templateFormData);
+        await updateReminderTemplate(editingTemplate.id, templateData);
       } else {
-        await createReminderTemplate(templateFormData);
+        await createReminderTemplate(templateData);
       }
       setShowTemplateForm(false);
       await loadData();
@@ -113,9 +123,9 @@ function Reminders() {
     setSelectedInvoice(invoice);
     setSelectedTemplate(template);
 
-    // Generate preview
+    // Generate preview (database uses 'body', not 'message')
     const client = clients.find(c => c.id === invoice.client_id);
-    const preview = replaceVariables(template.message, invoice, client);
+    const preview = replaceVariables(template.body, invoice, client);
     setPreviewMessage(preview);
     setShowSendModal(true);
   };
