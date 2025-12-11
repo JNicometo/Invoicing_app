@@ -414,6 +414,7 @@ function InvoiceForm({ invoice, onClose }) {
       const invoiceData = {
         ...formData,
         invoice_number: invoiceNumber,
+        created_from_quote_id: formData.created_from_quote_id || null,
         subtotal: totals.subtotal,
         tax: totals.tax,
         discount_type: formData.discount_type || 'none',
