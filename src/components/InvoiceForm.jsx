@@ -409,13 +409,14 @@ function InvoiceForm({ invoice, onClose }) {
       // Generate invoice number only after validation passes and right before saving
       let invoiceNumber = formData.invoice_number;
       if (!isEdit && !invoiceNumber) {
-        invoiceNumber = await generateInvoiceNumber();
+        invoiceNumber = await generateInvoiceNumber(formData.type || 'invoice');
       }
 
       const totals = calculateTotals();
       const invoiceData = {
         ...formData,
         invoice_number: invoiceNumber,
+        created_from_quote_id: formData.created_from_quote_id || null,
         subtotal: totals.subtotal,
         tax: totals.tax,
         discount_type: formData.discount_type || 'none',
