@@ -475,6 +475,13 @@ const runMigrations = () => {
           total REAL DEFAULT 0,
           notes TEXT DEFAULT '',
           terms TEXT DEFAULT '',
+          client_name TEXT DEFAULT '',
+          client_email TEXT DEFAULT '',
+          client_phone TEXT DEFAULT '',
+          client_address TEXT DEFAULT '',
+          client_city TEXT DEFAULT '',
+          client_state TEXT DEFAULT '',
+          client_zip TEXT DEFAULT '',
           converted_to_invoice_id INTEGER DEFAULT NULL,
           archived INTEGER DEFAULT 0,
           created_at TEXT DEFAULT CURRENT_TIMESTAMP,
@@ -489,7 +496,8 @@ const runMigrations = () => {
         INSERT INTO quotes_new
         SELECT id, estimate_number, client_id, date, expiry_date, status,
                subtotal, tax, 'none', 0, 0, 0, 0, '',
-               total, notes, terms, converted_to_invoice_id, archived, created_at, updated_at
+               total, notes, terms, '', '', '', '', '', '', '',
+               converted_to_invoice_id, archived, created_at, updated_at
         FROM quotes
       `);
 
@@ -589,6 +597,31 @@ const runMigrations = () => {
       console.log('Adding created_from_quote_id column to invoices table...');
       db.exec('ALTER TABLE invoices ADD COLUMN created_from_quote_id INTEGER DEFAULT NULL');
       console.log('✓ Added created_from_quote_id column');
+    }
+
+    // Add client snapshot columns to quotes table
+    console.log('Checking for client snapshot columns in quotes table...');
+    const quoteColumnsForSnapshot = db.pragma('table_info(quotes)');
+    const quoteColumnNamesForSnapshot = quoteColumnsForSnapshot.map(col => col.name);
+
+    if (!quoteColumnNamesForSnapshot.includes('client_name')) {
+      console.log('Adding client snapshot columns to quotes table...');
+      const clientSnapshotColumns = [
+        { name: 'client_name', type: 'TEXT', default: "''" },
+        { name: 'client_email', type: 'TEXT', default: "''" },
+        { name: 'client_phone', type: 'TEXT', default: "''" },
+        { name: 'client_address', type: 'TEXT', default: "''" },
+        { name: 'client_city', type: 'TEXT', default: "''" },
+        { name: 'client_state', type: 'TEXT', default: "''" },
+        { name: 'client_zip', type: 'TEXT', default: "''" }
+      ];
+
+      clientSnapshotColumns.forEach(column => {
+        db.exec(`ALTER TABLE quotes ADD COLUMN ${column.name} ${column.type} DEFAULT ${column.default}`);
+      });
+      console.log('✓ Added client snapshot columns to quotes table');
+    } else {
+      console.log('✓ Client snapshot columns already exist in quotes table');
     }
 
     // Set default tab configuration if null
@@ -1548,39 +1581,58 @@ const generateQuoteNumber = () => {
 const createQuote = (quote, items) => {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  // Get client info to snapshot at time of quote creation
+  const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(quote.client_id);
+
+  const quoteStmt = db.prepare(`
     INSERT INTO quotes (quote_number, client_id, date, expiry_date, status, subtotal, tax,
       discount_type, discount_value, discount_amount, shipping, adjustment, adjustment_label,
-      total, notes, terms)
+      total, notes, terms, client_name, client_email, client_phone, client_address,
+      client_city, client_state, client_zip)
     VALUES (@quote_number, @client_id, @date, @expiry_date, @status, @subtotal, @tax,
       @discount_type, @discount_value, @discount_amount, @shipping, @adjustment, @adjustment_label,
-      @total, @notes, @terms)
+      @total, @notes, @terms, @client_name, @client_email, @client_phone, @client_address,
+      @client_city, @client_state, @client_zip)
   `);
 
-  const result = stmt.run(quote);
-  const quoteId = result.lastInsertRowid;
+  // Add client snapshot to quote data
+  const quoteWithClient = {
+    ...quote,
+    client_name: client?.name || '',
+    client_email: client?.email || '',
+    client_phone: client?.phone || '',
+    client_address: client?.address || '',
+    client_city: client?.city || '',
+    client_state: client?.state || '',
+    client_zip: client?.zip || ''
+  };
 
-  // Insert items
   const itemStmt = db.prepare(`
-    INSERT INTO quote_items (quote_id, description, quantity, rate,
-      discount_type, discount_value, discount_amount, amount)
+    INSERT INTO quote_items (quote_id, description, quantity, rate, discount_type, discount_value, discount_amount, amount)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  items.forEach(item => {
-    itemStmt.run(
-      quoteId,
-      item.description,
-      item.quantity,
-      item.rate,
-      item.discount_type || 'none',
-      item.discount_value || 0,
-      item.discount_amount || 0,
-      item.amount
-    );
+  const transaction = db.transaction((quoteData, items) => {
+    const result = quoteStmt.run(quoteData);
+    const quoteId = result.lastInsertRowid;
+
+    for (const item of items) {
+      itemStmt.run(
+        quoteId,
+        item.description,
+        item.quantity,
+        item.rate,
+        item.discount_type || 'none',
+        item.discount_value || 0,
+        item.discount_amount || 0,
+        item.amount
+      );
+    }
+
+    return result;
   });
 
-  return result;
+  return transaction(quoteWithClient, items);
 };
 
 const getAllQuotes = () => {
@@ -1625,8 +1677,9 @@ const getQuote = (id) => {
 const updateQuote = (id, quote, items) => {
   const db = getDatabase();
 
-  const stmt = db.prepare(`
+  const quoteStmt = db.prepare(`
     UPDATE quotes SET
+      quote_number = @quote_number,
       client_id = @client_id,
       date = @date,
       expiry_date = @expiry_date,
@@ -1646,31 +1699,33 @@ const updateQuote = (id, quote, items) => {
     WHERE id = @id
   `);
 
-  const result = stmt.run({ ...quote, id });
-
-  // Delete existing items and insert new ones
-  db.prepare('DELETE FROM quote_items WHERE quote_id = ?').run(id);
-
+  const deleteItemsStmt = db.prepare('DELETE FROM quote_items WHERE quote_id = ?');
   const itemStmt = db.prepare(`
-    INSERT INTO quote_items (quote_id, description, quantity, rate,
-      discount_type, discount_value, discount_amount, amount)
+    INSERT INTO quote_items (quote_id, description, quantity, rate, discount_type, discount_value, discount_amount, amount)
     VALUES (?, ?, ?, ?, ?, ?, ?, ?)
   `);
 
-  items.forEach(item => {
-    itemStmt.run(
-      id,
-      item.description,
-      item.quantity,
-      item.rate,
-      item.discount_type || 'none',
-      item.discount_value || 0,
-      item.discount_amount || 0,
-      item.amount
-    );
+  const transaction = db.transaction((id, quote, items) => {
+    quoteStmt.run({ ...quote, id });
+    deleteItemsStmt.run(id);
+
+    for (const item of items) {
+      itemStmt.run(
+        id,
+        item.description,
+        item.quantity,
+        item.rate,
+        item.discount_type || 'none',
+        item.discount_value || 0,
+        item.discount_amount || 0,
+        item.amount
+      );
+    }
+
+    return { changes: 1 };
   });
 
-  return result;
+  return transaction(id, quote, items);
 };
 
 const deleteQuote = (id) => {
