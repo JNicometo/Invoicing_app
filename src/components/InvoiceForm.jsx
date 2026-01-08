@@ -12,6 +12,7 @@ function InvoiceForm({ invoice, onClose }) {
     createInvoice,
     updateInvoice,
     generateInvoiceNumber,
+    peekNextInvoiceNumber,
     getSettings,
     getInvoice,
     getClientByCustomerNumber,
@@ -132,7 +133,7 @@ function InvoiceForm({ invoice, onClose }) {
   const loadInitialData = async () => {
     try {
       setLoading(true);
-      const [clientsData, savedItemsData, settingsData, invoiceNum] = await Promise.all([
+      const [clientsData, savedItemsData, settingsData, previewNumber] = await Promise.all([
         getAllClients(),
         getAllSavedItems(),
         getSettings(),
@@ -143,10 +144,10 @@ function InvoiceForm({ invoice, onClose }) {
       setSavedItems(savedItemsData);
       setSettings(settingsData);
 
-      if (!isEdit && invoiceNum) {
+      if (!isEdit) {
         setFormData(prev => ({
           ...prev,
-          invoice_number: invoiceNum,
+          invoice_number: previewNumber,
           payment_terms: settingsData.payment_terms || ''
         }));
       }
@@ -405,9 +406,16 @@ function InvoiceForm({ invoice, onClose }) {
     }
 
     try {
+      // Generate invoice number only after validation passes and right before saving
+      let invoiceNumber = formData.invoice_number;
+      if (!isEdit && !invoiceNumber) {
+        invoiceNumber = await generateInvoiceNumber();
+      }
+
       const totals = calculateTotals();
       const invoiceData = {
         ...formData,
+        invoice_number: invoiceNumber,
         subtotal: totals.subtotal,
         tax: totals.tax,
         discount_type: formData.discount_type || 'none',
@@ -439,7 +447,8 @@ function InvoiceForm({ invoice, onClose }) {
       onClose(true);
     } catch (error) {
       console.error('Error saving invoice:', error);
-      alert('Error saving invoice: ' + error.message);
+      const errorMessage = error.message || error.toString() || 'Unknown error occurred';
+      alert('Error saving invoice: ' + errorMessage);
     }
   };
 

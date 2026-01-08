@@ -7,6 +7,8 @@ Welcome to InvoicePro Desktop! This comprehensive guide will help you get the mo
 1. [Getting Started](#getting-started)
 2. [Dashboard](#dashboard)
 3. [Managing Invoices](#managing-invoices)
+   - [PDF Export](#pdf-export)
+   - [Payment Links](#payment-links)
 4. [Managing Clients](#managing-clients)
 5. [Saved Items](#saved-items)
 6. [Archive](#archive)
@@ -167,6 +169,78 @@ Invoices automatically update to "Overdue" when:
 2. Click **"Download PDF"** button
 3. Choose save location
 4. PDF includes all invoice details with professional formatting
+
+**PDF Features:**
+- Optimized for single-page layout
+- Reduced margins for better space utilization
+- Company branding and logo
+- Professional formatting
+- Ready to email or print
+
+### Payment Links
+
+Generate secure payment links for your clients to pay online via Stripe or PayPal.
+
+#### Setting Up Payment Gateways
+
+**Stripe Setup:**
+1. Go to **Settings** → **Payment Gateway**
+2. Toggle **Stripe** to ON
+3. Sign up at [stripe.com](https://stripe.com) (free account)
+4. Go to Stripe Dashboard → Developers → API keys
+5. Copy your **Secret Key** (starts with `sk_test_` or `sk_live_`)
+6. Copy your **Publishable Key** (starts with `pk_test_` or `pk_live_`)
+7. Paste both keys into InvoicePro settings
+8. Click **Save Settings**
+
+**PayPal Setup:**
+1. Go to **Settings** → **Payment Gateway**
+2. Toggle **PayPal** to ON
+3. Create a PayPal account at [paypal.com](https://paypal.com)
+4. Set up your PayPal.me link (e.g., paypal.me/yourname)
+5. Enter your PayPal.me username (just "yourname" without the paypal.me/) OR your PayPal email
+6. Click **Save Settings**
+
+#### Generating Payment Links
+
+1. Open an unpaid invoice
+2. In the **Payment Tracking** section, you'll see:
+   - **"Stripe Payment Link"** button (purple) - if Stripe is enabled
+   - **"PayPal Payment Link"** button (blue) - if PayPal is enabled
+3. Click the button for your preferred payment method
+4. The link will be generated and displayed in a highlighted box
+5. Click the **Copy** button to copy the link
+6. Send the link to your client via email, text, or messaging app
+7. Client clicks the link and pays securely
+8. You manually record the payment when received
+
+**Payment Link Features:**
+- ✅ Secure, PCI-compliant payment processing
+- ✅ One-click link generation
+- ✅ Copy-to-clipboard for easy sharing
+- ✅ Professional Stripe/PayPal hosted payment pages
+- ✅ Support for all major credit/debit cards
+- ✅ No complex webhooks or server setup needed
+
+**Payment Methods Supported:**
+When recording payments, you can track 17 different payment methods:
+- Cash
+- Check
+- Credit Card
+- Debit Card
+- Bank Transfer
+- ACH
+- Wire Transfer
+- PayPal
+- Venmo
+- Zelle
+- Stripe
+- Square
+- Apple Pay
+- Google Pay
+- Cryptocurrency
+- Money Order
+- Other
 
 ---
 

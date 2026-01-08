@@ -381,6 +381,16 @@ ipcMain.handle('db:generateInvoiceNumber', async () => {
   }
 });
 
+ipcMain.handle('db:peekNextInvoiceNumber', async () => {
+  try {
+    // Peek at next invoice number without incrementing counter
+    return db.peekNextInvoiceNumber();
+  } catch (error) {
+    console.error('Error peeking next invoice number:', error);
+    throw error;
+  }
+});
+
 // Saved Items
 ipcMain.handle('db:getAllSavedItems', async () => {
   try {
@@ -661,6 +671,125 @@ ipcMain.handle('email:sendInvoice', async (event, emailData) => {
   }
 });
 
+// Send Quote via Email
+ipcMain.handle('email:sendQuote', async (event, emailData) => {
+  let pdfWindow = null;
+  try {
+    const { settings, recipient, subject, body, quoteHtml, quoteNumber, cc, bcc } = emailData;
+
+    // Validate SMTP settings
+    if (!settings.smtp_host || !settings.smtp_user || !settings.smtp_password) {
+      throw new Error('SMTP settings are not configured. Please configure email settings first.');
+    }
+
+    // Create a transporter
+    const transporter = nodemailer.createTransport({
+      host: settings.smtp_host,
+      port: parseInt(settings.smtp_port) || 587,
+      secure: settings.smtp_secure === true || settings.smtp_secure === 1,
+      auth: {
+        user: settings.smtp_user,
+        pass: settings.smtp_password,
+      },
+      tls: {
+        rejectUnauthorized: false,
+        minVersion: 'TLSv1.2'
+      },
+      connectionTimeout: 10000,
+      greetingTimeout: 5000
+    });
+
+    console.log('SMTP Config for Quote:', {
+      host: settings.smtp_host,
+      port: parseInt(settings.smtp_port) || 587,
+      secure: settings.smtp_secure === true || settings.smtp_secure === 1,
+      user: settings.smtp_user
+    });
+
+    // Verify connection configuration
+    await transporter.verify();
+
+    // Generate PDF in memory for attachment
+    pdfWindow = new BrowserWindow({
+      show: false,
+      webPreferences: {
+        nodeIntegration: false,
+        contextIsolation: true,
+      },
+    });
+
+    await pdfWindow.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(quoteHtml)}`);
+    await new Promise(resolve => setTimeout(resolve, 500));
+
+    const pdfData = await pdfWindow.webContents.printToPDF({
+      printBackground: true,
+      pageSize: 'Letter',
+      margins: {
+        top: 0.5,
+        bottom: 0.5,
+        left: 0.5,
+        right: 0.5
+      }
+    });
+
+    // Prepare email options
+    const mailOptions = {
+      from: settings.smtp_from_email
+        ? `"${settings.smtp_from_name || settings.company_name}" <${settings.smtp_from_email}>`
+        : settings.smtp_user,
+      to: recipient,
+      subject: subject,
+      text: body,
+      html: `<pre style="font-family: Arial, sans-serif; white-space: pre-wrap;">${body}</pre>`,
+      attachments: [
+        {
+          filename: `Quote-${quoteNumber}.pdf`,
+          content: pdfData,
+          contentType: 'application/pdf'
+        }
+      ]
+    };
+
+    // Add CC and BCC if provided
+    if (cc && cc.trim()) {
+      mailOptions.cc = cc;
+    }
+    if (bcc && bcc.trim()) {
+      mailOptions.bcc = bcc;
+    }
+
+    // Send the email
+    const info = await transporter.sendMail(mailOptions);
+
+    log.success('Quote email sent successfully:', info.messageId);
+    return {
+      success: true,
+      messageId: info.messageId,
+      message: 'Quote sent successfully!'
+    };
+
+  } catch (error) {
+    log.error('Error sending quote email:', error);
+
+    // Provide user-friendly error messages
+    let errorMessage = error.message;
+    if (error.code === 'EAUTH') {
+      errorMessage = 'Authentication failed. Please check your SMTP username and password.';
+    } else if (error.code === 'ESOCKET') {
+      errorMessage = 'Could not connect to email server. Please check your SMTP host and port.';
+    } else if (error.code === 'ECONNECTION') {
+      errorMessage = 'Connection failed. Please check your internet connection and SMTP settings.';
+    }
+
+    throw new Error(errorMessage);
+  } finally {
+    // Always close the PDF window, even on error
+    if (pdfWindow && !pdfWindow.isDestroyed()) {
+      pdfWindow.close();
+    }
+  }
+});
+
 // Payments
 ipcMain.handle('db:createPayment', async (event, payment) => {
   try {
@@ -763,6 +892,16 @@ ipcMain.handle('db:generateQuoteNumber', async () => {
     return db.generateQuoteNumber();
   } catch (error) {
     console.error('Error generating quote number:', error);
+    throw error;
+  }
+});
+
+ipcMain.handle('db:peekNextQuoteNumber', async () => {
+  try {
+    // Peek at next quote number without incrementing counter
+    return db.peekNextQuoteNumber();
+  } catch (error) {
+    console.error('Error peeking next quote number:', error);
     throw error;
   }
 });
@@ -1440,6 +1579,50 @@ ipcMain.handle('sqlserver:createSchema', async (event, config) => {
   }
 });
 
+// Payment Gateway - PayPal
+ipcMain.handle('payment:createPayPalPaymentLink', async (event, paymentData) => {
+  try {
+    const { settings, invoice } = paymentData;
+
+    // Validate PayPal settings
+    if (!settings.paypal_enabled) {
+      throw new Error('PayPal is not configured. Please enable PayPal in Settings.');
+    }
+
+    // Get PayPal email/username from settings
+    const paypalIdentifier = settings.paypal_client_id || settings.company_email;
+
+    if (!paypalIdentifier) {
+      throw new Error('PayPal email or PayPal.me username not configured.');
+    }
+
+    // Generate PayPal.me link
+    const amount = invoice.total.toFixed(2);
+    let paymentLink;
+
+    // If it looks like a PayPal.me username (no @ symbol), use PayPal.me
+    if (!paypalIdentifier.includes('@')) {
+      paymentLink = `https://paypal.me/${paypalIdentifier}/${amount}USD`;
+    } else {
+      // Use standard PayPal payment link with email
+      const invoiceNumber = encodeURIComponent(invoice.invoice_number);
+      const note = encodeURIComponent(`Payment for Invoice ${invoice.invoice_number}`);
+      paymentLink = `https://www.paypal.com/paypalme/${paypalIdentifier.replace('@', '')}/${amount}?note=${note}`;
+    }
+
+    console.log('PayPal payment link created:', paymentLink);
+    return {
+      success: true,
+      paymentLink: paymentLink,
+      message: 'PayPal payment link created successfully!'
+    };
+
+  } catch (error) {
+    console.error('Error creating PayPal payment link:', error);
+    throw new Error(error.message);
+  }
+});
+
 // Payment Gateway - Stripe
 ipcMain.handle('payment:createStripePaymentLink', async (event, paymentData) => {
   try {
@@ -1619,6 +1802,241 @@ ipcMain.handle('payment:processCardPayment', async (event, paymentData) => {
     }
 
     throw new Error(errorMessage);
+  }
+});
+
+// Square Payment Link
+ipcMain.handle('payment:createSquarePaymentLink', async (event, paymentData) => {
+  try {
+    const { settings, invoice, client } = paymentData;
+
+    // Validate Square settings
+    if (!settings.square_enabled || !settings.square_access_token) {
+      throw new Error('Square is not configured. Please configure Square settings first.');
+    }
+
+    // Initialize Square client
+    const { Client, Environment } = require('square');
+    const squareClient = new Client({
+      accessToken: settings.square_access_token,
+      environment: settings.square_environment === 'production' ? Environment.Production : Environment.Sandbox,
+    });
+
+    // Create a payment link using Square Checkout API
+    const { result } = await squareClient.checkoutApi.createPaymentLink({
+      idempotencyKey: `invoice-${invoice.id}-${Date.now()}`,
+      quickPay: {
+        name: `Invoice ${invoice.invoice_number}`,
+        priceMoney: {
+          amount: BigInt(Math.round(invoice.total * 100)), // Square uses cents
+          currency: (settings.currency_code || 'USD').toUpperCase(),
+        },
+      },
+      checkoutOptions: {
+        allowTipping: false,
+        redirectUrl: settings.company_website || undefined,
+      },
+    });
+
+    console.log('Square payment link created:', result.paymentLink.id);
+    return {
+      success: true,
+      paymentLink: result.paymentLink.url,
+      paymentLinkId: result.paymentLink.id,
+      message: 'Square payment link created successfully!',
+    };
+
+  } catch (error) {
+    console.error('Error creating Square payment link:', error);
+    let errorMessage = error.message;
+
+    if (error.errors && error.errors.length > 0) {
+      errorMessage = error.errors[0].detail || error.errors[0].code;
+    }
+
+    throw new Error(errorMessage);
+  }
+});
+
+// GoCardless Payment Link (ACH/SEPA)
+ipcMain.handle('payment:createGoCardlessPaymentLink', async (event, paymentData) => {
+  try {
+    const { settings, invoice, client } = paymentData;
+
+    // Validate GoCardless settings
+    if (!settings.gocardless_enabled || !settings.gocardless_access_token) {
+      throw new Error('GoCardless is not configured. Please configure GoCardless settings first.');
+    }
+
+    // Initialize GoCardless client
+    const gocardless = require('gocardless-nodejs');
+    const gcClient = gocardless(
+      settings.gocardless_access_token,
+      settings.gocardless_environment === 'live' ? gocardless.constants.Environments.Live : gocardless.constants.Environments.Sandbox
+    );
+
+    // Create a billing request with payment request
+    const billingRequest = await gcClient.billingRequests.create({
+      payment_request: {
+        description: `Invoice ${invoice.invoice_number}`,
+        amount: Math.round(invoice.total * 100), // GoCardless uses cents/pence
+        currency: (settings.currency_code || 'USD').toUpperCase(),
+        // Set metadata for reference
+        metadata: {
+          invoice_id: invoice.id.toString(),
+          invoice_number: invoice.invoice_number,
+          client_id: client.id.toString(),
+        }
+      }
+    });
+
+    // Create a billing request flow (payment page)
+    const billingRequestFlow = await gcClient.billingRequestFlows.create({
+      redirect_uri: settings.company_website || 'https://example.com',
+      exit_uri: settings.company_website || 'https://example.com',
+      links: {
+        billing_request: billingRequest.id
+      }
+    });
+
+    console.log('GoCardless payment link created:', billingRequestFlow.id);
+    return {
+      success: true,
+      paymentLink: billingRequestFlow.authorisation_url,
+      paymentLinkId: billingRequestFlow.id,
+      billingRequestId: billingRequest.id,
+      message: 'GoCardless payment link created successfully!',
+    };
+
+  } catch (error) {
+    console.error('Error creating GoCardless payment link:', error);
+    let errorMessage = error.message;
+
+    if (error.error && error.error.message) {
+      errorMessage = error.error.message;
+    }
+
+    throw new Error(errorMessage);
+  }
+});
+
+/**
+ * Creates an Authorize.Net hosted payment page link for invoice payment
+ *
+ * This handler generates a secure payment URL using Authorize.Net's hosted payment page
+ * approach with MD5 HMAC fingerprint authentication. The hosted payment page handles
+ * all PCI compliance requirements as the payment form is hosted by Authorize.Net.
+ *
+ * @async
+ * @param {Object} event - The IPC event object
+ * @param {Object} paymentData - Payment data object
+ * @param {Object} paymentData.settings - Application settings containing Authorize.Net credentials
+ * @param {string} paymentData.settings.authorizenet_api_login_id - API Login ID from Authorize.Net
+ * @param {string} paymentData.settings.authorizenet_transaction_key - Transaction Key for HMAC signing
+ * @param {boolean} paymentData.settings.authorizenet_enabled - Whether Authorize.Net is enabled
+ * @param {string} paymentData.settings.authorizenet_environment - 'sandbox' or 'production'
+ * @param {Object} paymentData.invoice - Invoice object
+ * @param {number} paymentData.invoice.id - Invoice database ID
+ * @param {string} paymentData.invoice.invoice_number - Invoice number for reference
+ * @param {number} paymentData.invoice.total - Total amount due
+ * @param {string} paymentData.invoice.client_email - Client email for pre-fill
+ * @param {Object} paymentData.client - Client object
+ * @param {string} paymentData.client.name - Client full name
+ *
+ * @returns {Promise<Object>} Payment link result
+ * @returns {boolean} returns.success - Whether the operation succeeded
+ * @returns {string} returns.paymentLink - The hosted payment page URL
+ * @returns {string} returns.paymentLinkId - Unique identifier for this payment link
+ * @returns {string} returns.message - Success message
+ *
+ * @throws {Error} When Authorize.Net is not configured or enabled
+ *
+ * @example
+ * const result = await window.electron.ipcRenderer.invoke('payment:createAuthorizeNetPaymentLink', {
+ *   settings: { authorizenet_api_login_id: '...', authorizenet_transaction_key: '...' },
+ *   invoice: { id: 1, invoice_number: 'INV-0001', total: 1500.00 },
+ *   client: { name: 'John Doe' }
+ * });
+ * // Returns: { success: true, paymentLink: 'https://test.authorize.net/payment/payment?...', ... }
+ *
+ * @see {@link https://developer.authorize.net/api/reference/features/accept_hosted.html|Authorize.Net Accept Hosted Documentation}
+ */
+ipcMain.handle('payment:createAuthorizeNetPaymentLink', async (event, paymentData) => {
+  try {
+    const { settings, invoice, client } = paymentData;
+
+    // Validate Authorize.Net settings
+    if (!settings.authorizenet_enabled || !settings.authorizenet_api_login_id || !settings.authorizenet_transaction_key) {
+      throw new Error('Authorize.Net is not configured. Please configure Authorize.Net settings first.');
+    }
+
+    const crypto = require('crypto');
+
+    // Determine endpoint based on environment (sandbox for testing, production for live transactions)
+    const endpoint = settings.authorizenet_environment === 'production'
+      ? 'https://accept.authorize.net/payment/payment'
+      : 'https://test.authorize.net/payment/payment';
+
+    // Generate timestamp and sequence for fingerprint uniqueness
+    // Timestamp: Unix timestamp in seconds (required by Authorize.Net)
+    // Sequence: Random number to prevent duplicate fingerprints
+    const timestamp = Math.floor(Date.now() / 1000);
+    const sequence = Math.floor(Math.random() * 1000);
+
+    // Generate fingerprint for hosted payment page authentication
+    // The fingerprint proves this request came from an authorized merchant
+    const amount = invoice.total.toFixed(2);
+    const fpSequence = sequence.toString();
+    const fpTimestamp = timestamp.toString();
+
+    // Create HMAC-MD5 fingerprint hash using Authorize.Net's specification
+    // Format: API_LOGIN_ID^SEQUENCE^TIMESTAMP^AMOUNT^
+    // The caret (^) delimiters are required by Authorize.Net
+    const fingerprintData = `${settings.authorizenet_api_login_id}^${fpSequence}^${fpTimestamp}^${amount}^`;
+    const fingerprint = crypto
+      .createHmac('md5', settings.authorizenet_transaction_key)
+      .update(fingerprintData)
+      .digest('hex');
+
+    // Build hosted payment page URL with required and optional parameters
+    // All parameters are prefixed with 'x_' as per Authorize.Net specification
+    const params = new URLSearchParams({
+      // Authentication parameters (required)
+      'x_login': settings.authorizenet_api_login_id,          // Merchant API Login ID
+      'x_amount': amount,                                      // Transaction amount (2 decimal places)
+      'x_fp_sequence': fpSequence,                             // Fingerprint sequence number
+      'x_fp_timestamp': fpTimestamp,                           // Fingerprint timestamp
+      'x_fp_hash': fingerprint,                                // HMAC-MD5 fingerprint for security
+
+      // Display parameters
+      'x_show_form': 'PAYMENT_FORM',                          // Show payment form immediately
+
+      // Transaction information (pre-filled for user convenience)
+      'x_invoice_num': invoice.invoice_number,                // Invoice reference number
+      'x_description': `Invoice ${invoice.invoice_number}`,   // Transaction description
+
+      // Customer information (pre-filled to improve UX)
+      'x_first_name': client.name.split(' ')[0] || '',        // Client first name
+      'x_last_name': client.name.split(' ').slice(1).join(' ') || '',  // Client last name
+      'x_email': invoice.client_email || '',                  // Client email
+
+      // Response handling
+      'x_relay_response': 'FALSE',                            // Don't use relay response (simpler flow)
+    });
+
+    const paymentUrl = `${endpoint}?${params.toString()}`;
+
+    console.log('Authorize.Net payment link created for invoice:', invoice.invoice_number);
+    return {
+      success: true,
+      paymentLink: paymentUrl,
+      paymentLinkId: `authnet-${invoice.id}-${timestamp}`,
+      message: 'Authorize.Net payment link created successfully!',
+    };
+
+  } catch (error) {
+    console.error('Error creating Authorize.Net payment link:', error);
+    throw new Error(error.message);
   }
 });
 

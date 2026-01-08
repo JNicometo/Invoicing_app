@@ -97,6 +97,10 @@ export const useDatabase = () => {
     return await ipcCall('db:generateInvoiceNumber');
   }, [ipcCall]);
 
+  const peekNextInvoiceNumber = useCallback(async () => {
+    return await ipcCall('db:peekNextInvoiceNumber');
+  }, [ipcCall]);
+
   // Saved Items
   const getAllSavedItems = useCallback(async () => {
     return await ipcCall('db:getAllSavedItems');
@@ -135,6 +139,10 @@ export const useDatabase = () => {
   // Email Sending
   const sendInvoiceEmail = useCallback(async (emailData) => {
     return await ipcCall('email:sendInvoice', emailData);
+  }, [ipcCall]);
+
+  const sendQuoteEmail = useCallback(async (emailData) => {
+    return await ipcCall('email:sendQuote', emailData);
   }, [ipcCall]);
 
   // Payments
@@ -178,6 +186,10 @@ export const useDatabase = () => {
   // Quotes
   const generateQuoteNumber = useCallback(async () => {
     return await ipcCall('db:generateQuoteNumber');
+  }, [ipcCall]);
+
+  const peekNextQuoteNumber = useCallback(async () => {
+    return await ipcCall('db:peekNextQuoteNumber');
   }, [ipcCall]);
 
   const createQuote = useCallback(async (quote, items) => {
@@ -355,8 +367,53 @@ export const useDatabase = () => {
   }, [ipcCall]);
 
   // Payment Gateway
+  /**
+   * Creates a Stripe payment link for an invoice
+   * @param {Object} paymentData - Payment data containing settings, invoice, and client info
+   * @returns {Promise<Object>} Result with success status and payment link
+   */
   const createStripePaymentLink = useCallback(async (paymentData) => {
     return await ipcCall('payment:createStripePaymentLink', paymentData);
+  }, [ipcCall]);
+
+  /**
+   * Creates a PayPal.me payment link for an invoice
+   * @param {Object} paymentData - Payment data containing settings and invoice info
+   * @returns {Promise<Object>} Result with success status and PayPal payment link
+   */
+  const createPayPalPaymentLink = useCallback(async (paymentData) => {
+    return await ipcCall('payment:createPayPalPaymentLink', paymentData);
+  }, [ipcCall]);
+
+  /**
+   * Creates a Square payment link for an invoice
+   * @param {Object} paymentData - Payment data containing settings, invoice, and client info
+   * @returns {Promise<Object>} Result with success status and Square payment link
+   */
+  const createSquarePaymentLink = useCallback(async (paymentData) => {
+    return await ipcCall('payment:createSquarePaymentLink', paymentData);
+  }, [ipcCall]);
+
+  /**
+   * Creates a GoCardless payment link for ACH/SEPA bank transfers
+   * @param {Object} paymentData - Payment data containing settings, invoice, and client info
+   * @returns {Promise<Object>} Result with success status and GoCardless billing request URL
+   */
+  const createGoCardlessPaymentLink = useCallback(async (paymentData) => {
+    return await ipcCall('payment:createGoCardlessPaymentLink', paymentData);
+  }, [ipcCall]);
+
+  /**
+   * Creates an Authorize.Net hosted payment page link for enterprise payment processing
+   * Generates a secure HMAC-MD5 fingerprint authenticated payment URL for PCI-compliant transactions
+   * @param {Object} paymentData - Payment data object
+   * @param {Object} paymentData.settings - Settings with Authorize.Net credentials and configuration
+   * @param {Object} paymentData.invoice - Invoice object with ID, number, and total amount
+   * @param {Object} paymentData.client - Client object with name and contact information
+   * @returns {Promise<Object>} Result object with success status, payment link URL, and link ID
+   */
+  const createAuthorizeNetPaymentLink = useCallback(async (paymentData) => {
+    return await ipcCall('payment:createAuthorizeNetPaymentLink', paymentData);
   }, [ipcCall]);
 
   const sendInvoiceWithPayment = useCallback(async (emailData) => {
@@ -387,6 +444,7 @@ export const useDatabase = () => {
     archiveInvoice,
     restoreInvoice,
     generateInvoiceNumber,
+    peekNextInvoiceNumber,
     // Saved Items
     getAllSavedItems,
     getSavedItem,
@@ -400,6 +458,7 @@ export const useDatabase = () => {
     saveInvoiceAsPDF,
     // Email
     sendInvoiceEmail,
+    sendQuoteEmail,
     // Payments
     createPayment,
     getPaymentsByInvoice,
@@ -413,6 +472,7 @@ export const useDatabase = () => {
     generateInvoiceFromRecurring,
     // Quotes
     generateQuoteNumber,
+    peekNextQuoteNumber,
     createQuote,
     getAllQuotes,
     getArchivedQuotes,
@@ -463,6 +523,10 @@ export const useDatabase = () => {
     batchDeleteInvoices,
     // Payment Gateway
     createStripePaymentLink,
+    createPayPalPaymentLink,
+    createSquarePaymentLink,
+    createGoCardlessPaymentLink,
+    createAuthorizeNetPaymentLink,
     sendInvoiceWithPayment,
   };
 };

@@ -12,6 +12,7 @@ function QuoteForm({ quote, onClose }) {
     createQuote,
     updateQuote,
     generateQuoteNumber,
+    peekNextQuoteNumber,
     getSettings,
     getQuote,
     getClientByCustomerNumber,
@@ -76,21 +77,21 @@ function QuoteForm({ quote, onClose }) {
   const loadInitialData = useCallback(async () => {
     try {
       setLoading(true);
-      const [clientsData, savedItemsData, settingsData, quoteNum] = await Promise.all([
+      const [clientsData, savedItemsData, settingsData, previewNumber] = await Promise.all([
         getAllClients(),
         getAllSavedItems(),
         getSettings(),
-        !isEdit ? generateQuoteNumber() : Promise.resolve(null)
+        !isEdit ? peekNextQuoteNumber() : Promise.resolve(null)
       ]);
 
       setClients(clientsData);
       setSavedItems(savedItemsData);
       setSettings(settingsData);
 
-      if (!isEdit && quoteNum) {
+      if (!isEdit) {
         setFormData(prev => ({
           ...prev,
-          quote_number: quoteNum,
+          quote_number: previewNumber,
           terms: settingsData.terms || ''
         }));
       }
@@ -100,7 +101,7 @@ function QuoteForm({ quote, onClose }) {
     } finally {
       setLoading(false);
     }
-  }, [getAllClients, getAllSavedItems, getSettings, generateQuoteNumber, isEdit]);
+  }, [getAllClients, getAllSavedItems, getSettings, peekNextQuoteNumber, isEdit]);
 
   useEffect(() => {
     loadInitialData();
@@ -396,9 +397,16 @@ function QuoteForm({ quote, onClose }) {
     }
 
     try {
+      // Generate quote number only after validation passes and right before saving
+      let quoteNumber = formData.quote_number;
+      if (!isEdit && !quoteNumber) {
+        quoteNumber = await generateQuoteNumber();
+      }
+
       const totals = calculateTotals();
       const quoteData = {
         ...formData,
+        quote_number: quoteNumber,
         subtotal: totals.subtotal,
         tax: totals.tax,
         discount_type: formData.discount_type || 'none',
@@ -430,7 +438,8 @@ function QuoteForm({ quote, onClose }) {
       onClose(true);
     } catch (error) {
       console.error('Error saving quote:', error);
-      alert('Error saving quote: ' + error.message);
+      const errorMessage = error.message || error.toString() || 'Unknown error occurred';
+      alert('Error saving quote: ' + errorMessage);
     }
   };
 

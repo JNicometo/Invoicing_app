@@ -202,6 +202,29 @@ const runMigrations = () => {
       { name: 'stripe_webhook_secret', type: 'TEXT', default: "''" },
       { name: 'webhook_port', type: 'TEXT', default: "'3001'" },
 
+      // PayPal Integration
+      { name: 'paypal_client_id', type: 'TEXT', default: "''" },
+      { name: 'paypal_client_secret', type: 'TEXT', default: "''" },
+      { name: 'paypal_enabled', type: 'INTEGER', default: '0' },
+      { name: 'paypal_mode', type: 'TEXT', default: "'sandbox'" }, // sandbox or live
+
+      // Square Integration
+      { name: 'square_access_token', type: 'TEXT', default: "''" },
+      { name: 'square_location_id', type: 'TEXT', default: "''" },
+      { name: 'square_enabled', type: 'INTEGER', default: '0' },
+      { name: 'square_environment', type: 'TEXT', default: "'sandbox'" }, // sandbox or production
+
+      // GoCardless Integration (ACH/SEPA)
+      { name: 'gocardless_access_token', type: 'TEXT', default: "''" },
+      { name: 'gocardless_enabled', type: 'INTEGER', default: '0' },
+      { name: 'gocardless_environment', type: 'TEXT', default: "'sandbox'" }, // sandbox or live
+
+      // Authorize.Net Integration (Enterprise)
+      { name: 'authorizenet_api_login_id', type: 'TEXT', default: "''" },
+      { name: 'authorizenet_transaction_key', type: 'TEXT', default: "''" },
+      { name: 'authorizenet_enabled', type: 'INTEGER', default: '0' },
+      { name: 'authorizenet_environment', type: 'TEXT', default: "'sandbox'" }, // sandbox or production
+
       // SMTP Security
       { name: 'smtp_verify_tls', type: 'INTEGER', default: '1' }, // 1 = verify TLS (secure), 0 = skip verification
 
@@ -728,6 +751,32 @@ const runMigrations = () => {
       console.log('✓ All enhanced client columns already exist');
     }
 
+    // Add payment gateway columns to payments table
+    console.log('Checking for payment gateway columns...');
+    const paymentColumns = db.pragma('table_info(payments)');
+    const paymentColumnNames = paymentColumns.map(col => col.name);
+
+    const paymentGatewayColumns = [
+      { name: 'payment_gateway', type: 'TEXT', default: "'manual'" }, // manual, stripe, paypal
+      { name: 'transaction_id', type: 'TEXT', default: "''" },
+      { name: 'gateway_fee', type: 'REAL', default: '0' }
+    ];
+
+    let paymentColumnsAdded = 0;
+    paymentGatewayColumns.forEach(column => {
+      if (!paymentColumnNames.includes(column.name)) {
+        console.log(`Adding ${column.name} column to payments table...`);
+        db.exec(`ALTER TABLE payments ADD COLUMN ${column.name} ${column.type} DEFAULT ${column.default}`);
+        paymentColumnsAdded++;
+      }
+    });
+
+    if (paymentColumnsAdded > 0) {
+      console.log(`✓ Added ${paymentColumnsAdded} payment gateway columns to payments table`);
+    } else {
+      console.log('✓ All payment gateway columns already exist');
+    }
+
     // Add enhanced saved items fields for inventory and product management
     console.log('Checking for enhanced saved items fields...');
     const existingItemColumns = db.pragma('table_info(saved_items)');
@@ -1246,6 +1295,34 @@ const generateInvoiceNumber = (type = 'invoice') => {
   return `${prefix}${nextNumber}`;
 };
 
+// Preview the next invoice number WITHOUT incrementing the counter
+const peekNextInvoiceNumber = () => {
+  const settings = getSettings();
+
+  // Use the new next_invoice_number field if available
+  if (settings.next_invoice_number) {
+    return settings.next_invoice_number;
+  }
+
+  // Fallback to old prefix-based system
+  const db = getDatabase();
+  const prefix = settings.invoice_prefix || 'INV-';
+  const lastInvoice = db.prepare(`
+    SELECT invoice_number FROM invoices
+    WHERE invoice_number LIKE ?
+    ORDER BY id DESC
+    LIMIT 1
+  `).get(`${prefix}%`);
+
+  if (!lastInvoice) {
+    return `${prefix}0001`;
+  }
+
+  const lastNumber = parseInt(lastInvoice.invoice_number.replace(prefix, ''));
+  const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
+  return `${prefix}${nextNumber}`;
+};
+
 // Saved items operations
 const getAllSavedItems = () => {
   const db = getDatabase();
@@ -1594,6 +1671,29 @@ const generateQuoteNumber = () => {
   const lastNumber = parseInt(lastQuote.quote_number.replace(prefix, ''));
   const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
 
+  return `${prefix}${nextNumber}`;
+};
+
+// Preview the next quote number WITHOUT incrementing the counter
+const peekNextQuoteNumber = () => {
+  const settings = getSettings();
+
+  // Use the new next_quote_number field if available
+  if (settings.next_quote_number) {
+    return settings.next_quote_number;
+  }
+
+  // Fallback to old prefix-based system
+  const db = getDatabase();
+  const prefix = settings.quote_prefix || 'QUO-';
+  const lastQuote = db.prepare('SELECT quote_number FROM quotes ORDER BY id DESC LIMIT 1').get();
+
+  if (!lastQuote) {
+    return `${prefix}0001`;
+  }
+
+  const lastNumber = parseInt(lastQuote.quote_number.replace(prefix, ''));
+  const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
   return `${prefix}${nextNumber}`;
 };
 
@@ -2289,6 +2389,7 @@ module.exports = {
   archiveInvoice,
   restoreInvoice,
   generateInvoiceNumber,
+  peekNextInvoiceNumber,
   getAllSavedItems,
   getSavedItem,
   getSavedItemBySku,
@@ -2310,6 +2411,7 @@ module.exports = {
   generateInvoiceFromRecurring,
   // Quotes
   generateQuoteNumber,
+  peekNextQuoteNumber,
   createQuote,
   getAllQuotes,
   getArchivedQuotes,

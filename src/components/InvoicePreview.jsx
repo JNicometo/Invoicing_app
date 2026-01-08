@@ -36,7 +36,13 @@ function InvoicePreview({ invoice, onClose }) {
     cvc: '',
   });
   const [processingCardPayment, setProcessingCardPayment] = useState(false);
-  const { getInvoice, getSettings, saveInvoiceAsPDF, sendInvoiceEmail, createPayment, getPaymentsByInvoice, deletePayment } = useDatabase();
+  const [stripePaymentLink, setStripePaymentLink] = useState('');
+  const [paypalPaymentLink, setPaypalPaymentLink] = useState('');
+  const [squarePaymentLink, setSquarePaymentLink] = useState('');
+  const [goCardlessPaymentLink, setGoCardlessPaymentLink] = useState('');
+  const [authorizeNetPaymentLink, setAuthorizeNetPaymentLink] = useState('');
+  const [generatingPaymentLink, setGeneratingPaymentLink] = useState(false);
+  const { getInvoice, getSettings, saveInvoiceAsPDF, sendInvoiceEmail, createPayment, getPaymentsByInvoice, deletePayment, createStripePaymentLink, createPayPalPaymentLink, createSquarePaymentLink, createGoCardlessPaymentLink, createAuthorizeNetPaymentLink } = useDatabase();
 
   useEffect(() => {
     loadInvoiceData();
@@ -108,12 +114,12 @@ function InvoicePreview({ invoice, onClose }) {
     const headingFontSize = headingSizeMap[headingSize];
     const bodyFontSize = bodySizeMap[bodySize];
 
-    // Spacing mapping
-    const spacingMap = { compact: '20px', normal: '40px', spacious: '60px' };
+    // Spacing mapping - reduced for better single-page fit
+    const spacingMap = { compact: '15px', normal: '25px', spacious: '40px' };
     const sectionSpacing = spacingMap[spacing];
 
-    // Margin mapping
-    const marginMap = { narrow: '0.5in', normal: '1in', wide: '1.5in' };
+    // Margin mapping - reduced for better single-page fit
+    const marginMap = { narrow: '0.3in', normal: '0.5in', wide: '0.75in' };
     const pageMargin = marginMap[marginSize];
 
     // Header height mapping
@@ -160,8 +166,8 @@ function InvoicePreview({ invoice, onClose }) {
             display: flex;
             justify-content: space-between;
             align-items: flex-start;
-            margin-bottom: ${sectionSpacing};
-            padding-bottom: 20px;
+            margin-bottom: ${parseInt(sectionSpacing) * 0.8}px;
+            padding-bottom: 15px;
             border-bottom: 2px solid ${invoiceAccentColor};
           }
           ${showLogo && settings?.logo_url ? `
@@ -195,10 +201,10 @@ function InvoicePreview({ invoice, onClose }) {
           .details {
             display: flex;
             justify-content: space-between;
-            margin-bottom: ${sectionSpacing};
-            padding: 20px 0;
+            margin-bottom: ${parseInt(sectionSpacing) * 0.7}px;
+            padding: 15px 0;
             background: ${tableStyle === 'striped' ? '#f9fafb' : 'transparent'};
-            ${tableStyle === 'bordered' ? `border: ${tableBorder}; padding: 20px;` : ''}
+            ${tableStyle === 'bordered' ? `border: ${tableBorder}; padding: 15px;` : ''}
             border-radius: ${borderRadius};
           }
           .bill-to h3, .invoice-details h3 {
@@ -227,7 +233,7 @@ function InvoicePreview({ invoice, onClose }) {
           table {
             width: 100%;
             border-collapse: collapse;
-            margin-bottom: ${sectionSpacing};
+            margin-bottom: ${parseInt(sectionSpacing) * 0.7}px;
             ${tableStyle === 'bordered' ? `border: ${tableBorder};` : ''}
           }
           thead tr {
@@ -278,8 +284,8 @@ function InvoicePreview({ invoice, onClose }) {
             color: ${textPrimaryColor};
           }
           .notes, .payment-terms, .bank-details {
-            margin-bottom: ${parseInt(sectionSpacing) / 2}px;
-            padding: 15px;
+            margin-bottom: ${parseInt(sectionSpacing) * 0.4}px;
+            padding: 12px;
             background: ${tableStyle === 'striped' ? '#f9fafb' : 'transparent'};
             border-radius: ${borderRadius};
             ${tableStyle === 'bordered' ? `border: ${tableBorder};` : ''}
@@ -297,11 +303,15 @@ function InvoicePreview({ invoice, onClose }) {
           }
           .footer {
             text-align: center;
-            padding-top: ${sectionSpacing};
-            margin-top: ${sectionSpacing};
+            padding-top: ${parseInt(sectionSpacing) * 0.6}px;
+            margin-top: ${parseInt(sectionSpacing) * 0.6}px;
             border-top: 1px solid ${textSecondaryColor};
             font-size: ${parseInt(bodyFontSize) - 1}pt;
             color: ${textSecondaryColor};
+          }
+          @media print {
+            body { margin: 0; padding: ${pageMargin}; }
+            .container { page-break-inside: avoid; }
           }
         </style>
       </head>
@@ -508,6 +518,120 @@ function InvoicePreview({ invoice, onClose }) {
     }
   };
 
+  const handleGenerateStripeLink = async () => {
+    try {
+      setGeneratingPaymentLink(true);
+      const result = await createStripePaymentLink({
+        settings,
+        invoice: fullInvoice,
+        client: { id: fullInvoice.client_id, name: fullInvoice.client_name }
+      });
+
+      if (result.success) {
+        setStripePaymentLink(result.paymentLink);
+        alert('Stripe payment link generated! You can now copy and send it to your client.');
+      }
+    } catch (error) {
+      console.error('Error generating Stripe link:', error);
+      alert(error.message || 'Error generating Stripe payment link');
+    } finally {
+      setGeneratingPaymentLink(false);
+    }
+  };
+
+  const handleGeneratePayPalLink = async () => {
+    try {
+      setGeneratingPaymentLink(true);
+      const result = await createPayPalPaymentLink({
+        settings,
+        invoice: fullInvoice
+      });
+
+      if (result.success) {
+        setPaypalPaymentLink(result.paymentLink);
+        alert('PayPal payment link generated! You can now copy and send it to your client.');
+      }
+    } catch (error) {
+      console.error('Error generating PayPal link:', error);
+      alert(error.message || 'Error generating PayPal payment link');
+    } finally {
+      setGeneratingPaymentLink(false);
+    }
+  };
+
+  const handleGenerateSquareLink = async () => {
+    try {
+      setGeneratingPaymentLink(true);
+      const result = await createSquarePaymentLink({
+        settings,
+        invoice: fullInvoice,
+        client: { id: fullInvoice.client_id, name: fullInvoice.client_name }
+      });
+
+      if (result.success) {
+        setSquarePaymentLink(result.paymentLink);
+        alert('Square payment link generated! You can now copy and send it to your client.');
+      }
+    } catch (error) {
+      console.error('Error generating Square link:', error);
+      alert(error.message || 'Error generating Square payment link');
+    } finally {
+      setGeneratingPaymentLink(false);
+    }
+  };
+
+  const handleGenerateGoCardlessLink = async () => {
+    try {
+      setGeneratingPaymentLink(true);
+      const result = await createGoCardlessPaymentLink({
+        settings,
+        invoice: fullInvoice,
+        client: { id: fullInvoice.client_id, name: fullInvoice.client_name }
+      });
+
+      if (result.success) {
+        setGoCardlessPaymentLink(result.paymentLink);
+        alert('GoCardless payment link generated! You can now copy and send it to your client.');
+      }
+    } catch (error) {
+      console.error('Error generating GoCardless link:', error);
+      alert(error.message || 'Error generating GoCardless payment link');
+    } finally {
+      setGeneratingPaymentLink(false);
+    }
+  };
+
+  /**
+   * Generates an Authorize.Net hosted payment page link for this invoice
+   * Creates a secure HMAC-MD5 fingerprint authenticated URL that clients can use to pay
+   * The link is valid and directs to Authorize.Net's PCI-compliant payment form
+   */
+  const handleGenerateAuthorizeNetLink = async () => {
+    try {
+      setGeneratingPaymentLink(true);
+      const result = await createAuthorizeNetPaymentLink({
+        settings,
+        invoice: fullInvoice,
+        client: { id: fullInvoice.client_id, name: fullInvoice.client_name }
+      });
+
+      if (result.success) {
+        setAuthorizeNetPaymentLink(result.paymentLink);
+        alert('Authorize.Net payment link generated! You can now copy and send it to your client.');
+      }
+    } catch (error) {
+      console.error('Error generating Authorize.Net link:', error);
+      alert(error.message || 'Error generating Authorize.Net payment link');
+    } finally {
+      setGeneratingPaymentLink(false);
+    }
+  };
+
+  const handleCopyLink = (link, gateway) => {
+    navigator.clipboard.writeText(link);
+    alert(`${gateway} payment link copied to clipboard!`);
+  };
+
   const handleOpenPaymentModal = () => {
     // Reset payment form with remaining balance as suggested amount
     const balanceDue = fullInvoice.total - totalPaid;
@@ -699,7 +823,7 @@ function InvoicePreview({ invoice, onClose }) {
 
   return (
     <div className="p-8">
-      <div className="max-w-4xl mx-auto">
+      <div className="max-w-7xl mx-auto">
         {/* Header Actions */}
         <div className="flex justify-between items-center mb-6 print:hidden">
           <h1 className="text-3xl font-bold text-gray-900">Invoice Preview</h1>
@@ -734,7 +858,15 @@ function InvoicePreview({ invoice, onClose }) {
           </div>
         </div>
 
-        {/* Payment Tracking Section */}
+        {/* Payment Tracking Section
+            This section displays payment status, generates payment links, and tracks payment history.
+            Features:
+            - Generate payment links for multiple gateways (Stripe, PayPal, Square, GoCardless, Authorize.Net)
+            - Record manual payments (cash, check, wire transfer, etc.)
+            - View payment history with delete capability
+            - Visual progress bar showing payment completion
+            - Balance due calculation
+        */}
         {fullInvoice && (
           <div className="bg-white shadow-lg rounded-lg p-6 mb-6 print:hidden">
             <div className="flex justify-between items-center mb-4">
@@ -742,14 +874,58 @@ function InvoicePreview({ invoice, onClose }) {
                 <DollarSign className="w-6 h-6 mr-2 text-green-600" />
                 Payment Tracking
               </h2>
+              {/* Payment Gateway Buttons - Each button generates a payment link for that gateway */}
               <div className="flex space-x-2">
                 {settings?.stripe_enabled && (fullInvoice.total - totalPaid) > 0 && (
+                  <>
+                    <button
+                      onClick={handleGenerateStripeLink}
+                      disabled={generatingPaymentLink}
+                      className="flex items-center px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 disabled:opacity-50"
+                    >
+                      <CreditCard className="w-4 h-4 mr-2" />
+                      {generatingPaymentLink ? 'Generating...' : 'Stripe Payment Link'}
+                    </button>
+                  </>
+                )}
+                {settings?.paypal_enabled && (fullInvoice.total - totalPaid) > 0 && (
                   <button
-                    onClick={() => setShowCardPaymentModal(true)}
-                    className="flex items-center px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
+                    onClick={handleGeneratePayPalLink}
+                    disabled={generatingPaymentLink}
+                    className="flex items-center px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 disabled:opacity-50"
+                  >
+                    <DollarSign className="w-4 h-4 mr-2" />
+                    {generatingPaymentLink ? 'Generating...' : 'PayPal Payment Link'}
+                  </button>
+                )}
+                {settings?.square_enabled && (fullInvoice.total - totalPaid) > 0 && (
+                  <button
+                    onClick={handleGenerateSquareLink}
+                    disabled={generatingPaymentLink}
+                    className="flex items-center px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 disabled:opacity-50"
                   >
                     <CreditCard className="w-4 h-4 mr-2" />
-                    Pay with Card
+                    {generatingPaymentLink ? 'Generating...' : 'Square Payment Link'}
+                  </button>
+                )}
+                {settings?.gocardless_enabled && (fullInvoice.total - totalPaid) > 0 && (
+                  <button
+                    onClick={handleGenerateGoCardlessLink}
+                    disabled={generatingPaymentLink}
+                    className="flex items-center px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 disabled:opacity-50"
+                  >
+                    <DollarSign className="w-4 h-4 mr-2" />
+                    {generatingPaymentLink ? 'Generating...' : 'GoCardless ACH/Bank'}
+                  </button>
+                )}
+                {settings?.authorizenet_enabled && (fullInvoice.total - totalPaid) > 0 && (
+                  <button
+                    onClick={handleGenerateAuthorizeNetLink}
+                    disabled={generatingPaymentLink}
+                    className="flex items-center px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 disabled:opacity-50"
+                  >
+                    <CreditCard className="w-4 h-4 mr-2" />
+                    {generatingPaymentLink ? 'Generating...' : 'Authorize.Net Enterprise'}
                   </button>
                 )}
                 <button
@@ -800,6 +976,116 @@ function InvoicePreview({ invoice, onClose }) {
                 ></div>
               </div>
             </div>
+
+            {/* Payment Links Display Section
+                Shows all generated payment links with copy-to-clipboard functionality.
+                Links are displayed after clicking the respective gateway button above.
+                Each link can be copied and sent to the client via email or messaging.
+                Supported gateways: Stripe, PayPal, Square, GoCardless, Authorize.Net
+            */}
+            {(stripePaymentLink || paypalPaymentLink || squarePaymentLink || goCardlessPaymentLink || authorizeNetPaymentLink) && (
+              <div className="mb-6 p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                <h3 className="text-lg font-semibold text-purple-900 mb-3">Generated Payment Links</h3>
+                {stripePaymentLink && (
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Stripe Payment Link</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={stripePaymentLink}
+                        readOnly
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                      />
+                      <button
+                        onClick={() => handleCopyLink(stripePaymentLink, 'Stripe')}
+                        className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 text-sm"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {paypalPaymentLink && (
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">PayPal Payment Link</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={paypalPaymentLink}
+                        readOnly
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                      />
+                      <button
+                        onClick={() => handleCopyLink(paypalPaymentLink, 'PayPal')}
+                        className="px-4 py-2 bg-blue-500 text-white rounded-lg hover:bg-blue-600 text-sm"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {squarePaymentLink && (
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Square Payment Link</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={squarePaymentLink}
+                        readOnly
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                      />
+                      <button
+                        onClick={() => handleCopyLink(squarePaymentLink, 'Square')}
+                        className="px-4 py-2 bg-gray-900 text-white rounded-lg hover:bg-gray-800 text-sm"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {goCardlessPaymentLink && (
+                  <div className="mb-3">
+                    <label className="block text-sm font-medium text-gray-700 mb-1">GoCardless Payment Link (ACH/Bank Transfer)</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={goCardlessPaymentLink}
+                        readOnly
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                      />
+                      <button
+                        onClick={() => handleCopyLink(goCardlessPaymentLink, 'GoCardless')}
+                        className="px-4 py-2 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 text-sm"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
+                {authorizeNetPaymentLink && (
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Authorize.Net Payment Link (Enterprise)</label>
+                    <div className="flex gap-2">
+                      <input
+                        type="text"
+                        value={authorizeNetPaymentLink}
+                        readOnly
+                        className="flex-1 px-3 py-2 border border-gray-300 rounded-lg bg-white text-sm"
+                      />
+                      <button
+                        onClick={() => handleCopyLink(authorizeNetPaymentLink, 'Authorize.Net')}
+                        className="px-4 py-2 bg-orange-600 text-white rounded-lg hover:bg-orange-700 text-sm"
+                      >
+                        Copy
+                      </button>
+                    </div>
+                  </div>
+                )}
+                <p className="text-sm text-gray-600 mt-3">
+                  💡 Copy these links and send them to your client via email or message. They can click to pay securely.
+                </p>
+              </div>
+            )}
 
             {/* Payment History */}
             {payments.length > 0 ? (
@@ -908,7 +1194,19 @@ function InvoicePreview({ invoice, onClose }) {
                       <option value="Cash">Cash</option>
                       <option value="Check">Check</option>
                       <option value="Credit Card">Credit Card</option>
+                      <option value="Debit Card">Debit Card</option>
                       <option value="Bank Transfer">Bank Transfer</option>
+                      <option value="ACH">ACH</option>
+                      <option value="Wire Transfer">Wire Transfer</option>
+                      <option value="PayPal">PayPal</option>
+                      <option value="Venmo">Venmo</option>
+                      <option value="Zelle">Zelle</option>
+                      <option value="Stripe">Stripe</option>
+                      <option value="Square">Square</option>
+                      <option value="Apple Pay">Apple Pay</option>
+                      <option value="Google Pay">Google Pay</option>
+                      <option value="Cryptocurrency">Cryptocurrency</option>
+                      <option value="Money Order">Money Order</option>
                       <option value="Other">Other</option>
                     </select>
                   </div>

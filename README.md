@@ -40,8 +40,21 @@ A professional, feature-rich desktop invoicing application built with Electron. 
 
 - **📥 PDF Export** - Professional invoice PDFs
   - One-click PDF generation
+  - Optimized for single-page layout
   - Company branding included
   - Save anywhere on your system
+
+- **💳 Payment Gateway Integration** - Accept online payments with multiple providers
+  - **Stripe** - Credit/debit cards (2.9% + $0.30) - Most popular, feature-rich
+  - **PayPal** - PayPal.me links (2.99% + $0.49) - Easiest setup, widely trusted
+  - **Square** - Credit/debit cards (2.9% + $0.30) - POS integration available
+  - **GoCardless** - ACH/SEPA bank transfers (1% + $0.25) - Lowest fees, bank direct debit
+  - **Authorize.Net** - Enterprise gateway (2.9% + $0.30) - Government/B2B contracts
+  - One-click payment link generation for each gateway
+  - Copy-to-clipboard for easy sharing via email or message
+  - 17 payment method options for manual payment tracking
+  - Simple setup - no webhooks or complex servers needed
+  - PCI-compliant hosted payment pages
 
 - **⌨️ Keyboard Shortcuts** - Lightning-fast navigation
   - Full keyboard shortcut support
@@ -59,13 +72,22 @@ A professional, feature-rich desktop invoicing application built with Electron. 
   - Tax rates and payment terms
   - Theme customization
 
-### Advanced Features (Roadmap)
-- **Email Integration** - Send invoices directly via email
-- **Recurring Invoices** - Automate recurring billing
-- **Expense Tracking** - Track business expenses and generate reports
-- **Quotes & Estimates** - Create and convert quotes to invoices
-- **Multi-Currency Support** - Handle international clients
-- **Payment Integration** - Accept online payments
+### Advanced Features ✅
+- **✅ Email Integration** - Send invoices and quotes directly via email with PDF attachments
+- **✅ Payment Gateway Integration** - Five payment gateways with one-click link generation
+  - Stripe, PayPal, Square, GoCardless, Authorize.Net
+- **✅ Payment Tracking** - Comprehensive payment management
+  - Track 17 different payment methods (cash, check, card, ACH, wire, crypto, etc.)
+  - Record manual payments with reference numbers and notes
+  - Visual payment progress tracking
+  - Automatic invoice status updates based on payments
+- **✅ Quotes & Estimates** - Create professional quotes and convert to invoices
+
+### Planned Features 📅
+- **📅 Recurring Invoices** - Automate recurring billing
+- **📅 Expense Tracking** - Track business expenses and generate reports
+- **📅 Multi-Currency Support** - Handle international clients
+- **📅 Automated Payment Webhooks** - Auto-update invoices when paid
 
 ## Quick Start
 
@@ -78,6 +100,64 @@ A professional, feature-rich desktop invoicing application built with Electron. 
 4. **Learn keyboard shortcuts**: Press `Ctrl/Cmd + /`
 
 📖 **[Read the Full User Guide](USER_GUIDE.md)** for detailed instructions on all features.
+
+## Payment Gateway Setup
+
+InvoicePro Desktop supports five payment gateways for online payment processing. Each gateway has different strengths:
+
+### Comparison Table
+
+| Gateway | Best For | Transaction Fees | Setup Difficulty | Payment Methods |
+|---------|----------|------------------|------------------|-----------------|
+| **Stripe** | Most businesses | 2.9% + $0.30 | Medium | Credit/Debit Cards |
+| **PayPal** | Quick setup | 2.99% + $0.49 | Easy | PayPal Balance, Cards |
+| **Square** | Retail/POS | 2.9% + $0.30 | Medium | Credit/Debit Cards |
+| **GoCardless** | Recurring payments | 1% + $0.25 | Medium | ACH, SEPA Bank Transfer |
+| **Authorize.Net** | Enterprise/B2B | 2.9% + $0.30 | Medium | Credit/Debit Cards |
+
+### Quick Setup Guide
+
+**Stripe**
+1. Sign up at [stripe.com](https://stripe.com)
+2. Navigate to Developers → API keys
+3. Copy your Secret Key and Publishable Key
+4. Paste into Settings → Payment Gateways → Stripe
+5. Enable Stripe integration
+
+**PayPal**
+1. Get your PayPal.me username from [paypal.me](https://paypal.me)
+2. Paste into Settings → Payment Gateways → PayPal
+3. Enable PayPal integration
+
+**Square**
+1. Sign up at [squareup.com](https://squareup.com)
+2. Go to Developer Dashboard → Applications
+3. Copy your Access Token and Location ID
+4. Paste into Settings → Payment Gateways → Square
+5. Enable Square integration
+
+**GoCardless**
+1. Sign up at [gocardless.com](https://gocardless.com)
+2. Navigate to Developers → Access Tokens
+3. Copy your Access Token
+4. Paste into Settings → Payment Gateways → GoCardless
+5. Enable GoCardless integration
+
+**Authorize.Net**
+1. Sign up at [authorize.net](https://authorize.net)
+2. Get your API Login ID and Transaction Key from Account → API Credentials
+3. Paste into Settings → Payment Gateways → Authorize.Net
+4. Select sandbox (testing) or production environment
+5. Enable Authorize.Net integration
+
+### Using Payment Links
+
+1. Open an invoice in Invoice Preview
+2. Click the payment gateway button (e.g., "Stripe Payment Link")
+3. Copy the generated payment link
+4. Send the link to your client via email or message
+5. Client clicks the link and completes payment
+6. Manually record the payment in the invoice when confirmed
 
 ## Screenshots
 *Coming soon*
@@ -200,14 +280,24 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 - ✅ Client management with customer numbers
 - ✅ Saved items library with item numbers
 - ✅ Dashboard with visual statistics and charts
-- ✅ PDF export functionality
+- ✅ PDF export functionality (optimized layout)
+- ✅ Invoice numbering fix (proper sequential numbering)
 - ✅ Archive system
 - ✅ Global search functionality
 - ✅ Quick filters and date range filtering
 - ✅ Batch operations
 - ✅ Keyboard shortcuts
 - ✅ Automatic overdue status tracking
-- ✅ Comprehensive user documentation
+- ✅ Payment gateway integration (5 gateways)
+  - ✅ Stripe integration (credit/debit cards)
+  - ✅ PayPal.me integration (PayPal payments)
+  - ✅ Square integration (credit/debit cards + POS)
+  - ✅ GoCardless integration (ACH/SEPA bank transfers)
+  - ✅ Authorize.Net integration (enterprise/B2B)
+- ✅ Payment tracking system (17 payment methods)
+- ✅ Email integration for invoices and quotes
+- ✅ Quotes and estimates with conversion to invoices
+- ✅ Comprehensive code documentation and comments
 
 ### In Progress 🚧
 - 🚧 CI/CD pipeline with GitHub Actions
@@ -215,13 +305,12 @@ We welcome contributions! Please see our [Contributing Guide](CONTRIBUTING.md) f
 - 🚧 Application packaging for distribution
 
 ### Planned 📅
-- 📅 Email integration for sending invoices
-- 📅 Recurring invoices
+- 📅 Recurring invoices (automated)
 - 📅 Expense tracking
-- 📅 Quotes and estimates
 - 📅 Multi-currency support
-- 📅 Payment gateway integration
+- 📅 Automated payment webhooks
 - 📅 Mobile companion app
+- 📅 Advanced reporting
 
 ## Testing
 
