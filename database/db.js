@@ -1252,7 +1252,22 @@ const deleteSavedItem = (id) => {
 
 const getSavedItemBySku = (sku) => {
   const db = getDatabase();
-  return db.prepare('SELECT * FROM saved_items WHERE sku = ?').get(sku);
+
+  // Check if sku column exists
+  const columns = db.pragma('table_info(saved_items)');
+  const hasSku = columns.some(col => col.name === 'sku');
+
+  if (hasSku) {
+    return db.prepare('SELECT * FROM saved_items WHERE sku = ?').get(sku);
+  } else {
+    // Fallback to item_number for backward compatibility
+    const hasItemNumber = columns.some(col => col.name === 'item_number');
+    if (hasItemNumber) {
+      return db.prepare('SELECT * FROM saved_items WHERE item_number = ?').get(sku);
+    }
+    // No matching column, return null
+    return null;
+  }
 };
 
 // Dashboard stats
