@@ -32,6 +32,7 @@ function InvoiceForm({ invoice, onClose }) {
     date: getCurrentDate(),
     due_date: calculateDueDate(getCurrentDate(), 30),
     status: 'draft',
+    type: 'invoice', // Can be 'invoice' or 'quote'
     notes: '',
     payment_terms: '',
     discount_type: 'none',
@@ -91,6 +92,7 @@ function InvoiceForm({ invoice, onClose }) {
             date: formatDateInput(fullInvoice.date),
             due_date: formatDateInput(fullInvoice.due_date),
             status: fullInvoice.status,
+            type: fullInvoice.type || 'invoice',
             notes: fullInvoice.notes || '',
             payment_terms: fullInvoice.payment_terms || '',
             discount_type: fullInvoice.discount_type || 'none',
@@ -114,6 +116,7 @@ function InvoiceForm({ invoice, onClose }) {
           date: formatDateInput(invoice.date),
           due_date: formatDateInput(invoice.due_date),
           status: invoice.status,
+          type: invoice.type || 'invoice',
           notes: invoice.notes || '',
           payment_terms: invoice.payment_terms || '',
         });
@@ -133,7 +136,7 @@ function InvoiceForm({ invoice, onClose }) {
         getAllClients(),
         getAllSavedItems(),
         getSettings(),
-        !isEdit ? generateInvoiceNumber() : Promise.resolve(null)
+        !isEdit ? generateInvoiceNumber(formData.type || 'invoice') : Promise.resolve(null)
       ]);
 
       setClients(clientsData);
@@ -469,12 +472,52 @@ function InvoiceForm({ invoice, onClose }) {
 
         <form onSubmit={handleSubmit}>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
-            <h2 className="text-lg font-semibold text-gray-900 mb-4">Invoice Details</h2>
+            <h2 className="text-lg font-semibold text-gray-900 mb-4">
+              {formData.type === 'quote' ? 'Quote' : 'Invoice'} Details
+            </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Type *
+                </label>
+                <div className="flex gap-4">
+                  <label className="inline-flex items-center">
+                    <input
+                      type="radio"
+                      name="type"
+                      value="invoice"
+                      checked={formData.type === 'invoice'}
+                      onChange={async (e) => {
+                        const newType = e.target.value;
+                        const newNumber = await generateInvoiceNumber(newType);
+                        setFormData(prev => ({ ...prev, type: newType, invoice_number: newNumber }));
+                      }}
+                      className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-sm font-medium text-gray-700">Invoice</span>
+                  </label>
+                  <label className="inline-flex items-center">
+                    <input
+                      type="radio"
+                      name="type"
+                      value="quote"
+                      checked={formData.type === 'quote'}
+                      onChange={async (e) => {
+                        const newType = e.target.value;
+                        const newNumber = await generateInvoiceNumber(newType);
+                        setFormData(prev => ({ ...prev, type: newType, invoice_number: newNumber }));
+                      }}
+                      className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-sm font-medium text-gray-700">Quote</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Invoice Number *
+                  {formData.type === 'quote' ? 'Quote' : 'Invoice'} Number *
                 </label>
                 <input
                   type="text"
