@@ -1,5 +1,5 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { Home, FileText, Users, Archive as ArchiveIcon, Settings as SettingsIcon, Save, X, Keyboard, Search, Repeat, ClipboardList, TrendingUp, FileX, Bell } from 'lucide-react';
+import { Home, FileText, Users, Archive as ArchiveIcon, Settings as SettingsIcon, Save, X, Keyboard, Search, Repeat, TrendingUp, FileX, Bell } from 'lucide-react';
 import Dashboard from './components/Dashboard';
 import InvoiceList from './components/InvoiceList';
 import ClientManagement from './components/ClientManagement';
@@ -7,7 +7,6 @@ import SavedItems from './components/SavedItems';
 import ArchiveComponent from './components/Archive';
 import Settings from './components/Settings';
 import RecurringInvoices from './components/RecurringInvoices';
-import QuoteList from './components/QuoteList';
 import Reports from './components/Reports';
 import CreditNotes from './components/CreditNotes';
 import Reminders from './components/Reminders';
@@ -98,7 +97,6 @@ function App() {
       const defaultNavigation = [
         { id: 'dashboard', name: 'Dashboard', icon: Home },
         { id: 'invoices', name: 'Invoices', icon: FileText },
-        { id: 'quotes', name: 'Quotes', icon: ClipboardList },
         { id: 'credit-notes', name: 'Credit Notes', icon: FileX },
         { id: 'recurring', name: 'Recurring', icon: Repeat },
         { id: 'clients', name: 'Clients', icon: Users },
@@ -139,7 +137,6 @@ function App() {
       setNavigation([
         { id: 'dashboard', name: 'Dashboard', icon: Home },
         { id: 'invoices', name: 'Invoices', icon: FileText },
-        { id: 'quotes', name: 'Quotes', icon: ClipboardList },
         { id: 'credit-notes', name: 'Credit Notes', icon: FileX },
         { id: 'recurring', name: 'Recurring', icon: Repeat },
         { id: 'clients', name: 'Clients', icon: Users },
@@ -274,8 +271,6 @@ function App() {
         return <Dashboard onNavigateToInvoices={handleNavigateToInvoices} />;
       case 'invoices':
         return <InvoiceList selectedClientId={selectedClientId} selectedStatusFilter={selectedStatusFilter} onClearFilter={handleClearClientFilter} />;
-      case 'quotes':
-        return <QuoteList />;
       case 'credit-notes':
         return <CreditNotes />;
       case 'recurring':

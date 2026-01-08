@@ -329,6 +329,19 @@ const runMigrations = () => {
       console.log('✓ All enhanced invoice client snapshot columns already exist');
     }
 
+    // Add type column to invoices table to distinguish invoices from quotes
+    console.log('Checking for type column in invoices table...');
+    const invoiceColumnsForType = db.pragma('table_info(invoices)');
+    const invoiceColumnNamesForType = invoiceColumnsForType.map(col => col.name);
+
+    if (!invoiceColumnNamesForType.includes('type')) {
+      console.log('Adding type column to invoices table...');
+      db.exec("ALTER TABLE invoices ADD COLUMN type TEXT DEFAULT 'invoice'");
+      console.log('✓ Added type column to invoices table');
+    } else {
+      console.log('✓ Type column already exists in invoices table');
+    }
+
     // Add client snapshot columns to quotes table
     console.log('Checking for quote client snapshot columns...');
     const quoteColumns = db.pragma('table_info(quotes)');
@@ -1098,11 +1111,11 @@ const createInvoice = (invoice, items) => {
   const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(invoice.client_id);
 
   const invoiceStmt = db.prepare(`
-    INSERT INTO invoices (invoice_number, client_id, created_from_quote_id, date, due_date, status, subtotal, tax,
+    INSERT INTO invoices (invoice_number, client_id, created_from_quote_id, date, due_date, status, type, subtotal, tax,
       discount_type, discount_value, discount_amount, shipping, adjustment, adjustment_label,
       total, notes, payment_terms, client_name, client_email, client_phone, client_address,
       client_city, client_state, client_zip)
-    VALUES (@invoice_number, @client_id, @created_from_quote_id, @date, @due_date, @status, @subtotal, @tax,
+    VALUES (@invoice_number, @client_id, @created_from_quote_id, @date, @due_date, @status, @type, @subtotal, @tax,
       @discount_type, @discount_value, @discount_amount, @shipping, @adjustment, @adjustment_label,
       @total, @notes, @payment_terms, @client_name, @client_email, @client_phone, @client_address,
       @client_city, @client_state, @client_zip)
@@ -1111,6 +1124,7 @@ const createInvoice = (invoice, items) => {
   // Add client snapshot to invoice data
   const invoiceWithClient = {
     ...invoice,
+    type: invoice.type || 'invoice', // Default to 'invoice' if not specified
     client_name: client?.name || '',
     client_email: client?.email || '',
     client_phone: client?.phone || '',
@@ -1158,6 +1172,7 @@ const updateInvoice = (id, invoice, items) => {
       date = @date,
       due_date = @due_date,
       status = @status,
+      type = @type,
       subtotal = @subtotal,
       tax = @tax,
       discount_type = @discount_type,
@@ -1243,12 +1258,17 @@ const incrementNumberString = (numberString) => {
   return prefix + nextNumber + suffix;
 };
 
-const generateInvoiceNumber = () => {
+const generateInvoiceNumber = (type = 'invoice') => {
   const db = getDatabase();
   const settings = getSettings();
 
-  // Use the new next_invoice_number field if available, otherwise fall back to old system
-  if (settings.next_invoice_number) {
+  // Determine prefix based on type
+  const isQuote = type === 'quote';
+  const prefix = isQuote ? (settings.quote_prefix || 'QT-') : (settings.invoice_prefix || 'INV-');
+
+  // For quotes, use simple prefix-based system
+  // For invoices, use next_invoice_number if available
+  if (!isQuote && settings.next_invoice_number) {
     const nextNumber = settings.next_invoice_number;
 
     // Update the setting with the incremented number for next time
@@ -1258,14 +1278,13 @@ const generateInvoiceNumber = () => {
     return nextNumber;
   }
 
-  // Fallback to old prefix-based system for backward compatibility
-  const prefix = settings.invoice_prefix || 'INV-';
+  // Fallback to prefix-based system for quotes or backward compatibility for invoices
   const lastInvoice = db.prepare(`
     SELECT invoice_number FROM invoices
-    WHERE invoice_number LIKE ?
+    WHERE invoice_number LIKE ? AND type = ?
     ORDER BY id DESC
     LIMIT 1
-  `).get(`${prefix}%`);
+  `).get(`${prefix}%`, type);
 
   if (!lastInvoice) {
     return `${prefix}0001`;
