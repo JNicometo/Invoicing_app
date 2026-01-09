@@ -97,8 +97,8 @@ export const useDatabase = () => {
     return await ipcCall('db:generateInvoiceNumber');
   }, [ipcCall]);
 
-  const peekNextInvoiceNumber = useCallback(async () => {
-    return await ipcCall('db:peekNextInvoiceNumber');
+  const peekNextInvoiceNumber = useCallback(async (type = 'invoice') => {
+    return await ipcCall('db:peekNextInvoiceNumber', type);
   }, [ipcCall]);
 
   // Saved Items

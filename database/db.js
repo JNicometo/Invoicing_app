@@ -668,30 +668,36 @@ const runMigrations = () => {
       const defaultTabConfig = JSON.stringify([
         { id: 'dashboard', name: 'Dashboard', enabled: true, order: 0 },
         { id: 'invoices', name: 'Invoices', enabled: true, order: 1 },
-        { id: 'quotes', name: 'Quotes', enabled: true, order: 2 },
-        { id: 'credit-notes', name: 'Credit Notes', enabled: true, order: 3 },
-        { id: 'recurring', name: 'Recurring', enabled: true, order: 4 },
-        { id: 'clients', name: 'Clients', enabled: true, order: 5 },
-        { id: 'reminders', name: 'Reminders', enabled: true, order: 6 },
-        { id: 'reports', name: 'Reports', enabled: true, order: 7 },
-        { id: 'saved-items', name: 'Saved Items', enabled: true, order: 8 },
-        { id: 'archive', name: 'Archive', enabled: true, order: 9 },
-        { id: 'settings', name: 'Settings', enabled: true, order: 10 }
+        { id: 'credit-notes', name: 'Credit Notes', enabled: true, order: 2 },
+        { id: 'recurring', name: 'Recurring', enabled: true, order: 3 },
+        { id: 'clients', name: 'Clients', enabled: true, order: 4 },
+        { id: 'reminders', name: 'Reminders', enabled: true, order: 5 },
+        { id: 'reports', name: 'Reports', enabled: true, order: 6 },
+        { id: 'saved-items', name: 'Saved Items', enabled: true, order: 7 },
+        { id: 'archive', name: 'Archive', enabled: true, order: 8 },
+        { id: 'settings', name: 'Settings', enabled: true, order: 9 }
       ]);
       db.prepare('UPDATE settings SET tab_configuration = ? WHERE id = 1').run(defaultTabConfig);
       console.log('✓ Default tab configuration set');
     } else {
-      // Update existing tab configuration to change 'estimates' to 'quotes'
-      console.log('Updating tab configuration to use quotes instead of estimates...');
+      // Remove quotes tab from existing configuration (quotes are now unified with invoices)
+      console.log('Checking tab configuration for quotes tab...');
       const tabConfig = JSON.parse(settings.tab_configuration);
-      const estimatesTab = tabConfig.find(tab => tab.id === 'estimates');
-      if (estimatesTab) {
-        estimatesTab.id = 'quotes';
-        estimatesTab.name = 'Quotes';
+      const quotesTabIndex = tabConfig.findIndex(tab => tab.id === 'quotes' || tab.id === 'estimates');
+
+      if (quotesTabIndex !== -1) {
+        console.log('Removing quotes/estimates tab from configuration...');
+        tabConfig.splice(quotesTabIndex, 1);
+
+        // Reorder remaining tabs
+        tabConfig.forEach((tab, index) => {
+          tab.order = index;
+        });
+
         db.prepare('UPDATE settings SET tab_configuration = ? WHERE id = 1').run(JSON.stringify(tabConfig));
-        console.log('✓ Updated tab configuration to use quotes');
+        console.log('✓ Removed quotes tab and reordered navigation');
       } else {
-        console.log('✓ Tab configuration already uses quotes');
+        console.log('✓ Tab configuration already updated (no quotes tab)');
       }
     }
 
@@ -1296,23 +1302,26 @@ const generateInvoiceNumber = (type = 'invoice') => {
 };
 
 // Preview the next invoice number WITHOUT incrementing the counter
-const peekNextInvoiceNumber = () => {
+const peekNextInvoiceNumber = (type = 'invoice') => {
+  const db = getDatabase();
   const settings = getSettings();
 
-  // Use the new next_invoice_number field if available
-  if (settings.next_invoice_number) {
+  // Determine prefix based on type
+  const isQuote = type === 'quote';
+  const prefix = isQuote ? (settings.quote_prefix || 'QT-') : (settings.invoice_prefix || 'INV-');
+
+  // For invoices, use next_invoice_number if available (but don't increment)
+  if (!isQuote && settings.next_invoice_number) {
     return settings.next_invoice_number;
   }
 
-  // Fallback to old prefix-based system
-  const db = getDatabase();
-  const prefix = settings.invoice_prefix || 'INV-';
+  // For quotes or fallback, look at the last record of this type
   const lastInvoice = db.prepare(`
     SELECT invoice_number FROM invoices
-    WHERE invoice_number LIKE ?
+    WHERE invoice_number LIKE ? AND type = ?
     ORDER BY id DESC
     LIMIT 1
-  `).get(`${prefix}%`);
+  `).get(`${prefix}%`, type);
 
   if (!lastInvoice) {
     return `${prefix}0001`;
