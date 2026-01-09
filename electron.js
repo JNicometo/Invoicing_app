@@ -381,10 +381,10 @@ ipcMain.handle('db:generateInvoiceNumber', async () => {
   }
 });
 
-ipcMain.handle('db:peekNextInvoiceNumber', async () => {
+ipcMain.handle('db:peekNextInvoiceNumber', async (event, type = 'invoice') => {
   try {
     // Peek at next invoice number without incrementing counter
-    return db.peekNextInvoiceNumber();
+    return db.peekNextInvoiceNumber(type);
   } catch (error) {
     console.error('Error peeking next invoice number:', error);
     throw error;

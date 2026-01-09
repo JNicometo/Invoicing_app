@@ -137,17 +137,22 @@ function InvoiceForm({ invoice, onClose }) {
         getAllClients(),
         getAllSavedItems(),
         getSettings(),
-        !isEdit ? generateInvoiceNumber(formData.type || 'invoice') : Promise.resolve(null)
+        !isEdit ? peekNextInvoiceNumber(formData.type || 'invoice') : Promise.resolve(null)
       ]);
 
       setClients(clientsData);
       setSavedItems(savedItemsData);
       setSettings(settingsData);
 
-      if (!isEdit) {
+      if (!isEdit && previewNumber) {
         setFormData(prev => ({
           ...prev,
           invoice_number: previewNumber,
+          payment_terms: settingsData.payment_terms || ''
+        }));
+      } else if (!isEdit) {
+        setFormData(prev => ({
+          ...prev,
           payment_terms: settingsData.payment_terms || ''
         }));
       }
@@ -500,7 +505,7 @@ function InvoiceForm({ invoice, onClose }) {
                       checked={formData.type === 'invoice'}
                       onChange={async (e) => {
                         const newType = e.target.value;
-                        const newNumber = await generateInvoiceNumber(newType);
+                        const newNumber = await peekNextInvoiceNumber(newType);
                         setFormData(prev => ({ ...prev, type: newType, invoice_number: newNumber }));
                       }}
                       className="w-4 h-4 text-blue-600 focus:ring-blue-500"
@@ -515,7 +520,7 @@ function InvoiceForm({ invoice, onClose }) {
                       checked={formData.type === 'quote'}
                       onChange={async (e) => {
                         const newType = e.target.value;
-                        const newNumber = await generateInvoiceNumber(newType);
+                        const newNumber = await peekNextInvoiceNumber(newType);
                         setFormData(prev => ({ ...prev, type: newType, invoice_number: newNumber }));
                       }}
                       className="w-4 h-4 text-blue-600 focus:ring-blue-500"
