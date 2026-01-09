@@ -1859,58 +1859,29 @@ const restoreQuote = (id) => {
 const convertQuoteToInvoice = (quoteId) => {
   const db = getDatabase();
 
-  // Get the quote
-  const quote = getQuote(quoteId);
+  // Get the quote (which is an invoice with type='quote')
+  const quote = db.prepare('SELECT * FROM invoices WHERE id = ? AND type = ?').get(quoteId, 'quote');
   if (!quote) return null;
 
   // Generate new invoice number
-  const invoiceNumber = generateInvoiceNumber();
+  const invoiceNumber = generateInvoiceNumber('invoice');
 
-  // Get client info to snapshot at time of invoice creation
-  const client = db.prepare('SELECT * FROM clients WHERE id = ?').get(quote.client_id);
-
-  // Create the invoice from quote
-  const invoice = {
-    invoice_number: invoiceNumber,
-    client_id: quote.client_id,
-    created_from_quote_id: quoteId,
-    date: new Date().toISOString().split('T')[0],
-    due_date: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
-    status: 'pending',
-    subtotal: quote.subtotal,
-    tax: quote.tax,
-    discount_type: quote.discount_type || null,
-    discount_value: quote.discount_value || 0,
-    discount_amount: quote.discount_amount || 0,
-    shipping: quote.shipping || 0,
-    adjustment: quote.adjustment || 0,
-    adjustment_label: quote.adjustment_label || null,
-    total: quote.total,
-    notes: quote.notes,
-    payment_terms: quote.terms,
-    client_name: client?.name || '',
-    client_email: client?.email || '',
-    client_phone: client?.phone || '',
-    client_address: client?.address || '',
-    client_city: client?.city || '',
-    client_state: client?.state || '',
-    client_zip: client?.zip || '',
-    archived: 0
-  };
-
-  const result = createInvoice(invoice, quote.items);
-  const invoiceId = result.lastInsertRowid;
-
-  // Update quote to mark as converted
+  // Convert quote to invoice by updating the record
   db.prepare(`
-    UPDATE quotes SET
-      status = 'converted',
-      converted_to_invoice_id = ?,
+    UPDATE invoices SET
+      type = 'invoice',
+      invoice_number = ?,
+      status = 'pending',
+      due_date = ?,
       updated_at = CURRENT_TIMESTAMP
     WHERE id = ?
-  `).run(invoiceId, quoteId);
+  `).run(
+    invoiceNumber,
+    new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString().split('T')[0], // 30 days from now
+    quoteId
+  );
 
-  return { invoiceId, invoiceNumber, quoteNumber: quote.quote_number };
+  return { invoiceId: quoteId, invoiceNumber, quoteNumber: quote.invoice_number };
 };
 
 // Credit Note operations

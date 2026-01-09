@@ -488,7 +488,7 @@ function InvoiceForm({ invoice, onClose }) {
         <form onSubmit={handleSubmit}>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              {formData.type === 'quote' ? 'Quote' : 'Invoice'} Details
+              {formData.type === 'quote' ? 'Quote' : 'INV'} Details
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -510,7 +510,7 @@ function InvoiceForm({ invoice, onClose }) {
                       }}
                       className="w-4 h-4 text-blue-600 focus:ring-blue-500"
                     />
-                    <span className="ml-2 text-sm font-medium text-gray-700">Invoice</span>
+                    <span className="ml-2 text-sm font-medium text-gray-700">INV</span>
                   </label>
                   <label className="inline-flex items-center">
                     <input
@@ -532,7 +532,7 @@ function InvoiceForm({ invoice, onClose }) {
 
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  {formData.type === 'quote' ? 'Quote' : 'Invoice'} Number *
+                  {formData.type === 'quote' ? 'Quote' : 'INV'} Number *
                 </label>
                 <input
                   type="text"

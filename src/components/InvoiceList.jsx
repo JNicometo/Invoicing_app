@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { Plus, Search, Eye, Edit, Trash2, Archive, FileText, User, CheckCircle2, Clock, AlertTriangle, X } from 'lucide-react';
+import { Plus, Search, Eye, Edit, Trash2, Archive, FileText, User, CheckCircle2, Clock, AlertTriangle, X, ArrowRight } from 'lucide-react';
 import { useDatabase } from '../hooks/useDatabase';
 import { formatCurrency, formatDate, getStatusBadgeColor } from '../utils/formatting';
 import InvoiceForm from './InvoiceForm';
@@ -36,7 +36,8 @@ function InvoiceList({ selectedClientId, selectedStatusFilter, onClearFilter }) 
     getAllClients,
     batchUpdateInvoiceStatus,
     batchArchiveInvoices,
-    batchDeleteInvoices
+    batchDeleteInvoices,
+    convertQuoteToInvoice
   } = useDatabase();
 
   const loadInvoices = useCallback(async () => {
@@ -172,6 +173,19 @@ function InvoiceList({ selectedClientId, selectedStatusFilter, onClearFilter }) 
   const handleView = (invoice) => {
     setSelectedInvoice(invoice);
     setShowPreview(true);
+  };
+
+  const handleConvertToInvoice = async (quoteId) => {
+    if (window.confirm('Convert this quote to an invoice? This will change the quote number to an invoice number.')) {
+      try {
+        await convertQuoteToInvoice(quoteId);
+        await loadInvoices();
+        alert('Quote successfully converted to invoice!');
+      } catch (error) {
+        console.error('Error converting quote:', error);
+        alert('Error converting quote: ' + error.message);
+      }
+    }
   };
 
   const handleFormClose = async (reload) => {
@@ -533,6 +547,15 @@ function InvoiceList({ selectedClientId, selectedStatusFilter, onClearFilter }) 
                       >
                         <Edit className="w-4 h-4" />
                       </button>
+                      {invoice.type === 'quote' && (
+                        <button
+                          onClick={() => handleConvertToInvoice(invoice.id)}
+                          className="text-green-600 hover:text-green-900"
+                          title="Convert to Invoice"
+                        >
+                          <ArrowRight className="w-4 h-4" />
+                        </button>
+                      )}
                       <button
                         onClick={() => handleArchive(invoice.id)}
                         className="text-yellow-600 hover:text-yellow-900"
