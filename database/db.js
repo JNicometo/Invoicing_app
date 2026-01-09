@@ -1270,7 +1270,7 @@ const generateInvoiceNumber = (type = 'invoice') => {
 
   // Determine prefix based on type
   const isQuote = type === 'quote';
-  const prefix = isQuote ? (settings.quote_prefix || 'QT-') : (settings.invoice_prefix || 'INV-');
+  const prefix = isQuote ? (settings.quote_prefix || 'QT-') : (settings.invoice_prefix || 'invoice');
 
   // Find the last invoice/quote of this type
   const lastInvoice = db.prepare(`
@@ -1281,12 +1281,12 @@ const generateInvoiceNumber = (type = 'invoice') => {
   `).get(`${prefix}%`, type);
 
   if (!lastInvoice) {
-    return `${prefix}0001`;
+    return `${prefix}101001`;
   }
 
   // Extract the number from the last invoice number and increment
   const lastNumber = parseInt(lastInvoice.invoice_number.replace(prefix, ''));
-  const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
+  const nextNumber = (lastNumber + 1).toString().padStart(6, '0');
   return `${prefix}${nextNumber}`;
 };
 
@@ -1297,7 +1297,7 @@ const peekNextInvoiceNumber = (type = 'invoice') => {
 
   // Determine prefix based on type
   const isQuote = type === 'quote';
-  const prefix = isQuote ? (settings.quote_prefix || 'QT-') : (settings.invoice_prefix || 'INV-');
+  const prefix = isQuote ? (settings.quote_prefix || 'QT-') : (settings.invoice_prefix || 'invoice');
 
   // Find the last invoice/quote of this type
   const lastInvoice = db.prepare(`
@@ -1308,12 +1308,12 @@ const peekNextInvoiceNumber = (type = 'invoice') => {
   `).get(`${prefix}%`, type);
 
   if (!lastInvoice) {
-    return `${prefix}0001`;
+    return `${prefix}101001`;
   }
 
   // Extract the number from the last invoice number and increment
   const lastNumber = parseInt(lastInvoice.invoice_number.replace(prefix, ''));
-  const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
+  const nextNumber = (lastNumber + 1).toString().padStart(6, '0');
   return `${prefix}${nextNumber}`;
 };
 
