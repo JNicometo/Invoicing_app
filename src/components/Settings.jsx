@@ -41,8 +41,6 @@ function Settings() {
     invoice_suffix: '',
     invoice_start_number: '',
     quote_prefix: '',
-    next_invoice_number: 'INV-0001',
-    next_quote_number: 'QUO-0001',
     tax_rate: '',
     tax_label: '',
     currency_symbol: '',
@@ -207,8 +205,6 @@ function Settings() {
           invoice_suffix: data.invoice_suffix || '',
           invoice_start_number: data.invoice_start_number || '1',
           quote_prefix: data.quote_prefix || 'QUO-',
-          next_invoice_number: data.next_invoice_number || 'INV-0001',
-          next_quote_number: data.next_quote_number || 'QUO-0001',
           tax_rate: data.tax_rate !== null && data.tax_rate !== undefined ? data.tax_rate.toString() : '0',
           tax_label: data.tax_label || 'Tax',
           currency_symbol: data.currency_symbol || '$',
@@ -767,42 +763,6 @@ function Settings() {
                         <br />
                         <span className="font-medium">Examples:</span> INV-0001, 2024-001, ABC-12345, BILL-00001
                       </p>
-                    </div>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Next Invoice Number
-                        </label>
-                        <input
-                          type="text"
-                          name="next_invoice_number"
-                          value={formData.next_invoice_number}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
-                          placeholder="INV-0001"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          The next invoice will use this number, then auto-increment
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">
-                          Next Quote Number
-                        </label>
-                        <input
-                          type="text"
-                          name="next_quote_number"
-                          value={formData.next_quote_number}
-                          onChange={handleInputChange}
-                          className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent font-mono"
-                          placeholder="QUO-0001"
-                        />
-                        <p className="text-xs text-gray-500 mt-1">
-                          The next quote will use this number, then auto-increment
-                        </p>
-                      </div>
                     </div>
                   </div>
 
