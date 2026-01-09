@@ -1272,19 +1272,7 @@ const generateInvoiceNumber = (type = 'invoice') => {
   const isQuote = type === 'quote';
   const prefix = isQuote ? (settings.quote_prefix || 'QT-') : (settings.invoice_prefix || 'INV-');
 
-  // For quotes, use simple prefix-based system
-  // For invoices, use next_invoice_number if available
-  if (!isQuote && settings.next_invoice_number) {
-    const nextNumber = settings.next_invoice_number;
-
-    // Update the setting with the incremented number for next time
-    const incrementedNumber = incrementNumberString(nextNumber);
-    db.prepare('UPDATE settings SET next_invoice_number = ? WHERE id = 1').run(incrementedNumber);
-
-    return nextNumber;
-  }
-
-  // Fallback to prefix-based system for quotes or backward compatibility for invoices
+  // Find the last invoice/quote of this type
   const lastInvoice = db.prepare(`
     SELECT invoice_number FROM invoices
     WHERE invoice_number LIKE ? AND type = ?
@@ -1296,6 +1284,7 @@ const generateInvoiceNumber = (type = 'invoice') => {
     return `${prefix}0001`;
   }
 
+  // Extract the number from the last invoice number and increment
   const lastNumber = parseInt(lastInvoice.invoice_number.replace(prefix, ''));
   const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
   return `${prefix}${nextNumber}`;
@@ -1310,12 +1299,7 @@ const peekNextInvoiceNumber = (type = 'invoice') => {
   const isQuote = type === 'quote';
   const prefix = isQuote ? (settings.quote_prefix || 'QT-') : (settings.invoice_prefix || 'INV-');
 
-  // For invoices, use next_invoice_number if available (but don't increment)
-  if (!isQuote && settings.next_invoice_number) {
-    return settings.next_invoice_number;
-  }
-
-  // For quotes or fallback, look at the last record of this type
+  // Find the last invoice/quote of this type
   const lastInvoice = db.prepare(`
     SELECT invoice_number FROM invoices
     WHERE invoice_number LIKE ? AND type = ?
@@ -1327,6 +1311,7 @@ const peekNextInvoiceNumber = (type = 'invoice') => {
     return `${prefix}0001`;
   }
 
+  // Extract the number from the last invoice number and increment
   const lastNumber = parseInt(lastInvoice.invoice_number.replace(prefix, ''));
   const nextNumber = (lastNumber + 1).toString().padStart(4, '0');
   return `${prefix}${nextNumber}`;
