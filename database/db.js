@@ -843,6 +843,30 @@ const runMigrations = () => {
       console.log('✓ Invoice prefix is already correct');
     }
 
+    // Remove 'estimates' from tab_configuration
+    console.log('Checking for estimates tab in navigation...');
+    const tabConfigSettings = db.prepare('SELECT tab_configuration FROM settings WHERE id = 1').get();
+    if (tabConfigSettings && tabConfigSettings.tab_configuration) {
+      try {
+        const tabs = JSON.parse(tabConfigSettings.tab_configuration);
+        const hasEstimates = tabs.some(tab => tab.id === 'estimates');
+        if (hasEstimates) {
+          console.log('Removing estimates tab from navigation...');
+          const updatedTabs = tabs
+            .filter(tab => tab.id !== 'estimates')
+            .map((tab, index) => ({ ...tab, order: index }));
+          db.prepare('UPDATE settings SET tab_configuration = ? WHERE id = 1').run(JSON.stringify(updatedTabs));
+          console.log('✓ Removed estimates tab from navigation');
+        } else {
+          console.log('✓ No estimates tab found in navigation');
+        }
+      } catch (e) {
+        console.log('✓ Could not parse tab_configuration, skipping estimates removal');
+      }
+    } else {
+      console.log('✓ No tab_configuration set, will use defaults');
+    }
+
     console.log('Migrations completed successfully');
   } catch (error) {
     console.error('Migration error:', error);
