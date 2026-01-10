@@ -201,7 +201,7 @@ function Settings() {
           logo_url: data.logo_url || '',
 
           // Invoice Settings
-          invoice_prefix: data.invoice_prefix || 'invoice',
+          invoice_prefix: data.invoice_prefix || 'INV-',
           invoice_suffix: data.invoice_suffix || '',
           invoice_start_number: data.invoice_start_number || '1',
           quote_prefix: data.quote_prefix || 'QUO-',

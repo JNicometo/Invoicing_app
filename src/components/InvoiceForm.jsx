@@ -488,13 +488,51 @@ function InvoiceForm({ invoice, onClose }) {
         <form onSubmit={handleSubmit}>
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6 mb-6">
             <h2 className="text-lg font-semibold text-gray-900 mb-4">
-              Invoice Details
+              {formData.type === 'quote' ? 'Quote' : 'Invoice'} Details
             </h2>
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Type *
+                </label>
+                <div className="flex gap-4">
+                  <label className="inline-flex items-center">
+                    <input
+                      type="radio"
+                      name="type"
+                      value="invoice"
+                      checked={formData.type === 'invoice'}
+                      onChange={async (e) => {
+                        const newType = e.target.value;
+                        const newNumber = await peekNextInvoiceNumber(newType);
+                        setFormData(prev => ({ ...prev, type: newType, invoice_number: newNumber }));
+                      }}
+                      className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-sm font-medium text-gray-700">Invoice</span>
+                  </label>
+                  <label className="inline-flex items-center">
+                    <input
+                      type="radio"
+                      name="type"
+                      value="quote"
+                      checked={formData.type === 'quote'}
+                      onChange={async (e) => {
+                        const newType = e.target.value;
+                        const newNumber = await peekNextInvoiceNumber(newType);
+                        setFormData(prev => ({ ...prev, type: newType, invoice_number: newNumber }));
+                      }}
+                      className="w-4 h-4 text-blue-600 focus:ring-blue-500"
+                    />
+                    <span className="ml-2 text-sm font-medium text-gray-700">Quote</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Invoice Number *
+                  {formData.type === 'quote' ? 'Quote' : 'Invoice'} Number *
                 </label>
                 <input
                   type="text"
@@ -508,7 +546,9 @@ function InvoiceForm({ invoice, onClose }) {
                   <p className="text-red-500 text-xs mt-1">{errors.invoice_number}</p>
                 )}
               </div>
+            </div>
 
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mt-4">
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Client *
