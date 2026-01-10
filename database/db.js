@@ -823,7 +823,7 @@ const runMigrations = () => {
     // Migrate item_number to sku if sku is empty
     console.log('Migrating item_number to sku...');
     if (existingItemColumnNames.includes('item_number')) {
-      const itemsWithItemNumber = db.prepare('SELECT id, item_number, sku FROM saved_items WHERE item_number IS NOT NULL AND item_number != "" AND (sku IS NULL OR sku = "")').all();
+      const itemsWithItemNumber = db.prepare("SELECT id, item_number, sku FROM saved_items WHERE item_number IS NOT NULL AND item_number != '' AND (sku IS NULL OR sku = '')").all();
       if (itemsWithItemNumber.length > 0) {
         const updateStmt = db.prepare('UPDATE saved_items SET sku = ? WHERE id = ?');
         itemsWithItemNumber.forEach(item => {
