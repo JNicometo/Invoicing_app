@@ -832,6 +832,17 @@ const runMigrations = () => {
       }
     }
 
+    // Migrate invoice_prefix from 'invoice' to 'INV-'
+    console.log('Checking invoice prefix format...');
+    const currentSettings = db.prepare('SELECT invoice_prefix FROM settings WHERE id = 1').get();
+    if (currentSettings && currentSettings.invoice_prefix === 'invoice') {
+      console.log('Migrating invoice prefix from "invoice" to "INV-"...');
+      db.prepare('UPDATE settings SET invoice_prefix = ? WHERE id = 1').run('INV-');
+      console.log('✓ Updated invoice_prefix to INV-');
+    } else {
+      console.log('✓ Invoice prefix is already correct');
+    }
+
     console.log('Migrations completed successfully');
   } catch (error) {
     console.error('Migration error:', error);
