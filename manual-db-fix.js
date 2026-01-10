@@ -15,8 +15,12 @@ console.log('=== Manual Database Fix Script ===\n');
 const possiblePaths = [
   './invoicepro.db',
   './invoicing.db',
+  './database/invoicepro.db',
   path.join(process.env.HOME || process.env.USERPROFILE, '.config', 'invoicepro-desktop', 'invoicepro.db'),
+  path.join(process.env.HOME || process.env.USERPROFILE, 'Library', 'Application Support', 'invoicepro-desktop', 'invoicepro.db'),
   path.join(process.env.APPDATA || '', 'invoicepro-desktop', 'invoicepro.db'),
+  path.join(process.env.HOME || process.env.USERPROFILE, '.config', 'Electron', 'invoicepro.db'),
+  path.join(process.env.HOME || process.env.USERPROFILE, 'Library', 'Application Support', 'Electron', 'invoicepro.db'),
 ];
 
 // Find the database
