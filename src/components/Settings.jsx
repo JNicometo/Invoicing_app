@@ -2120,15 +2120,14 @@ function Settings() {
                         : [
                             { id: 'dashboard', name: 'Dashboard', enabled: true, order: 0 },
                             { id: 'invoices', name: 'Invoices', enabled: true, order: 1 },
-                            { id: 'estimates', name: 'Estimates', enabled: true, order: 2 },
-                            { id: 'credit-notes', name: 'Credit Notes', enabled: true, order: 3 },
-                            { id: 'recurring', name: 'Recurring', enabled: true, order: 4 },
-                            { id: 'clients', name: 'Clients', enabled: true, order: 5 },
-                            { id: 'reminders', name: 'Reminders', enabled: true, order: 6 },
-                            { id: 'reports', name: 'Reports', enabled: true, order: 7 },
-                            { id: 'saved-items', name: 'Saved Items', enabled: true, order: 8 },
-                            { id: 'archive', name: 'Archive', enabled: true, order: 9 },
-                            { id: 'settings', name: 'Settings', enabled: true, order: 10 }
+                            { id: 'credit-notes', name: 'Credit Notes', enabled: true, order: 2 },
+                            { id: 'recurring', name: 'Recurring', enabled: true, order: 3 },
+                            { id: 'clients', name: 'Clients', enabled: true, order: 4 },
+                            { id: 'reminders', name: 'Reminders', enabled: true, order: 5 },
+                            { id: 'reports', name: 'Reports', enabled: true, order: 6 },
+                            { id: 'saved-items', name: 'Saved Items', enabled: true, order: 7 },
+                            { id: 'archive', name: 'Archive', enabled: true, order: 8 },
+                            { id: 'settings', name: 'Settings', enabled: true, order: 9 }
                           ];
                     } catch (e) {
                       console.error('Error parsing tab configuration:', e);
@@ -2167,15 +2166,14 @@ function Settings() {
                       const defaultTabs = [
                         { id: 'dashboard', name: 'Dashboard', enabled: true, order: 0 },
                         { id: 'invoices', name: 'Invoices', enabled: true, order: 1 },
-                        { id: 'estimates', name: 'Estimates', enabled: true, order: 2 },
-                        { id: 'credit-notes', name: 'Credit Notes', enabled: true, order: 3 },
-                        { id: 'recurring', name: 'Recurring', enabled: true, order: 4 },
-                        { id: 'clients', name: 'Clients', enabled: true, order: 5 },
-                        { id: 'reminders', name: 'Reminders', enabled: true, order: 6 },
-                        { id: 'reports', name: 'Reports', enabled: true, order: 7 },
-                        { id: 'saved-items', name: 'Saved Items', enabled: true, order: 8 },
-                        { id: 'archive', name: 'Archive', enabled: true, order: 9 },
-                        { id: 'settings', name: 'Settings', enabled: true, order: 10 }
+                        { id: 'credit-notes', name: 'Credit Notes', enabled: true, order: 2 },
+                        { id: 'recurring', name: 'Recurring', enabled: true, order: 3 },
+                        { id: 'clients', name: 'Clients', enabled: true, order: 4 },
+                        { id: 'reminders', name: 'Reminders', enabled: true, order: 5 },
+                        { id: 'reports', name: 'Reports', enabled: true, order: 6 },
+                        { id: 'saved-items', name: 'Saved Items', enabled: true, order: 7 },
+                        { id: 'archive', name: 'Archive', enabled: true, order: 8 },
+                        { id: 'settings', name: 'Settings', enabled: true, order: 9 }
                       ];
                       setFormData(prev => ({ ...prev, tab_configuration: JSON.stringify(defaultTabs) }));
                     };
