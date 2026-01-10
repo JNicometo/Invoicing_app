@@ -383,6 +383,9 @@ const runMigrations = () => {
 
     // Add item detail columns (sku, unit_of_measure) to invoice_items table
     console.log('Checking for item detail columns in invoice_items...');
+    const invoiceItemColumns = db.pragma('table_info(invoice_items)');
+    const itemColumnNames = invoiceItemColumns.map(col => col.name);
+
     const itemDetailColumns = [
       { name: 'sku', type: 'TEXT', default: "''" },
       { name: 'unit_of_measure', type: 'TEXT', default: "'Each'" }
