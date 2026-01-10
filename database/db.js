@@ -895,6 +895,9 @@ const getSettings = () => {
 const updateSettings = (settings) => {
   const db = getDatabase();
 
+  // Get current settings to merge with
+  const currentSettings = getSettings();
+
   // Sanitize settings: convert booleans to integers and undefined to null
   const sanitized = {};
   for (const [key, value] of Object.entries(settings)) {
@@ -906,6 +909,9 @@ const updateSettings = (settings) => {
       sanitized[key] = value;
     }
   }
+
+  // Merge with current settings to ensure all fields have values
+  const merged = { ...currentSettings, ...sanitized };
 
   const stmt = db.prepare(`
     UPDATE settings SET
@@ -1011,7 +1017,7 @@ const updateSettings = (settings) => {
       updated_at = CURRENT_TIMESTAMP
     WHERE id = 1
   `);
-  return stmt.run(sanitized);
+  return stmt.run(merged);
 };
 
 // Client operations
