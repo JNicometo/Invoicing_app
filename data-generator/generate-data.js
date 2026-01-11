@@ -9,6 +9,7 @@ const path = require('path');
 const DEFAULT_CONFIG = {
   clients: 500,
   invoices: 10000,
+  savedItems: 100,
   output: './output'
 };
 
@@ -359,6 +360,112 @@ const generatePayments = (invoices) => {
   return payments;
 };
 
+const generateSavedItems = (count) => {
+  console.log(`Generating ${count} saved items...`);
+  const savedItems = [];
+
+  const categories = {
+    'Consulting': [
+      { desc: 'Business Consulting - Hourly', rate: [100, 300], unit: 'Hour' },
+      { desc: 'IT Consulting - Hourly', rate: [125, 275], unit: 'Hour' },
+      { desc: 'Marketing Consultation', rate: [150, 350], unit: 'Hour' },
+      { desc: 'Financial Advisory Services', rate: [200, 500], unit: 'Hour' },
+      { desc: 'Strategy Planning Session', rate: [250, 600], unit: 'Session' }
+    ],
+    'Design': [
+      { desc: 'Logo Design', rate: [300, 1500], unit: 'Project' },
+      { desc: 'Website Design', rate: [1500, 5000], unit: 'Project' },
+      { desc: 'Graphic Design - Hourly', rate: [75, 175], unit: 'Hour' },
+      { desc: 'UI/UX Design - Hourly', rate: [100, 200], unit: 'Hour' },
+      { desc: 'Branding Package', rate: [2000, 8000], unit: 'Project' },
+      { desc: 'Social Media Graphics', rate: [50, 200], unit: 'Set' }
+    ],
+    'Development': [
+      { desc: 'Web Development - Hourly', rate: [100, 250], unit: 'Hour' },
+      { desc: 'Mobile App Development - Hourly', rate: [125, 300], unit: 'Hour' },
+      { desc: 'Database Design', rate: [150, 400], unit: 'Hour' },
+      { desc: 'API Development', rate: [125, 275], unit: 'Hour' },
+      { desc: 'Software Maintenance - Monthly', rate: [500, 2000], unit: 'Month' },
+      { desc: 'Code Review', rate: [100, 200], unit: 'Hour' }
+    ],
+    'Marketing': [
+      { desc: 'SEO Services - Monthly', rate: [500, 3000], unit: 'Month' },
+      { desc: 'Social Media Management', rate: [800, 3500], unit: 'Month' },
+      { desc: 'Content Writing', rate: [0.10, 0.50], unit: 'Word' },
+      { desc: 'Email Marketing Campaign', rate: [300, 1500], unit: 'Campaign' },
+      { desc: 'PPC Campaign Management', rate: [1000, 5000], unit: 'Month' },
+      { desc: 'Marketing Strategy Document', rate: [500, 2500], unit: 'Document' }
+    ],
+    'Photography': [
+      { desc: 'Event Photography - Hourly', rate: [150, 400], unit: 'Hour' },
+      { desc: 'Product Photography', rate: [200, 800], unit: 'Session' },
+      { desc: 'Photo Editing', rate: [25, 75], unit: 'Photo' },
+      { desc: 'Headshot Session', rate: [150, 500], unit: 'Session' },
+      { desc: 'Wedding Photography Package', rate: [2000, 8000], unit: 'Day' }
+    ],
+    'Video': [
+      { desc: 'Video Production - Hourly', rate: [150, 400], unit: 'Hour' },
+      { desc: 'Video Editing', rate: [100, 250], unit: 'Hour' },
+      { desc: 'Promotional Video', rate: [1500, 5000], unit: 'Video' },
+      { desc: 'Drone Videography', rate: [200, 600], unit: 'Hour' },
+      { desc: 'Animation Services', rate: [150, 400], unit: 'Hour' }
+    ],
+    'Writing': [
+      { desc: 'Technical Writing', rate: [75, 200], unit: 'Hour' },
+      { desc: 'Copywriting', rate: [100, 300], unit: 'Hour' },
+      { desc: 'Blog Post Writing', rate: [100, 500], unit: 'Post' },
+      { desc: 'Press Release', rate: [300, 1000], unit: 'Release' },
+      { desc: 'White Paper', rate: [1500, 5000], unit: 'Document' }
+    ],
+    'Support': [
+      { desc: 'Technical Support - Hourly', rate: [50, 150], unit: 'Hour' },
+      { desc: 'Help Desk Support - Monthly', rate: [500, 2000], unit: 'Month' },
+      { desc: 'System Maintenance', rate: [100, 250], unit: 'Hour' },
+      { desc: 'Emergency Support Call', rate: [150, 400], unit: 'Call' },
+      { desc: 'Training Session', rate: [200, 600], unit: 'Session' }
+    ],
+    'Products': [
+      { desc: 'Software License - Annual', rate: [99, 999], unit: 'License' },
+      { desc: 'Cloud Storage - Monthly', rate: [10, 100], unit: 'Month' },
+      { desc: 'SSL Certificate - Annual', rate: [50, 300], unit: 'Certificate' },
+      { desc: 'Domain Registration', rate: [10, 50], unit: 'Domain' },
+      { desc: 'Hosting - Monthly', rate: [20, 200], unit: 'Month' }
+    ]
+  };
+
+  let id = 1;
+  for (const [category, items] of Object.entries(categories)) {
+    for (const item of items) {
+      const rateValue = faker.number.float({ min: item.rate[0], max: item.rate[1], precision: 0.01 });
+      const costPrice = rateValue * faker.number.float({ min: 0.3, max: 0.6, precision: 0.01 });
+      const markupPercentage = ((rateValue - costPrice) / costPrice) * 100;
+
+      savedItems.push({
+        id: id++,
+        description: item.desc,
+        rate: formatCurrency(rateValue),
+        category: category,
+        sku: faker.string.alphanumeric({ length: 8, casing: 'upper' }),
+        barcode: faker.string.numeric({ length: 12 }),
+        unit_of_measure: item.unit,
+        cost_price: formatCurrency(costPrice),
+        markup_percentage: markupPercentage.toFixed(2),
+        taxable: faker.helpers.arrayElement([1, 1, 1, 0]), // 75% taxable
+        is_active: faker.helpers.arrayElement([1, 1, 1, 1, 0]), // 80% active
+        notes: faker.helpers.arrayElement(['', '', '', '', 'Popular item', 'Seasonal service', 'Premium offering']),
+        created_at: formatDate(randomDateBetween(new Date(new Date().setFullYear(new Date().getFullYear() - 2)), new Date())),
+        updated_at: formatDate(randomDateBetween(new Date(new Date().setFullYear(new Date().getFullYear() - 1)), new Date()))
+      });
+
+      if (id > count) break;
+    }
+    if (id > count) break;
+  }
+
+  console.log(`✓ saved_items.csv (${savedItems.length} records)`);
+  return savedItems.slice(0, count);
+};
+
 // ==================== CSV Writing ====================
 
 const arrayToCSV = (data) => {
@@ -461,6 +568,7 @@ const main = async () => {
   console.log('Configuration:');
   console.log(`  Clients: ${config.clients}`);
   console.log(`  Invoices: ${config.invoices}`);
+  console.log(`  Saved Items: ${config.savedItems}`);
   console.log(`  Output: ${config.output}\n`);
 
   // Create output directory
@@ -472,6 +580,7 @@ const main = async () => {
 
   // Generate data
   const clients = generateClients(config.clients);
+  const savedItems = generateSavedItems(config.savedItems);
   const invoices = generateInvoices(config.invoices, clients);
   const items = generateInvoiceItems(invoices);
   const payments = generatePayments(invoices);
@@ -482,6 +591,7 @@ const main = async () => {
   // Write CSV files
   console.log('\nWriting CSV files...');
   writeCSV('clients.csv', clients);
+  writeCSV('saved_items.csv', savedItems);
   writeCSV('invoices.csv', invoices);
   writeCSV('invoice_items.csv', items);
   writeCSV('payments.csv', payments);
@@ -491,10 +601,11 @@ const main = async () => {
   console.log('\n✅ Complete! Files saved to', path.resolve(config.output));
   console.log(`\nGenerated in ${elapsed}s:`);
   console.log(`  ${clients.length.toLocaleString()} clients`);
+  console.log(`  ${savedItems.length.toLocaleString()} saved items`);
   console.log(`  ${invoices.length.toLocaleString()} invoices`);
   console.log(`  ${items.length.toLocaleString()} invoice items`);
   console.log(`  ${payments.length.toLocaleString()} payments`);
-  console.log(`\nTotal records: ${(clients.length + invoices.length + items.length + payments.length).toLocaleString()}\n`);
+  console.log(`\nTotal records: ${(clients.length + savedItems.length + invoices.length + items.length + payments.length).toLocaleString()}\n`);
 };
 
 // Run
