@@ -9,7 +9,6 @@ const path = require('path');
 const DEFAULT_CONFIG = {
   clients: 500,
   invoices: 10000,
-  expenses: 5000,
   output: './output'
 };
 
@@ -101,19 +100,18 @@ const generateClients = (count) => {
   for (let i = 1; i <= count; i++) {
     const firstName = faker.person.firstName();
     const lastName = faker.person.lastName();
-    const fullName = `${firstName} ${lastName}`;
 
+    // Use company-style names (no separate company field in schema)
     const companyStyle = faker.helpers.arrayElement(companyStyles);
-    const company = companyStyle(lastName);
+    const companyName = companyStyle(lastName);
 
-    const emailDomain = company.toLowerCase()
+    const emailDomain = companyName.toLowerCase()
       .replace(/[^a-z0-9]/g, '')
       .substring(0, 20) + '.com';
 
     clients.push({
       id: i,
-      name: fullName,
-      company: company,
+      name: companyName, // Use company name as the client name
       email: `info@${emailDomain}`,
       phone: faker.phone.number('(###) ###-####'),
       address: faker.location.streetAddress(),
@@ -197,7 +195,7 @@ const generateInvoices = (count, clients) => {
       id: i,
       invoice_number: invoiceNumber,
       client_id: clientId,
-      issue_date: formatDate(issueDate),
+      date: formatDate(issueDate), // Changed from issue_date to match schema
       due_date: formatDate(dueDate),
       status: status,
       subtotal: formatCurrency(subtotal),
@@ -285,8 +283,8 @@ const generateInvoiceItems = (invoices) => {
         invoice_id: invoice.id,
         description: description,
         quantity: quantity,
-        unit_price: formatCurrency(unitPrice),
-        line_total: formatCurrency(lineTotal)
+        rate: formatCurrency(unitPrice), // Changed from unit_price to match schema
+        amount: formatCurrency(lineTotal) // Changed from line_total to match schema
       });
     }
 
@@ -297,56 +295,6 @@ const generateInvoiceItems = (invoices) => {
   return items;
 };
 
-const generateExpenses = (count) => {
-  console.log(`Generating ${count} expenses...`);
-  const expenses = [];
-  const twoYearsAgo = new Date();
-  twoYearsAgo.setFullYear(twoYearsAgo.getFullYear() - 2);
-
-  const categories = [
-    { name: 'Software', vendors: ['Adobe Creative Cloud', 'Microsoft 365', 'Slack', 'Zoom', 'Dropbox', 'GitHub'], min: 10, max: 200 },
-    { name: 'Office Supplies', vendors: ['Staples', 'Office Depot', 'Amazon', 'Best Buy'], min: 10, max: 100 },
-    { name: 'Travel', vendors: ['Delta Airlines', 'United Airlines', 'Hilton Hotels', 'Marriott', 'Uber', 'Lyft'], min: 50, max: 500 },
-    { name: 'Marketing', vendors: ['Google Ads', 'Facebook Ads', 'LinkedIn Ads', 'Mailchimp'], min: 100, max: 1000 },
-    { name: 'Education', vendors: ['Udemy', 'Coursera', 'LinkedIn Learning', 'Skillshare'], min: 10, max: 200 },
-    { name: 'Equipment', vendors: ['Apple Store', 'Dell', 'Amazon', 'B&H Photo'], min: 100, max: 2000 },
-    { name: 'Utilities', vendors: ['Electric Company', 'Internet Provider', 'Phone Service'], min: 50, max: 300 },
-    { name: 'Professional Services', vendors: ['Legal Services', 'Accounting Firm', 'Insurance Company'], min: 200, max: 1500 }
-  ];
-
-  for (let i = 1; i <= count; i++) {
-    const category = faker.helpers.arrayElement(categories);
-    const vendor = faker.helpers.arrayElement(category.vendors);
-    const amount = faker.number.float({ min: category.min, max: category.max, precision: 0.01 });
-    const date = randomDateBetween(twoYearsAgo, new Date());
-
-    const descriptions = {
-      'Software': `${vendor} - Monthly subscription`,
-      'Office Supplies': `Office supplies from ${vendor}`,
-      'Travel': `Business travel - ${vendor}`,
-      'Marketing': `Online advertising - ${vendor}`,
-      'Education': `Professional development - ${vendor}`,
-      'Equipment': `Equipment purchase from ${vendor}`,
-      'Utilities': `${vendor} - Monthly service`,
-      'Professional Services': `${vendor} - Professional fees`
-    };
-
-    expenses.push({
-      id: i,
-      date: formatDate(date),
-      amount: formatCurrency(amount),
-      category: category.name,
-      vendor: vendor,
-      description: descriptions[category.name],
-      created_at: formatDate(date)
-    });
-
-    if (i % 500 === 0) process.stdout.write(`\r  Progress: ${i}/${count}`);
-  }
-
-  console.log(`\r✓ expenses.csv (${count} records)`);
-  return expenses;
-};
 
 const generatePayments = (invoices) => {
   console.log('Generating payments...');
@@ -439,7 +387,7 @@ const writeCSV = (filename, data) => {
 
 // ==================== Validation ====================
 
-const validateData = (clients, invoices, items, expenses, payments) => {
+const validateData = (clients, invoices, items, payments) => {
   console.log('\nValidating data...');
 
   const errors = [];
@@ -450,7 +398,7 @@ const validateData = (clients, invoices, items, expenses, payments) => {
     if (!itemsByInvoice[item.invoice_id]) {
       itemsByInvoice[item.invoice_id] = 0;
     }
-    itemsByInvoice[item.invoice_id] += parseFloat(item.line_total);
+    itemsByInvoice[item.invoice_id] += parseFloat(item.amount); // Changed from line_total to amount
   }
 
   for (const invoice of invoices) {
@@ -491,7 +439,6 @@ const validateData = (clients, invoices, items, expenses, payments) => {
   checkDuplicates(clients, 'Clients');
   checkDuplicates(invoices, 'Invoices');
   checkDuplicates(items, 'Invoice Items');
-  checkDuplicates(expenses, 'Expenses');
   checkDuplicates(payments, 'Payments');
 
   if (errors.length > 0) {
@@ -514,7 +461,6 @@ const main = async () => {
   console.log('Configuration:');
   console.log(`  Clients: ${config.clients}`);
   console.log(`  Invoices: ${config.invoices}`);
-  console.log(`  Expenses: ${config.expenses}`);
   console.log(`  Output: ${config.output}\n`);
 
   // Create output directory
@@ -528,18 +474,16 @@ const main = async () => {
   const clients = generateClients(config.clients);
   const invoices = generateInvoices(config.invoices, clients);
   const items = generateInvoiceItems(invoices);
-  const expenses = generateExpenses(config.expenses);
   const payments = generatePayments(invoices);
 
   // Validate
-  validateData(clients, invoices, items, expenses, payments);
+  validateData(clients, invoices, items, payments);
 
   // Write CSV files
   console.log('\nWriting CSV files...');
   writeCSV('clients.csv', clients);
   writeCSV('invoices.csv', invoices);
   writeCSV('invoice_items.csv', items);
-  writeCSV('expenses.csv', expenses);
   writeCSV('payments.csv', payments);
 
   const elapsed = ((Date.now() - startTime) / 1000).toFixed(1);
@@ -549,9 +493,8 @@ const main = async () => {
   console.log(`  ${clients.length.toLocaleString()} clients`);
   console.log(`  ${invoices.length.toLocaleString()} invoices`);
   console.log(`  ${items.length.toLocaleString()} invoice items`);
-  console.log(`  ${expenses.length.toLocaleString()} expenses`);
   console.log(`  ${payments.length.toLocaleString()} payments`);
-  console.log(`\nTotal records: ${(clients.length + invoices.length + items.length + expenses.length + payments.length).toLocaleString()}\n`);
+  console.log(`\nTotal records: ${(clients.length + invoices.length + items.length + payments.length).toLocaleString()}\n`);
 };
 
 // Run
