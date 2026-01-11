@@ -1,0 +1,21 @@
+{
+  "name": "invoice-test-data-generator",
+  "version": "1.0.0",
+  "description": "Generate realistic test data for invoicing app performance testing",
+  "main": "generate-data.js",
+  "scripts": {
+    "generate": "node generate-data.js",
+    "generate:large": "node generate-data.js --clients 1000 --invoices 50000"
+  },
+  "keywords": [
+    "test-data",
+    "invoice",
+    "faker",
+    "csv"
+  ],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "@faker-js/faker": "^8.0.0"
+  }
+}
