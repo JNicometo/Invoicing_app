@@ -14,6 +14,10 @@
     "electron:build:win": "npm run build && electron-builder --win",
     "electron:build:mac": "npm run build && electron-builder --mac",
     "electron:build:linux": "npm run build && electron-builder --linux",
+    "release:patch": "node scripts/release.js patch",
+    "release:minor": "node scripts/release.js minor",
+    "release:major": "node scripts/release.js major",
+    "publish:github": "npm run electron:build && electron-builder --publish always",
     "fix-db": "node fix-db.js",
     "check": "npm ls --depth=0",
     "verify": "npm audit && npm run check",
@@ -48,6 +52,7 @@
     "date-fns": "^2.30.0",
     "electron-is-dev": "^2.0.0",
     "electron-store": "^8.1.0",
+    "electron-updater": "^6.1.7",
     "express": "^4.18.2",
     "jsonwebtoken": "^9.0.2",
     "jspdf": "^2.5.1",
@@ -76,28 +81,109 @@
       "build/**/*",
       "electron.js",
       "preload.js",
-      "database/**/*"
+      "database/**/*",
+      "utils/**/*"
     ],
+    "extraResources": [
+      {
+        "from": "database/invoicepro.db",
+        "to": "database/invoicepro.db",
+        "filter": ["**/*"]
+      }
+    ],
+    "publish": {
+      "provider": "github",
+      "owner": "JNicometo",
+      "repo": "Invoicing_app"
+    },
     "win": {
       "target": [
-        "nsis"
+        {
+          "target": "nsis",
+          "arch": ["x64", "ia32"]
+        }
       ],
-      "icon": "public/icon.ico"
+      "icon": "public/icon.ico",
+      "publisherName": "InvoicePro",
+      "fileAssociations": [
+        {
+          "ext": "invoice",
+          "name": "InvoicePro Invoice",
+          "description": "InvoicePro Invoice File"
+        }
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "allowToChangeInstallationDirectory": true,
+      "perMachine": false,
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "InvoicePro Desktop",
+      "installerIcon": "public/icon.ico",
+      "uninstallerIcon": "public/icon.ico",
+      "installerHeaderIcon": "public/icon.ico",
+      "deleteAppDataOnUninstall": false,
+      "runAfterFinish": true,
+      "license": "LICENSE"
     },
     "mac": {
       "target": [
-        "dmg"
+        {
+          "target": "dmg",
+          "arch": ["x64", "arm64"]
+        }
       ],
       "icon": "public/icon.icns",
-      "category": "public.app-category.business"
+      "category": "public.app-category.business",
+      "hardenedRuntime": true,
+      "gatekeeperAssess": false,
+      "entitlements": "build/entitlements.mac.plist",
+      "entitlementsInherit": "build/entitlements.mac.plist",
+      "type": "distribution"
+    },
+    "dmg": {
+      "title": "InvoicePro Desktop",
+      "icon": "public/icon.icns",
+      "background": null,
+      "contents": [
+        {
+          "x": 130,
+          "y": 220
+        },
+        {
+          "x": 410,
+          "y": 220,
+          "type": "link",
+          "path": "/Applications"
+        }
+      ],
+      "window": {
+        "width": 540,
+        "height": 380
+      }
     },
     "linux": {
       "target": [
-        "AppImage",
-        "deb"
+        {
+          "target": "AppImage",
+          "arch": ["x64"]
+        },
+        {
+          "target": "deb",
+          "arch": ["x64"]
+        }
       ],
       "icon": "public/icon.png",
-      "category": "Office"
+      "category": "Office",
+      "description": "Professional desktop invoicing application",
+      "maintainer": "InvoicePro <support@invoicepro.com>",
+      "desktop": {
+        "Name": "InvoicePro Desktop",
+        "Comment": "Professional invoicing made easy",
+        "Categories": "Office;Finance;",
+        "StartupWMClass": "invoicepro-desktop"
+      }
     }
   },
   "browserslist": {
