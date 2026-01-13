@@ -127,6 +127,11 @@ contextBridge.exposeInMainWorld('electron', {
         'sqlserver:checkDatabase',
         'sqlserver:createDatabase',
         'sqlserver:createSchema',
+        // Auto-Updater
+        'updater:check',
+        'updater:download',
+        'updater:install',
+        'app:getVersion',
       ];
 
       if (validChannels.includes(channel)) {
@@ -139,6 +144,12 @@ contextBridge.exposeInMainWorld('electron', {
       // Whitelist of allowed channels for events
       const validEventChannels = [
         'invoice-payment-received',
+        // Auto-Updater events
+        'update-available',
+        'update-not-available',
+        'update-error',
+        'update-download-progress',
+        'update-downloaded',
       ];
 
       if (validEventChannels.includes(channel)) {
@@ -150,6 +161,12 @@ contextBridge.exposeInMainWorld('electron', {
     removeAllListeners: (channel) => {
       const validEventChannels = [
         'invoice-payment-received',
+        // Auto-Updater events
+        'update-available',
+        'update-not-available',
+        'update-error',
+        'update-download-progress',
+        'update-downloaded',
       ];
 
       if (validEventChannels.includes(channel)) {
