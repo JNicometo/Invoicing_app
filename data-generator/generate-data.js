@@ -98,6 +98,21 @@ const generateClients = (count) => {
     (name) => `${faker.company.name()}`,
   ];
 
+  const industries = [
+    'Technology', 'Healthcare', 'Finance', 'Manufacturing', 'Retail',
+    'Real Estate', 'Construction', 'Education', 'Legal Services',
+    'Marketing & Advertising', 'Consulting', 'Hospitality', 'Transportation',
+    'Energy', 'Telecommunications', 'Media & Entertainment', 'Agriculture',
+    'Automotive', 'Pharmaceutical', 'Insurance', 'E-commerce', 'Non-Profit'
+  ];
+
+  const companySizes = ['1-10', '11-50', '51-200', '201-500', '501-1000', '1000+'];
+  const accountStatuses = ['Active', 'Active', 'Active', 'Active', 'Active', 'Inactive', 'On Hold'];
+  const paymentMethods = ['Bank Transfer', 'Credit Card', 'PayPal', 'Check', 'ACH', 'Wire Transfer'];
+  const paymentTermsOptions = ['NET 15', 'NET 30', 'NET 45', 'NET 60', 'Due on Receipt', 'NET 30 EOM'];
+  const currencies = ['USD', 'USD', 'USD', 'USD', 'EUR', 'GBP', 'CAD'];
+  const languages = ['en', 'en', 'en', 'en', 'es', 'fr', 'de'];
+
   for (let i = 1; i <= count; i++) {
     const firstName = faker.person.firstName();
     const lastName = faker.person.lastName();
@@ -110,16 +125,93 @@ const generateClients = (count) => {
       .replace(/[^a-z0-9]/g, '')
       .substring(0, 20) + '.com';
 
+    const mainAddress = faker.location.streetAddress();
+    const mainCity = faker.location.city();
+    const mainState = faker.location.state({ abbreviated: true });
+    const mainZip = faker.location.zipCode('#####');
+
+    // 70% same billing, 30% different
+    const sameBilling = Math.random() > 0.3;
+    const billingAddress = sameBilling ? mainAddress : faker.location.streetAddress();
+    const billingCity = sameBilling ? mainCity : faker.location.city();
+    const billingState = sameBilling ? mainState : faker.location.state({ abbreviated: true });
+    const billingZip = sameBilling ? mainZip : faker.location.zipCode('#####');
+
+    // 80% same shipping, 20% different
+    const sameShipping = Math.random() > 0.2;
+    const shippingAddress = sameShipping ? mainAddress : faker.location.streetAddress();
+    const shippingCity = sameShipping ? mainCity : faker.location.city();
+    const shippingState = sameShipping ? mainState : faker.location.state({ abbreviated: true });
+    const shippingZip = sameShipping ? mainZip : faker.location.zipCode('#####');
+
+    const contactFirstName = faker.person.firstName();
+    const contactLastName = faker.person.lastName();
+    const secondaryContactFirstName = faker.person.firstName();
+    const secondaryContactLastName = faker.person.lastName();
+
+    const accountManagerFirstName = faker.person.firstName();
+    const accountManagerLastName = faker.person.lastName();
+
+    const creditLimit = faker.helpers.arrayElement([0, 5000, 10000, 25000, 50000, 100000]);
+    const currentCredit = creditLimit > 0 ? faker.number.float({ min: 0, max: creditLimit * 0.6, precision: 0.01 }) : 0;
+
+    const hasWebsite = Math.random() > 0.3; // 70% have websites
+    const hasSecondary = Math.random() > 0.4; // 60% have secondary contact
+    const hasBillingEmail = Math.random() > 0.5; // 50% have separate billing email
+    const hasTags = Math.random() > 0.3; // 70% have tags
+
+    const tags = hasTags ? faker.helpers.arrayElements(['VIP', 'Priority', 'Wholesale', 'Retail', 'New', 'Long-term', 'High-value', 'Referral'], faker.number.int({ min: 1, max: 3 })).join(',') : '';
+
+    const createdDate = randomDateBetween(twoYearsAgo, new Date());
+    const updatedDate = randomDateBetween(createdDate, new Date());
+
     clients.push({
       id: i,
-      name: companyName, // Use company name as the client name
+      customer_number: `CUST-${i.toString().padStart(5, '0')}`,
+      name: companyName,
       email: `info@${emailDomain}`,
       phone: faker.phone.number('(###) ###-####'),
-      address: faker.location.streetAddress(),
-      city: faker.location.city(),
-      state: faker.location.state({ abbreviated: true }),
-      zip: faker.location.zipCode('#####'),
-      created_at: formatDate(randomDateBetween(twoYearsAgo, new Date()))
+      address: mainAddress,
+      city: mainCity,
+      state: mainState,
+      zip: mainZip,
+      notes: faker.helpers.arrayElement(['', '', '', '', 'Important client', 'Net 30 terms', 'Contact before shipping', 'Requires PO number', 'Volume discount applied']),
+      // Credit Management
+      credit_limit: formatCurrency(creditLimit),
+      current_credit: formatCurrency(currentCredit),
+      payment_terms: faker.helpers.arrayElement(paymentTermsOptions),
+      tax_exempt: faker.helpers.arrayElement([0, 0, 0, 0, 0, 0, 0, 1]), // 12.5% tax exempt
+      tax_id: faker.helpers.arrayElement([0, 0, 1]) ? faker.string.numeric({ length: 2 }) + '-' + faker.string.numeric({ length: 7 }) : '',
+      // Additional Business Information
+      website: hasWebsite ? `https://www.${emailDomain}` : '',
+      industry: faker.helpers.arrayElement(industries),
+      company_size: faker.helpers.arrayElement(companySizes),
+      account_status: faker.helpers.arrayElement(accountStatuses),
+      billing_email: hasBillingEmail ? `billing@${emailDomain}` : '',
+      billing_address: billingAddress,
+      billing_city: billingCity,
+      billing_state: billingState,
+      billing_zip: billingZip,
+      shipping_address: shippingAddress,
+      shipping_city: shippingCity,
+      shipping_state: shippingState,
+      shipping_zip: shippingZip,
+      // Contact Information
+      contact_person: `${contactFirstName} ${contactLastName}`,
+      contact_title: faker.helpers.arrayElement(['CEO', 'CFO', 'Owner', 'Manager', 'Director', 'VP', 'President', 'Accounting Manager', 'Purchasing Manager']),
+      secondary_contact: hasSecondary ? `${secondaryContactFirstName} ${secondaryContactLastName}` : '',
+      secondary_email: hasSecondary ? `${secondaryContactFirstName.toLowerCase()}.${secondaryContactLastName.toLowerCase()}@${emailDomain}` : '',
+      secondary_phone: hasSecondary ? faker.phone.number('(###) ###-####') : '',
+      // Account Management
+      account_manager: faker.helpers.arrayElement(['', '', `${accountManagerFirstName} ${accountManagerLastName}`]), // 33% have account manager
+      preferred_payment_method: faker.helpers.arrayElement(paymentMethods),
+      default_discount_rate: faker.helpers.arrayElement([0, 0, 0, 0, 5, 10, 15]), // Most get 0%, some get discounts
+      currency: faker.helpers.arrayElement(currencies),
+      language: faker.helpers.arrayElement(languages),
+      tags: tags,
+      // Timestamps
+      created_at: formatDate(createdDate),
+      updated_at: formatDate(updatedDate)
     });
 
     if (i % 100 === 0) process.stdout.write(`\r  Progress: ${i}/${count}`);
