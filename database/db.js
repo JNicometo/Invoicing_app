@@ -19,14 +19,32 @@ const getDbFilename = () => {
 const initDatabase = () => {
   try {
     const dbFilename = getDbFilename();
-    const dbPath = path.join(getUserDataPath(), dbFilename);
-    console.log('Initializing database at:', dbPath);
+    const userDataPath = getUserDataPath();
 
+    // Ensure the user data directory exists
+    if (!fs.existsSync(userDataPath)) {
+      fs.mkdirSync(userDataPath, { recursive: true });
+      console.log('Created user data directory:', userDataPath);
+    }
+
+    const dbPath = path.join(userDataPath, dbFilename);
+    const dbExists = fs.existsSync(dbPath);
+
+    console.log('Initializing database at:', dbPath);
+    console.log('Database exists:', dbExists);
+
+    // Create or open database (better-sqlite3 creates if doesn't exist)
     db = new Database(dbPath);
     db.pragma('journal_mode = WAL');
 
-    // Read and execute schema
+    // Read and execute schema (creates tables if they don't exist)
     const schemaPath = path.join(__dirname, 'schema.sql');
+
+    if (!fs.existsSync(schemaPath)) {
+      console.error('Schema file not found at:', schemaPath);
+      throw new Error('Database schema file not found. Please ensure schema.sql exists.');
+    }
+
     const schema = fs.readFileSync(schemaPath, 'utf8');
     db.exec(schema);
 
@@ -34,9 +52,11 @@ const initDatabase = () => {
     runMigrations();
 
     console.log('Database initialized successfully');
+    console.log('Database path:', dbPath);
     return db;
   } catch (error) {
     console.error('Failed to initialize database:', error);
+    console.error('Error details:', error.message);
     throw error;
   }
 };
