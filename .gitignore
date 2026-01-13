@@ -5,8 +5,11 @@ yarn.lock
 
 # Build output
 dist/
-build/
 out/
+
+# React build output (but keep electron-builder resources)
+/build/*
+!/build/entitlements.mac.plist
 
 # Development
 .env

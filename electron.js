@@ -2,6 +2,7 @@ const { app, BrowserWindow, ipcMain, dialog } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const isDev = require('electron-is-dev');
+const { autoUpdater } = require('electron-updater');
 const db = require('./database/db');
 const nodemailer = require('nodemailer');
 const Stripe = require('stripe');
@@ -11,6 +12,48 @@ const cron = require('node-cron');
 const log = require('./utils/logger');
 
 let mainWindow;
+
+// ==================== Auto-Updater Configuration ====================
+// Configure auto-updater for seamless updates
+autoUpdater.autoDownload = false; // Don't auto-download, let user decide
+autoUpdater.autoInstallOnAppQuit = true; // Install on quit if downloaded
+
+autoUpdater.on('checking-for-update', () => {
+  log.info('Checking for updates...');
+});
+
+autoUpdater.on('update-available', (info) => {
+  log.info('Update available:', info.version);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-available', info);
+  }
+});
+
+autoUpdater.on('update-not-available', (info) => {
+  log.info('App is up to date:', info.version);
+});
+
+autoUpdater.on('error', (err) => {
+  log.error('Update error:', err);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-error', err.message);
+  }
+});
+
+autoUpdater.on('download-progress', (progressObj) => {
+  const percent = progressObj.percent.toFixed(2);
+  log.info(`Download progress: ${percent}%`);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-download-progress', progressObj);
+  }
+});
+
+autoUpdater.on('update-downloaded', (info) => {
+  log.success('Update downloaded:', info.version);
+  if (mainWindow && !mainWindow.isDestroyed()) {
+    mainWindow.webContents.send('update-downloaded', info);
+  }
+});
 
 // ==================== Database Routing Helper ====================
 // Route database calls to either SQLite or SQL Server based on settings
@@ -91,6 +134,14 @@ app.whenReady().then(async () => {
 
     // Start webhook server after database is initialized
     startWebhookServer();
+
+    // Check for updates (only in production)
+    if (!isDev) {
+      setTimeout(() => {
+        log.info('Checking for app updates...');
+        autoUpdater.checkForUpdates();
+      }, 3000);
+    }
 
     // Run initial reminder check after 5 seconds
     setTimeout(() => {
@@ -2289,6 +2340,57 @@ app.on('before-quit', () => {
     webhookServer.close();
     log.info('Webhook server stopped');
   }
+});
+
+// ========================================
+// Auto-Updater IPC Handlers
+// ========================================
+
+// Check for updates manually
+ipcMain.handle('updater:check', async () => {
+  try {
+    if (isDev) {
+      return { success: false, message: 'Updates are disabled in development mode' };
+    }
+    const result = await autoUpdater.checkForUpdates();
+    return { success: true, updateInfo: result?.updateInfo };
+  } catch (error) {
+    log.error('Error checking for updates:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+// Download update
+ipcMain.handle('updater:download', async () => {
+  try {
+    if (isDev) {
+      return { success: false, message: 'Updates are disabled in development mode' };
+    }
+    await autoUpdater.downloadUpdate();
+    return { success: true, message: 'Update download started' };
+  } catch (error) {
+    log.error('Error downloading update:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+// Install update and restart
+ipcMain.handle('updater:install', async () => {
+  try {
+    if (isDev) {
+      return { success: false, message: 'Updates are disabled in development mode' };
+    }
+    autoUpdater.quitAndInstall(false, true);
+    return { success: true, message: 'Installing update...' };
+  } catch (error) {
+    log.error('Error installing update:', error);
+    return { success: false, message: error.message };
+  }
+});
+
+// Get current version
+ipcMain.handle('app:getVersion', () => {
+  return app.getVersion();
 });
 
 // ========================================
