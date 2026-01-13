@@ -9,6 +9,7 @@ const path = require('path');
 const DEFAULT_CONFIG = {
   clients: 500,
   invoices: 10000,
+  savedItems: 100,
   output: './output'
 };
 
@@ -97,6 +98,21 @@ const generateClients = (count) => {
     (name) => `${faker.company.name()}`,
   ];
 
+  const industries = [
+    'Technology', 'Healthcare', 'Finance', 'Manufacturing', 'Retail',
+    'Real Estate', 'Construction', 'Education', 'Legal Services',
+    'Marketing & Advertising', 'Consulting', 'Hospitality', 'Transportation',
+    'Energy', 'Telecommunications', 'Media & Entertainment', 'Agriculture',
+    'Automotive', 'Pharmaceutical', 'Insurance', 'E-commerce', 'Non-Profit'
+  ];
+
+  const companySizes = ['1-10', '11-50', '51-200', '201-500', '501-1000', '1000+'];
+  const accountStatuses = ['Active', 'Active', 'Active', 'Active', 'Active', 'Inactive', 'On Hold'];
+  const paymentMethods = ['Bank Transfer', 'Credit Card', 'PayPal', 'Check', 'ACH', 'Wire Transfer'];
+  const paymentTermsOptions = ['NET 15', 'NET 30', 'NET 45', 'NET 60', 'Due on Receipt', 'NET 30 EOM'];
+  const currencies = ['USD', 'USD', 'USD', 'USD', 'EUR', 'GBP', 'CAD'];
+  const languages = ['en', 'en', 'en', 'en', 'es', 'fr', 'de'];
+
   for (let i = 1; i <= count; i++) {
     const firstName = faker.person.firstName();
     const lastName = faker.person.lastName();
@@ -109,16 +125,93 @@ const generateClients = (count) => {
       .replace(/[^a-z0-9]/g, '')
       .substring(0, 20) + '.com';
 
+    const mainAddress = faker.location.streetAddress();
+    const mainCity = faker.location.city();
+    const mainState = faker.location.state({ abbreviated: true });
+    const mainZip = faker.location.zipCode('#####');
+
+    // 70% same billing, 30% different
+    const sameBilling = Math.random() > 0.3;
+    const billingAddress = sameBilling ? mainAddress : faker.location.streetAddress();
+    const billingCity = sameBilling ? mainCity : faker.location.city();
+    const billingState = sameBilling ? mainState : faker.location.state({ abbreviated: true });
+    const billingZip = sameBilling ? mainZip : faker.location.zipCode('#####');
+
+    // 80% same shipping, 20% different
+    const sameShipping = Math.random() > 0.2;
+    const shippingAddress = sameShipping ? mainAddress : faker.location.streetAddress();
+    const shippingCity = sameShipping ? mainCity : faker.location.city();
+    const shippingState = sameShipping ? mainState : faker.location.state({ abbreviated: true });
+    const shippingZip = sameShipping ? mainZip : faker.location.zipCode('#####');
+
+    const contactFirstName = faker.person.firstName();
+    const contactLastName = faker.person.lastName();
+    const secondaryContactFirstName = faker.person.firstName();
+    const secondaryContactLastName = faker.person.lastName();
+
+    const accountManagerFirstName = faker.person.firstName();
+    const accountManagerLastName = faker.person.lastName();
+
+    const creditLimit = faker.helpers.arrayElement([0, 5000, 10000, 25000, 50000, 100000]);
+    const currentCredit = creditLimit > 0 ? faker.number.float({ min: 0, max: creditLimit * 0.6, precision: 0.01 }) : 0;
+
+    const hasWebsite = Math.random() > 0.3; // 70% have websites
+    const hasSecondary = Math.random() > 0.4; // 60% have secondary contact
+    const hasBillingEmail = Math.random() > 0.5; // 50% have separate billing email
+    const hasTags = Math.random() > 0.3; // 70% have tags
+
+    const tags = hasTags ? faker.helpers.arrayElements(['VIP', 'Priority', 'Wholesale', 'Retail', 'New', 'Long-term', 'High-value', 'Referral'], faker.number.int({ min: 1, max: 3 })).join(',') : '';
+
+    const createdDate = randomDateBetween(twoYearsAgo, new Date());
+    const updatedDate = randomDateBetween(createdDate, new Date());
+
     clients.push({
       id: i,
-      name: companyName, // Use company name as the client name
+      customer_number: `CUST-${i.toString().padStart(5, '0')}`,
+      name: companyName,
       email: `info@${emailDomain}`,
       phone: faker.phone.number('(###) ###-####'),
-      address: faker.location.streetAddress(),
-      city: faker.location.city(),
-      state: faker.location.state({ abbreviated: true }),
-      zip: faker.location.zipCode('#####'),
-      created_at: formatDate(randomDateBetween(twoYearsAgo, new Date()))
+      address: mainAddress,
+      city: mainCity,
+      state: mainState,
+      zip: mainZip,
+      notes: faker.helpers.arrayElement(['', '', '', '', 'Important client', 'Net 30 terms', 'Contact before shipping', 'Requires PO number', 'Volume discount applied']),
+      // Credit Management
+      credit_limit: formatCurrency(creditLimit),
+      current_credit: formatCurrency(currentCredit),
+      payment_terms: faker.helpers.arrayElement(paymentTermsOptions),
+      tax_exempt: faker.helpers.arrayElement([0, 0, 0, 0, 0, 0, 0, 1]), // 12.5% tax exempt
+      tax_id: faker.helpers.arrayElement([0, 0, 1]) ? faker.string.numeric({ length: 2 }) + '-' + faker.string.numeric({ length: 7 }) : '',
+      // Additional Business Information
+      website: hasWebsite ? `https://www.${emailDomain}` : '',
+      industry: faker.helpers.arrayElement(industries),
+      company_size: faker.helpers.arrayElement(companySizes),
+      account_status: faker.helpers.arrayElement(accountStatuses),
+      billing_email: hasBillingEmail ? `billing@${emailDomain}` : '',
+      billing_address: billingAddress,
+      billing_city: billingCity,
+      billing_state: billingState,
+      billing_zip: billingZip,
+      shipping_address: shippingAddress,
+      shipping_city: shippingCity,
+      shipping_state: shippingState,
+      shipping_zip: shippingZip,
+      // Contact Information
+      contact_person: `${contactFirstName} ${contactLastName}`,
+      contact_title: faker.helpers.arrayElement(['CEO', 'CFO', 'Owner', 'Manager', 'Director', 'VP', 'President', 'Accounting Manager', 'Purchasing Manager']),
+      secondary_contact: hasSecondary ? `${secondaryContactFirstName} ${secondaryContactLastName}` : '',
+      secondary_email: hasSecondary ? `${secondaryContactFirstName.toLowerCase()}.${secondaryContactLastName.toLowerCase()}@${emailDomain}` : '',
+      secondary_phone: hasSecondary ? faker.phone.number('(###) ###-####') : '',
+      // Account Management
+      account_manager: faker.helpers.arrayElement(['', '', `${accountManagerFirstName} ${accountManagerLastName}`]), // 33% have account manager
+      preferred_payment_method: faker.helpers.arrayElement(paymentMethods),
+      default_discount_rate: faker.helpers.arrayElement([0, 0, 0, 0, 5, 10, 15]), // Most get 0%, some get discounts
+      currency: faker.helpers.arrayElement(currencies),
+      language: faker.helpers.arrayElement(languages),
+      tags: tags,
+      // Timestamps
+      created_at: formatDate(createdDate),
+      updated_at: formatDate(updatedDate)
     });
 
     if (i % 100 === 0) process.stdout.write(`\r  Progress: ${i}/${count}`);
@@ -359,6 +452,112 @@ const generatePayments = (invoices) => {
   return payments;
 };
 
+const generateSavedItems = (count) => {
+  console.log(`Generating ${count} saved items...`);
+  const savedItems = [];
+
+  const categories = {
+    'Consulting': [
+      { desc: 'Business Consulting - Hourly', rate: [100, 300], unit: 'Hour' },
+      { desc: 'IT Consulting - Hourly', rate: [125, 275], unit: 'Hour' },
+      { desc: 'Marketing Consultation', rate: [150, 350], unit: 'Hour' },
+      { desc: 'Financial Advisory Services', rate: [200, 500], unit: 'Hour' },
+      { desc: 'Strategy Planning Session', rate: [250, 600], unit: 'Session' }
+    ],
+    'Design': [
+      { desc: 'Logo Design', rate: [300, 1500], unit: 'Project' },
+      { desc: 'Website Design', rate: [1500, 5000], unit: 'Project' },
+      { desc: 'Graphic Design - Hourly', rate: [75, 175], unit: 'Hour' },
+      { desc: 'UI/UX Design - Hourly', rate: [100, 200], unit: 'Hour' },
+      { desc: 'Branding Package', rate: [2000, 8000], unit: 'Project' },
+      { desc: 'Social Media Graphics', rate: [50, 200], unit: 'Set' }
+    ],
+    'Development': [
+      { desc: 'Web Development - Hourly', rate: [100, 250], unit: 'Hour' },
+      { desc: 'Mobile App Development - Hourly', rate: [125, 300], unit: 'Hour' },
+      { desc: 'Database Design', rate: [150, 400], unit: 'Hour' },
+      { desc: 'API Development', rate: [125, 275], unit: 'Hour' },
+      { desc: 'Software Maintenance - Monthly', rate: [500, 2000], unit: 'Month' },
+      { desc: 'Code Review', rate: [100, 200], unit: 'Hour' }
+    ],
+    'Marketing': [
+      { desc: 'SEO Services - Monthly', rate: [500, 3000], unit: 'Month' },
+      { desc: 'Social Media Management', rate: [800, 3500], unit: 'Month' },
+      { desc: 'Content Writing', rate: [0.10, 0.50], unit: 'Word' },
+      { desc: 'Email Marketing Campaign', rate: [300, 1500], unit: 'Campaign' },
+      { desc: 'PPC Campaign Management', rate: [1000, 5000], unit: 'Month' },
+      { desc: 'Marketing Strategy Document', rate: [500, 2500], unit: 'Document' }
+    ],
+    'Photography': [
+      { desc: 'Event Photography - Hourly', rate: [150, 400], unit: 'Hour' },
+      { desc: 'Product Photography', rate: [200, 800], unit: 'Session' },
+      { desc: 'Photo Editing', rate: [25, 75], unit: 'Photo' },
+      { desc: 'Headshot Session', rate: [150, 500], unit: 'Session' },
+      { desc: 'Wedding Photography Package', rate: [2000, 8000], unit: 'Day' }
+    ],
+    'Video': [
+      { desc: 'Video Production - Hourly', rate: [150, 400], unit: 'Hour' },
+      { desc: 'Video Editing', rate: [100, 250], unit: 'Hour' },
+      { desc: 'Promotional Video', rate: [1500, 5000], unit: 'Video' },
+      { desc: 'Drone Videography', rate: [200, 600], unit: 'Hour' },
+      { desc: 'Animation Services', rate: [150, 400], unit: 'Hour' }
+    ],
+    'Writing': [
+      { desc: 'Technical Writing', rate: [75, 200], unit: 'Hour' },
+      { desc: 'Copywriting', rate: [100, 300], unit: 'Hour' },
+      { desc: 'Blog Post Writing', rate: [100, 500], unit: 'Post' },
+      { desc: 'Press Release', rate: [300, 1000], unit: 'Release' },
+      { desc: 'White Paper', rate: [1500, 5000], unit: 'Document' }
+    ],
+    'Support': [
+      { desc: 'Technical Support - Hourly', rate: [50, 150], unit: 'Hour' },
+      { desc: 'Help Desk Support - Monthly', rate: [500, 2000], unit: 'Month' },
+      { desc: 'System Maintenance', rate: [100, 250], unit: 'Hour' },
+      { desc: 'Emergency Support Call', rate: [150, 400], unit: 'Call' },
+      { desc: 'Training Session', rate: [200, 600], unit: 'Session' }
+    ],
+    'Products': [
+      { desc: 'Software License - Annual', rate: [99, 999], unit: 'License' },
+      { desc: 'Cloud Storage - Monthly', rate: [10, 100], unit: 'Month' },
+      { desc: 'SSL Certificate - Annual', rate: [50, 300], unit: 'Certificate' },
+      { desc: 'Domain Registration', rate: [10, 50], unit: 'Domain' },
+      { desc: 'Hosting - Monthly', rate: [20, 200], unit: 'Month' }
+    ]
+  };
+
+  let id = 1;
+  for (const [category, items] of Object.entries(categories)) {
+    for (const item of items) {
+      const rateValue = faker.number.float({ min: item.rate[0], max: item.rate[1], precision: 0.01 });
+      const costPrice = rateValue * faker.number.float({ min: 0.3, max: 0.6, precision: 0.01 });
+      const markupPercentage = ((rateValue - costPrice) / costPrice) * 100;
+
+      savedItems.push({
+        id: id++,
+        description: item.desc,
+        rate: formatCurrency(rateValue),
+        category: category,
+        sku: faker.string.alphanumeric({ length: 8, casing: 'upper' }),
+        barcode: faker.string.numeric({ length: 12 }),
+        unit_of_measure: item.unit,
+        cost_price: formatCurrency(costPrice),
+        markup_percentage: markupPercentage.toFixed(2),
+        taxable: faker.helpers.arrayElement([1, 1, 1, 0]), // 75% taxable
+        is_active: faker.helpers.arrayElement([1, 1, 1, 1, 0]), // 80% active
+        notes: faker.helpers.arrayElement(['', '', '', '', 'Popular item', 'Seasonal service', 'Premium offering']),
+        created_at: formatDate(randomDateBetween(new Date(new Date().setFullYear(new Date().getFullYear() - 2)), new Date())),
+        updated_at: formatDate(randomDateBetween(new Date(new Date().setFullYear(new Date().getFullYear() - 1)), new Date()))
+      });
+
+      if (id > count) break;
+    }
+    if (id > count) break;
+  }
+
+  console.log(`✓ saved_items.csv (${savedItems.length} records)`);
+  return savedItems.slice(0, count);
+};
+
 // ==================== CSV Writing ====================
 
 const arrayToCSV = (data) => {
@@ -461,6 +660,7 @@ const main = async () => {
   console.log('Configuration:');
   console.log(`  Clients: ${config.clients}`);
   console.log(`  Invoices: ${config.invoices}`);
+  console.log(`  Saved Items: ${config.savedItems}`);
   console.log(`  Output: ${config.output}\n`);
 
   // Create output directory
@@ -472,6 +672,7 @@ const main = async () => {
 
   // Generate data
   const clients = generateClients(config.clients);
+  const savedItems = generateSavedItems(config.savedItems);
   const invoices = generateInvoices(config.invoices, clients);
   const items = generateInvoiceItems(invoices);
   const payments = generatePayments(invoices);
@@ -482,6 +683,7 @@ const main = async () => {
   // Write CSV files
   console.log('\nWriting CSV files...');
   writeCSV('clients.csv', clients);
+  writeCSV('saved_items.csv', savedItems);
   writeCSV('invoices.csv', invoices);
   writeCSV('invoice_items.csv', items);
   writeCSV('payments.csv', payments);
@@ -491,10 +693,11 @@ const main = async () => {
   console.log('\n✅ Complete! Files saved to', path.resolve(config.output));
   console.log(`\nGenerated in ${elapsed}s:`);
   console.log(`  ${clients.length.toLocaleString()} clients`);
+  console.log(`  ${savedItems.length.toLocaleString()} saved items`);
   console.log(`  ${invoices.length.toLocaleString()} invoices`);
   console.log(`  ${items.length.toLocaleString()} invoice items`);
   console.log(`  ${payments.length.toLocaleString()} payments`);
-  console.log(`\nTotal records: ${(clients.length + invoices.length + items.length + payments.length).toLocaleString()}\n`);
+  console.log(`\nTotal records: ${(clients.length + savedItems.length + invoices.length + items.length + payments.length).toLocaleString()}\n`);
 };
 
 // Run
